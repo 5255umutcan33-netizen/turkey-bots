@@ -1,69 +1,32 @@
-const { EmbedBuilder, MessageFlags } = require('discord.js');
-const KeyModel = require('../models/key'); // 'Key' yerine 'key' yaptık
+// interactionCreate.js içindeki butona tıklandığındaki kısım
+const moment = require('moment'); // 'npm install moment' yapman gerekebilir
 
-module.exports = {
-    name: 'interactionCreate',
-    async execute(interaction, client) {
-        
-        // --- 1. SLASH KOMUTLAR ---
-        if (interaction.isChatInputCommand()) {
-            const command = client.commands.get(interaction.commandName);
-            if (!command) return;
+// ... (Key oluşturma mantığının içine)
+const generatedKey = `TURKEY-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+const expireDate = moment().add(24, 'hours').toDate();
 
-            try {
-                await command.execute(interaction);
-            } catch (error) {
-                console.error(error);
-                await interaction.reply({ content: 'Bir hata oluştu!', flags: [MessageFlags.Ephemeral] });
-            }
-        }
+const newKey = new KeyModel({
+    key: generatedKey,
+    createdBy: interaction.user.id,
+    expiresAt: expireDate
+});
 
-        // --- 2. BUTON TIKLAMALARI (KEY ALMA) ---
-        else if (interaction.isButton()) {
-            if (interaction.customId === 'generate_key') {
-                try {
-                    // Rastgele Key Üret
-                    const randomString = Math.random().toString(36).substring(2, 8).toUpperCase();
-                    const newKeyString = `KANKA-${randomString}`;
+await newKey.save();
 
-                    // Veritabanına Kaydet
-                    const newKey = new KeyModel({
-                        key: newKeyString,
-                        userId: interaction.user.id
-                    });
-                    
-                    await newKey.save();
+// KULLANICIYA GİDEN DM (PREMIUM TASARIM)
+const dmEmbed = new EmbedBuilder()
+    .setTitle('🇹🇷 TURKEY HUB | LİSANS TANIMLANDI')
+    .setDescription('Sisteme erişim anahtarın başarıyla oluşturuldu kanka.')
+    .setColor('#FF0000')
+    .addFields(
+        { name: '🔑 ANAHTARIN', value: `\`${generatedKey}\``, inline: false },
+        { name: '👤 OLUŞTURAN', value: `<@${interaction.user.id}>`, inline: true },
+        { name: '🆔 USER ID', value: `\`${interaction.user.id}\``, inline: true },
+        { name: '📅 OLUŞTURULMA', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+        { name: '⌛ BİTİŞ SÜRESİ', value: `<t:${Math.floor(expireDate.getTime() / 1000)}:F>`, inline: false },
+        { name: '⚠️ HWID DURUMU', value: 'İlk girişte bu cihaza kilitlenecektir!', inline: false }
+    )
+    .setFooter({ text: 'Turkey Hub - Kimseye anahtarını verme!' })
+    .setTimestamp();
 
-                    // Kullanıcıya DM At
-                    const dmEmbed = new EmbedBuilder()
-                        .setTitle('🔑 İşte Script Keyin!')
-                        .setDescription(`Scripti kullanmak için keyin: \`${newKeyString}\` \n\n*İyi oyunlar kanka!*`)
-                        .setColor('#00ff00');
-
-                    await interaction.user.send({ embeds: [dmEmbed] });
-
-                    // Kanala Bilgi Ver
-                    await interaction.reply({ 
-                        content: '✅ Keyin başarıyla oluşturuldu ve DM kutuna gönderildi!', 
-                        flags: [MessageFlags.Ephemeral] 
-                    });
-
-                } catch (error) {
-                    console.error('❌ Key Kaydetme Hatası:', error);
-                    
-                    if (error.code === 50007) {
-                        return interaction.reply({ 
-                            content: '❌ DM kutun kapalı olduğu için keyi gönderemedim!', 
-                            flags: [MessageFlags.Ephemeral] 
-                        });
-                    }
-
-                    await interaction.reply({ 
-                        content: '❌ Key oluşturulurken bir hata oluştu. Lütfen tekrar dene.', 
-                        flags: [MessageFlags.Ephemeral] 
-                    });
-                }
-            }
-        }
-    },
-};
+await interaction.user.send({ embeds: [dmEmbed] });

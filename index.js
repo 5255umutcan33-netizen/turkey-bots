@@ -1,70 +1,98 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const mongoose = require('mongoose');
-const fs = require('fs');
 const express = require('express');
+const moment = require('moment');
 
 const app = express();
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.MessageContent, 
-        GatewayIntentBits.DirectMessages
-    ],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages],
     partials: [Partials.Channel]
 });
 
-client.commands = new Collection();
+// --- VERİTABANI AYARLARI ---
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('✅ [DATABASE] Bağlantı Başarılı!'))
+    .catch(err => console.error('❌ [DATABASE] Hata:', err));
 
-// --- MONGODB BAĞLANTISI ---
-// Render'daki Environment Variables kısmına MONGO_URI eklemeyi unutma!
-const mongoURI = process.env.MONGO_URI || 'mongodb+srv://botadmin:botadmin123@cluster0.kouskjx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const KeyModel = mongoose.model('Key', new mongoose.Schema({
+    key: String,
+    hwid: { type: String, default: null },
+    createdBy: String,
+    createdAt: { type: Date, default: Date.now },
+    expiresAt: Date
+}));
 
-mongoose.connect(mongoURI)
-    .then(() => console.log('✅ [DATABASE] MongoDB Bağlantısı Başarılı!'))
-    .catch(err => console.error('❌ [DATABASE] Bağlantı Hatası:', err));
-
-// --- MODEL YÜKLEME (DİKKAT: Küçük-Büyük Harf Önemli) ---
-// Klasör adın: models | Dosya adın: Key.js olmalı!
-const KeyModel = require('./models/key');
-
-// --- ROBLOX API ---
+// --- ROBLOX DOĞRULAMA (API) ---
 app.get('/verify', async (req, res) => {
-    const key = req.query.key;
-    if (!key) return res.json({ success: false, message: "Key yok" });
+    const { key, hwid } = req.query;
+
+    if (!key || !hwid) return res.json({ success: false, message: "Eksik parametre (Key/HWID)!" });
 
     try {
-        const checkKey = await KeyModel.findOne({ key: key });
-        if (checkKey) {
-            res.json({ success: true });
-        } else {
-            res.json({ success: false });
+        const keyData = await KeyModel.findOne({ key: key });
+
+        if (!keyData) return res.json({ success: false, message: "Geçersiz Lisans!" });
+
+        // Süre Kontrolü
+        if (new Date() > keyData.expiresAt) {
+            await KeyModel.deleteOne({ key: key });
+            return res.json({ success: false, message: "Lisans süresi dolmuş!" });
         }
+
+        // HWID Kilidi
+        if (keyData.hwid === null) {
+            keyData.hwid = hwid;
+            await keyData.save();
+            return res.json({ success: true, message: "Cihazınız başarıyla zimmetlendi!" });
+        } else if (keyData.hwid !== hwid) {
+            return res.json({ success: false, message: "HWID Hatası! Bu key başka bir cihaza ait." });
+        }
+
+        return res.json({ success: true, message: "Giriş Başarılı!" });
     } catch (err) {
-        res.json({ success: false });
+        res.json({ success: false, message: "Sunucu hatası oluştu!" });
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 [WEB] API ${PORT} portunda aktif!`));
+// --- DISCORD ETKİLEŞİM (Modern DM & Panel) ---
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
 
-// --- KOMUT VE EVENT YÜKLEYİCİ ---
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
-for (const file of commandFiles) {
-    const command = require(`./commands/${file}`);
-    client.commands.set(command.data.name, command);
-}
+    if (interaction.customId === 'get_key') {
+        const generatedKey = `TURKEY-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        const expireDate = moment().add(24, 'hours').toDate();
 
-const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
-for (const file of eventFiles) {
-    const event = require(`./events/${file}`);
-    if (event.once) {
-        client.once(event.name, (...args) => event.execute(...args, client));
-    } else {
-        client.on(event.name, (...args) => event.execute(...args, client));
+        const newKey = new KeyModel({
+            key: generatedKey,
+            createdBy: interaction.user.id,
+            expiresAt: expireDate
+        });
+
+        try {
+            await newKey.save();
+
+            const dmEmbed = new EmbedBuilder()
+                .setTitle('🇹🇷 TURKEY HUB | LİSANS ONAYI')
+                .setThumbnail(interaction.user.displayAvatarURL())
+                .setColor('#FF0000')
+                .addFields(
+                    { name: '🔑 ANAHTARIN', value: `\`${generatedKey}\``, inline: false },
+                    { name: '👤 OLUŞTURAN', value: `<@${interaction.user.id}>`, inline: true },
+                    { name: '📅 TARİH', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+                    { name: '⌛ BİTİŞ', value: `<t:${Math.floor(expireDate.getTime() / 1000)}:F>`, inline: false },
+                    { name: '⚠️ NOT', value: 'Bu key sadece ilk girdiğin cihazda çalışır (HWID Lock).', inline: false }
+                )
+                .setFooter({ text: 'Turkey Hub Premium Services' })
+                .setTimestamp();
+
+            await interaction.user.send({ embeds: [dmEmbed] });
+            await interaction.reply({ content: '✅ Keyin DM kutuna mermi gibi gönderildi kanka!', ephemeral: true });
+        } catch (err) {
+            await interaction.reply({ content: '❌ Hata: DM kutun kapalı olabilir!', ephemeral: true });
+        }
     }
-}
+});
 
-// Botu başlat
-client.login(process.env.TOKEN).catch(err => console.error("❌ Bot Token Hatası!"));
+app.listen(process.env.PORT || 3000, () => console.log('🚀 [WEB] API Aktif!'));
+client.login(process.env.TOKEN);

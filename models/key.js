@@ -2,10 +2,10 @@ const mongoose = require('mongoose');
 
 const keySchema = new mongoose.Schema({
     key: { type: String, required: true, unique: true },
-    userId: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
+    hwid: { type: String, default: null }, // İlk girişte buraya kaydedilecek
+    createdBy: { type: String, required: true }, // Oluşturanın Discord ID'si
+    createdAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, required: true }
 });
 
-// Modelin dışarıya doğru aktarıldığından emin oluyoruz
-const Key = mongoose.model('Key', keySchema);
-module.exports = Key;
+module.exports = mongoose.model('Key', keySchema);
