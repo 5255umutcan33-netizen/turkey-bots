@@ -18,17 +18,21 @@ const client = new Client({
 client.commands = new Collection();
 
 // --- MONGODB BAĞLANTISI ---
-const mongoURI = 'mongodb+srv://botadmin:botadmin123@cluster0.kouskjx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+// Render'daki Environment Variables kısmına MONGO_URI eklemeyi unutma!
+const mongoURI = process.env.MONGO_URI || 'mongodb+srv://botadmin:botadmin123@cluster0.kouskjx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
 mongoose.connect(mongoURI)
     .then(() => console.log('✅ [DATABASE] MongoDB Bağlantısı Başarılı!'))
     .catch(err => console.error('❌ [DATABASE] Bağlantı Hatası:', err));
 
+// --- MODEL YÜKLEME (DİKKAT: Küçük-Büyük Harf Önemli) ---
+// Klasör adın: models | Dosya adın: Key.js olmalı!
 const KeyModel = require('./models/Key');
 
-// --- ROBLOX API (KONTROL NOKTASI) ---
+// --- ROBLOX API ---
 app.get('/verify', async (req, res) => {
     const key = req.query.key;
-    if (!key) return res.json({ success: false });
+    if (!key) return res.json({ success: false, message: "Key yok" });
 
     try {
         const checkKey = await KeyModel.findOne({ key: key });
@@ -62,4 +66,5 @@ for (const file of eventFiles) {
     }
 }
 
-client.login(process.env.TOKEN);
+// Botu başlat
+client.login(process.env.TOKEN).catch(err => console.error("❌ Bot Token Hatası!"));
