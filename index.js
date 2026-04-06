@@ -27,7 +27,7 @@ mongoose.connect(mongoURI)
 
 // --- MODEL YÜKLEME (DİKKAT: Küçük-Büyük Harf Önemli) ---
 // Klasör adın: models | Dosya adın: Key.js olmalı!
-const KeyModel = require('./models/Key');
+const KeyModel = require('./models/key');
 
 // --- ROBLOX API ---
 app.get('/verify', async (req, res) => {
