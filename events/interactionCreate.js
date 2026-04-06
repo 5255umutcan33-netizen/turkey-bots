@@ -1,5 +1,5 @@
 const { EmbedBuilder, MessageFlags } = require('discord.js');
-const KeyModel = require('../models/Key');
+const KeyModel = require('../models/key'); // 'Key' yerine 'key' yaptık
 
 module.exports = {
     name: 'interactionCreate',
