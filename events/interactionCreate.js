@@ -26,19 +26,23 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
-        // --- YENİ EKLENEN: MOBİL SCRIPT KOPYALAMA BUTONU ---
+        // --- MOBİL SCRIPT KOPYALAMA BUTONU (GARANTİLİ YÖNTEM) ---
         if (cid === 'mobil_kopyala_btn') {
-            // Embed'in içinden script kodunu gizlice çekeriz
             const embed = interaction.message.embeds[0];
-            if (!embed) return interaction.reply({ content: '`Script bulunamadı.`', ephemeral: true });
+            if (!embed) return interaction.reply({ content: '`Embed bulunamadı.`', ephemeral: true });
 
-            const scriptAlani = embed.fields.find(f => f.name === '🔗 Script Kodu');
-            if (!scriptAlani) return interaction.reply({ content: '`Kod bulunamadı.`', ephemeral: true });
+            // Footer'dan dili algıla
+            const isEn = embed.footer && embed.footer.text.includes('Mobile users');
 
-            // Kodun başındaki ve sonundaki ```lua işaretlerini temizliyoruz
-            let temizKod = scriptAlani.value.replace(/```lua\n/g, '').replace(/```/g, '').trim();
+            // İSME GÖRE ARAMAK YERİNE DİREKT 2. KUTUYU (index 1) ÇEKİYORUZ!
+            const scriptAlani = embed.fields[1]; 
+            
+            if (!scriptAlani) return interaction.reply({ content: isEn ? '`Code not found.`' : '`Kod bulunamadı.`', ephemeral: true });
 
-            // Sadece butona basan kişiye görünür (ephemeral), kopyalaması çok rahattır
+            // Kodun başındaki ve sonundaki ```lua işaretlerini en temiz şekilde yok et
+            let temizKod = scriptAlani.value.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
+
+            // Adamın ekranına sadece dümdüz kodu fırlat
             return interaction.reply({ content: `${temizKod}`, ephemeral: true });
         }
 
