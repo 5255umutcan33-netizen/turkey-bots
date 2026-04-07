@@ -26,6 +26,23 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
+        // --- YENİ EKLENEN: MOBİL SCRIPT KOPYALAMA BUTONU ---
+        if (cid === 'mobil_kopyala_btn') {
+            // Embed'in içinden script kodunu gizlice çekeriz
+            const embed = interaction.message.embeds[0];
+            if (!embed) return interaction.reply({ content: '`Script bulunamadı.`', ephemeral: true });
+
+            const scriptAlani = embed.fields.find(f => f.name === '🔗 Script Kodu');
+            if (!scriptAlani) return interaction.reply({ content: '`Kod bulunamadı.`', ephemeral: true });
+
+            // Kodun başındaki ve sonundaki ```lua işaretlerini temizliyoruz
+            let temizKod = scriptAlani.value.replace(/```lua\n/g, '').replace(/```/g, '').trim();
+
+            // Sadece butona basan kişiye görünür (ephemeral), kopyalaması çok rahattır
+            return interaction.reply({ content: `${temizKod}`, ephemeral: true });
+        }
+
+        // --- VERİTABANI SİLME (SADECE SEN) ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '`⚠️ YETKİ YOK`', ephemeral: true });
             await KeyModel.deleteMany({});
@@ -34,6 +51,7 @@ module.exports = {
 
         if (cid === 'cancel_delete_all') return interaction.update({ content: '`İptal edildi.`', embeds: [], components: [] });
 
+        // --- KEY ALMA (TR/EN) ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             if (cooldown.has(interaction.user.id)) return interaction.reply({ content: '`Bekle...`', ephemeral: true });
             cooldown.add(interaction.user.id);
@@ -48,7 +66,7 @@ module.exports = {
 
             try {
                 await interaction.user.send(`🚀 RYPHERA KEY: \`${rypKey}\``);
-                return interaction.reply({ content: '`BAŞARILI: DM kutuna bak!`', ephemeral: true });
+                return interaction.reply({ content: isEn ? '`SUCCESS: Check DMs!`' : '`BAŞARILI: DM kutuna bak!`', ephemeral: true });
             } catch (e) { return interaction.reply({ content: '`DM KAPALI!`', ephemeral: true }); }
         }
     }
