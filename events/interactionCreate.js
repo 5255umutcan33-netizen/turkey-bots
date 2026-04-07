@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 const KeyModel = require('../models/key');
-const Counter = require('../models/counter'); 
+const Counter = require('../models/counter'); // Sayı sayacı dosyası şart!
 
 const cooldown = new Set(); 
 
@@ -13,15 +13,11 @@ module.exports = {
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
-            try { await command.execute(interaction); } 
-            catch (error) {
-                if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '`HATA`', ephemeral: true });
-                else await interaction.reply({ content: '`HATA`', ephemeral: true });
-            }
+            try { await command.execute(interaction); } catch (error) { console.error(error); }
             return;
         }
 
-        // --- 2. BUTON KONTROLLERİ ---
+        // --- 2. BUTONLAR ---
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
@@ -51,54 +47,67 @@ module.exports = {
             return interaction.channel.send({ embeds: [claimEmbed] });
         }
 
-        // --- TICKET AÇMA (SIRALI NUMARA SİSTEMİ) ---
+        // --- TICKET AÇMA (BOŞ KANAL HATASI FİXLENDİ) ---
         const ticketIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (ticketIds.includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
+
+            // KORUMA: 1 Kişi sadece 1 ticket açabilir
             const existingTicket = interaction.guild.channels.cache.find(c => c.topic === interaction.user.id);
             if (existingTicket) {
                 return interaction.reply({ content: isEn ? '`You already have an open ticket.`' : '`Zaten açık bir biletiniz var.`', ephemeral: true });
             }
 
-            // SAYAÇTAN SIRADAKİ NUMARAYI ÇEK (1, 2, 3...)
+            // SIRALI NUMARA ÇEKME
             let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
-            const ticketNo = counter.seq;
+            const ticketNo = counter ? counter.seq : Math.floor(Math.random() * 1000); // Sayaç bozuksa rastgele atar
 
-            let typeName = '', titleName = '';
+            let typeName = 'bilet', titleName = 'DESTEK';
             if (cid.includes('support')) { typeName = isEn ? 'support' : 'destek'; titleName = isEn ? 'SUPPORT' : 'DESTEK'; }
-            if (cid.includes('partner')) { typeName = isEn ? 'partner' : 'is-birligi'; titleName = isEn ? 'PARTNER' : 'İŞ BİRLİĞİ'; }
-            if (cid.includes('key')) { typeName = 'key'; titleName = isEn ? 'KEY OPS' : 'KEY İŞLEMLERİ'; }
+            else if (cid.includes('partner')) { typeName = isEn ? 'partner' : 'is-birligi'; titleName = isEn ? 'PARTNER' : 'İŞ BİRLİĞİ'; }
+            else if (cid.includes('key')) { typeName = 'key'; titleName = isEn ? 'KEY OPS' : 'KEY İŞLEMLERİ'; }
 
-            const ticketChannel = await interaction.guild.channels.create({
-                name: `${typeName}-${interaction.user.username}-${ticketNo}`,
-                type: ChannelType.GuildText,
-                topic: interaction.user.id, 
-                permissionOverwrites: [
-                    { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, 
-                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }, 
-                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
-                ]
-            });
+            try {
+                // KANAL OLUŞTURMA
+                const ticketChannel = await interaction.guild.channels.create({
+                    name: `${typeName}-${interaction.user.username}-${ticketNo}`,
+                    type: ChannelType.GuildText,
+                    topic: interaction.user.id, 
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, 
+                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }, 
+                        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
+                    ]
+                });
 
-            const ticketEmbed = new EmbedBuilder()
-                .setTitle(`💬 RYPHERA OS | ${titleName}`)
-                .setColor('#2B2D31')
-                .setDescription(isEn 
-                    ? `>>> 👋 **Hello, <@${interaction.user.id}>**\n\nPlease describe your issue. Our staff will assist you shortly.`
-                    : `>>> 👋 **Merhaba, <@${interaction.user.id}>**\n\nLütfen talebinizi buraya yazın. Yetkililerimiz birazdan sizinle ilgilenecek.`)
-                .setFooter({ text: `Bilet #${ticketNo} | ${interaction.user.tag}` })
-                .setTimestamp();
+                // KANAL İÇİ MESAJ
+                const ticketEmbed = new EmbedBuilder()
+                    .setTitle(`💬 RYPHERA OS | ${titleName}`)
+                    .setColor('#2B2D31')
+                    .setDescription(isEn 
+                        ? `>>> 👋 **Hello, <@${interaction.user.id}>**\n\nPlease describe your issue. Our staff will assist you shortly.`
+                        : `>>> 👋 **Merhaba, <@${interaction.user.id}>**\n\nLütfen talebinizi buraya yazın. Yetkililerimiz birazdan sizinle ilgilenecek.`)
+                    .setFooter({ text: `Bilet #${ticketNo} | ${interaction.user.tag}` })
+                    .setTimestamp();
 
-            const actionRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setEmoji('🗪').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close' : 'Kapat').setEmoji('📩').setStyle(ButtonStyle.Danger)
-            );
+                const actionRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setEmoji('🗪').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close' : 'Kapat').setEmoji('📩').setStyle(ButtonStyle.Danger)
+                );
 
-            await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [actionRow] });
-            return interaction.reply({ content: isEn ? `\`Ticket created:\` <#${ticketChannel.id}>` : `\`Bilet oluşturuldu:\` <#${ticketChannel.id}>`, ephemeral: true });
+                // Mesajı kanala gönder
+                await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [actionRow] });
+
+                // Kullanıcıya bildirim ver
+                return interaction.reply({ content: isEn ? `\`Ticket created:\` <#${ticketChannel.id}>` : `\`Bilet oluşturuldu:\` <#${ticketChannel.id}>`, ephemeral: true });
+
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '`SİSTEMSEL HATA: Kanal oluşturulamadı!`', ephemeral: true });
+            }
         }
 
-        // --- MOBİL SCRIPT KOPYALAMA ---
+        // --- MOBİL KOPYALAMA ---
         if (cid === 'mobil_kopyala_btn') {
             const embed = interaction.message.embeds[0];
             const scriptAlani = embed.fields[1]; 
@@ -112,7 +121,6 @@ module.exports = {
             await KeyModel.deleteMany({});
             return interaction.update({ content: '`✅ Veritabanı temizlendi.`', components: [] });
         }
-        if (cid === 'cancel_delete_all') return interaction.update({ content: '`İptal edildi.`', components: [] });
 
         // --- KEY ALMA ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
