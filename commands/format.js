@@ -6,7 +6,7 @@ module.exports = {
         .setDescription('Profesyonel script tanıtım şablonu oluşturur.')
         .addStringOption(option => option.setName('isim').setDescription('Scriptin Adı (Örn: Ryphera Hub)').setRequired(true))
         .addStringOption(option => option.setName('kod').setDescription('Script Kodu (Örn: loadstring...)').setRequired(true))
-        .addStringOption(option => option.setName('ozellikler').setDescription('Özellikler (Virgülle ayırın. Örn: Aimbot, ESP, Para Hilesi)').setRequired(true))
+        .addStringOption(option => option.setName('ozellikler').setDescription('Özellikler (Boşluk bırakarak yazın. Örn: Aimbot ESP Fly)').setRequired(true))
         .addAttachmentOption(option => option.setName('resim').setDescription('Scriptin Görseli').setRequired(false)),
 
     async execute(interaction) {
@@ -15,15 +15,16 @@ module.exports = {
         const ozellikler = interaction.options.getString('ozellikler');
         const resim = interaction.options.getAttachment('resim');
 
-        // Emojiler silindi, sadece modern liste noktası (•) kullanıldı
-        const ozellikListesi = ozellikler.split(',')
-            .slice(0, 20) // Max 20 özellik sınırı
-            .map(ozellik => `• ${ozellik.trim()}`)
+        // Her boşlukta kelimeyi alıp alt satıra geçirir
+        const ozellikListesi = ozellikler.split(/\s+/)
+            .slice(0, 20) // Max 20 sınırını koruyoruz
+            .filter(ozellik => ozellik.length > 0) // Fazladan boşlukları yok sayar
+            .map(ozellik => `• ${ozellik}`)
             .join('\n');
 
         const embed = new EmbedBuilder()
             .setTitle(isim)
-            .setColor('#2B2D31') // Discord'un orijinal koyu teması
+            .setColor('#2B2D31')
             .addFields(
                 { name: 'Özellikler', value: `>>> ${ozellikListesi}`, inline: false },
                 { name: 'Script Kodu', value: `\`\`\`lua\n${kod}\n\`\`\``, inline: false }
@@ -35,7 +36,6 @@ module.exports = {
             embed.setImage(resim.url);
         }
 
-        // Buton rengi yeşilden gri/siyaha (Secondary) çekildi, daha premium durması için
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('mobil_kopyala_btn')

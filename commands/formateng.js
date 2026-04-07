@@ -6,7 +6,7 @@ module.exports = {
         .setDescription('Creates a professional script presentation template.')
         .addStringOption(option => option.setName('name').setDescription('Script Name (e.g., Ryphera Hub)').setRequired(true))
         .addStringOption(option => option.setName('code').setDescription('Script Code (e.g., loadstring...)').setRequired(true))
-        .addStringOption(option => option.setName('features').setDescription('Features (separate with commas. e.g., Aimbot, ESP, Fly)').setRequired(true))
+        .addStringOption(option => option.setName('features').setDescription('Features (separate with spaces. e.g., Aimbot ESP Fly)').setRequired(true))
         .addAttachmentOption(option => option.setName('image').setDescription('Script Image').setRequired(false)),
 
     async execute(interaction) {
@@ -15,9 +15,11 @@ module.exports = {
         const features = interaction.options.getString('features');
         const image = interaction.options.getAttachment('image');
 
-        const featureList = features.split(',')
+        // Her boşlukta kelimeyi alıp alt satıra geçirir
+        const featureList = features.split(/\s+/)
             .slice(0, 20)
-            .map(feature => `• ${feature.trim()}`)
+            .filter(feature => feature.length > 0)
+            .map(feature => `• ${feature}`)
             .join('\n');
 
         const embed = new EmbedBuilder()
