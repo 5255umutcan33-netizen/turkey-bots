@@ -51,6 +51,49 @@ module.exports = {
         }
 
         if (!interaction.isButton()) return;
+        // --- BAŞVURU ONAY/RED BUTONLARI ---
+        if (interaction.customId.startsWith('app_onay_') || interaction.customId.startsWith('app_red_')) {
+            // Sadece senin ID'n basabilir (Güvenlik)
+            if (interaction.user.id !== '345821033414262794') {
+                return interaction.reply({ content: '`⚠️ Bu işlemi sadece Kurucu yapabilir!`', ephemeral: true });
+            }
+
+            const action = interaction.customId.startsWith('app_onay_') ? 'onay' : 'red';
+            const targetId = interaction.customId.split('_')[2]; // ID'yi butondan çektik
+
+            try {
+                const targetUser = await client.users.fetch(targetId);
+                
+                // DM Mesajı Tasarımı
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle('Ryphera OS | Başvuru Sonucu')
+                    .setTimestamp();
+
+                if (action === 'onay') {
+                    dmEmbed.setColor('#00FF00').setDescription('🎉 **Tebrikler!** Ryphera OS yetkili başvurunuz başarıyla **ONAYLANDI**. Lütfen kurucularla iletişime geçin.');
+                } else {
+                    dmEmbed.setColor('#FF0000').setDescription('❌ **Üzgünüz,** Ryphera OS yetkili başvurunuz maalesef **REDDEDİLMİŞTİR**.');
+                }
+
+                // Kullanıcıya DM Şutla (Adamın DM'si kapalıysa catch ile hatayı yutar, bot çökmez)
+                await targetUser.send({ embeds: [dmEmbed] }).catch(() => console.log('DM atılamadı, adamın özeli kapalı.'));
+
+                // Log Kanalındaki Mesajı Güncelle (Butonları kaldır ki bir daha basılamasın)
+                const statusText = action === 'onay' ? '✅ **KABUL EDİLDİ**' : '❌ **REDDEDİLDİ**';
+                const originalEmbed = interaction.message.embeds[0];
+
+                await interaction.update({
+                    content: `> **DURUM:** ${statusText} \n> **İşlemi Yapan:** <@${interaction.user.id}>`,
+                    embeds: [originalEmbed],
+                    components: [] // Butonları sildik
+                });
+                return;
+
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '`❌ Hata: Kullanıcı bulunamadı veya işlem başarısız.`', ephemeral: true });
+            }
+        }
         const cid = interaction.customId;
 
         // --- BAŞVURU BUTONU (MODAL AÇMA) ---
