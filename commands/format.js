@@ -6,7 +6,7 @@ module.exports = {
         .setDescription('Profesyonel script tanıtım şablonu oluşturur.')
         .addStringOption(option => option.setName('isim').setDescription('Scriptin Adı (Örn: Ryphera Hub)').setRequired(true))
         .addStringOption(option => option.setName('kod').setDescription('Script Kodu (Örn: loadstring...)').setRequired(true))
-        .addStringOption(option => option.setName('ozellikler').setDescription('Özellikler (Virgülle ayırın. Örn: Aimbot, ESP, Fly)').setRequired(true))
+        .addStringOption(option => option.setName('ozellikler').setDescription('Özellikler (Virgülle ayırın. Örn: Aimbot, ESP, Para Hilesi)').setRequired(true))
         .addAttachmentOption(option => option.setName('resim').setDescription('Scriptin Görseli').setRequired(false)),
 
     async execute(interaction) {
@@ -15,31 +15,32 @@ module.exports = {
         const ozellikler = interaction.options.getString('ozellikler');
         const resim = interaction.options.getAttachment('resim');
 
-        // Özellikleri virgülle ayırıp, şık bir listeye dönüştürüyoruz (Max 20 özellik)
+        // Emojiler silindi, sadece modern liste noktası (•) kullanıldı
         const ozellikListesi = ozellikler.split(',')
-            .slice(0, 20)
-            .map(ozellik => `⚡ ${ozellik.trim()}`)
+            .slice(0, 20) // Max 20 özellik sınırı
+            .map(ozellik => `• ${ozellik.trim()}`)
             .join('\n');
 
         const embed = new EmbedBuilder()
-            .setTitle(`💎 ${isim}`)
-            .setColor('#2B2D31')
+            .setTitle(isim)
+            .setColor('#2B2D31') // Discord'un orijinal koyu teması
             .addFields(
-                { name: '✨ Özellikler', value: `>>> ${ozellikListesi}`, inline: false },
-                { name: '🔗 Script Kodu', value: `\`\`\`lua\n${kod}\n\`\`\``, inline: false }
+                { name: 'Özellikler', value: `>>> ${ozellikListesi}`, inline: false },
+                { name: 'Script Kodu', value: `\`\`\`lua\n${kod}\n\`\`\``, inline: false }
             )
-            .setFooter({ text: 'RYPHERA OS | Mobil için aşağıdaki butona tıkla.' })
+            .setFooter({ text: 'RYPHERA OS | Mobiller için aşağıdaki butona tıkla.' })
             .setTimestamp();
 
         if (resim) {
             embed.setImage(resim.url);
         }
 
+        // Buton rengi yeşilden gri/siyaha (Secondary) çekildi, daha premium durması için
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('mobil_kopyala_btn')
-                .setLabel('📱 Mobiller İçin Kopyala')
-                .setStyle(ButtonStyle.Success)
+                .setLabel('Mobiller İçin Kopyala')
+                .setStyle(ButtonStyle.Secondary)
         );
 
         await interaction.reply({ embeds: [embed], components: [row] });
