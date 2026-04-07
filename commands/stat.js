@@ -4,40 +4,53 @@ const KeyModel = require('../models/key');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stat')
-        .setDescription('Sunucu ve sistem istatistiklerini mermi gibi gösterir.'),
+        .setDescription('Sunucu ve RYPHERA sistem istatistiklerini gösterir.'),
     async execute(interaction) {
+        await interaction.deferReply(); // Bot biraz düşünme payı alsın (DB sorgusu için)
+
         const { guild, client } = interaction;
 
-        // 1. Üye ve Bot Sayılarını Hesapla
+        // Üye ve Bot Sayıları
         const totalMembers = guild.memberCount;
-        const botCount = guild.members.cache.filter(member => member.user.bot).size;
+        const botCount = guild.members.cache.filter(m => m.user.bot).size;
         const humanCount = totalMembers - botCount;
 
-        // 2. Veritabanından Aktif Key Sayısını Çek
+        // Aktif Key Sayısı
         let activeKeys = 0;
-        try {
-            activeKeys = await KeyModel.countDocuments({});
-        } catch (error) {
-            console.error("DB Stat Hatası:", error);
-        }
+        try { activeKeys = await KeyModel.countDocuments({}); } catch (e) {}
 
-        // 3. Bot Kurucusu (Senin ID'ni buraya yazabilirsin)
-        const botOwnerId = "345821033414262794"; // Buraya kendi Discord ID'ni yapıştır kanka
+        const OWNER_ID = '345821033414262794'; // Senin ID'n
 
-        // 4. Şık Embed Hazırla
+        // --- PREMİUM EMBED TASARIMI ---
         const statEmbed = new EmbedBuilder()
-            .setTitle('📊 RYPHERA OS | SİSTEM İSTATİSTİKLERİ')
-            .setColor('#FF0000') // Ryphera kırmızısı
-            .setThumbnail(guild.iconURL({ dynamic: true }))
+            .setTitle('🚀 RYPHERA OS | SYSTEM STATUS')
+            .setColor('#2B2D31') // Discord'un orijinal dark temasına uygun çok şık bir renk (veya #FF0000 yapabilirsin)
+            .setThumbnail(guild.iconURL({ dynamic: true, size: 512 }))
             .addFields(
-                { name: '👑 Kurucular', value: `Sunucu: <@${guild.ownerId}>\nBot: <@${botOwnerId}>`, inline: false },
-                { name: '👥 Üyeler', value: `Toplam: \`${totalMembers}\`\nKullanıcı: \`${humanCount}\`\nBot: \`${botCount}\``, inline: true },
-                { name: '🔑 Lisans Sistemi', value: `Aktif Keyler: \`${activeKeys}\``, inline: true },
-                { name: '🌐 Sunucu Bilgisi', value: `ID: \`${guild.id}\`\nKuruluş: <t:${Math.floor(guild.createdTimestamp / 1000)}:R>`, inline: false }
+                { 
+                    name: '💻 Sunucu Bilgisi', 
+                    value: `**Adı:** \`${guild.name}\`\n**ID:** \`${guild.id}\`\n**Kurucu:** <@${guild.ownerId}>`, 
+                    inline: false 
+                },
+                { 
+                    name: '👥 Kullanıcılar', 
+                    value: `**👤 Üyeler:** \`${humanCount}\`\n**🤖 Botlar:** \`${botCount}\`\n**📊 Toplam:** \`${totalMembers}\``, 
+                    inline: true 
+                },
+                { 
+                    name: '🔑 Lisans Durumu', 
+                    value: `**🟢 Aktif Key:** \`${activeKeys}\`\n**🛠️ Altyapı:** \`MongoDB\``, 
+                    inline: true 
+                },
+                { 
+                    name: '⚙️ Teknik Detaylar', 
+                    value: `**Geliştirici:** <@${OWNER_ID}>\n**Ping:** \`${client.ws.ping}ms\`\n**Uptime:** <t:${Math.floor(client.readyTimestamp / 1000)}:R>`, 
+                    inline: false 
+                }
             )
             .setFooter({ text: 'Ryphera Scripting Solutions', iconURL: client.user.displayAvatarURL() })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [statEmbed] });
+        await interaction.editReply({ embeds: [statEmbed] });
     },
 };
