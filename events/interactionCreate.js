@@ -34,7 +34,6 @@ module.exports = {
             const isEn = cid.includes('en');
             const row = ActionRowBuilder.from(interaction.message.components[0]);
             
-            // Hata veren emojiyi "💬" ile değiştirdik
             row.components[0].setDisabled(true).setLabel(isEn ? `Claimed: ${interaction.user.username}` : `Sahiplenen: ${interaction.user.username}`);
             
             await interaction.update({ components: [row] });
@@ -57,8 +56,16 @@ module.exports = {
 
                 let type = isEn ? 'support' : 'destek';
                 let title = isEn ? 'SUPPORT' : 'DESTEK';
-                if (cid.includes('partner')) { type = isEn ? 'partner' : 'is-birligi'; title = isEn ? 'PARTNER'; }
-                if (cid.includes('key')) { type = 'key'; title = isEn ? 'KEY OPERATIONS' : 'KEY İŞLEMLERİ'; }
+                
+                // BURAYI DÜZELTTİM KANKA!
+                if (cid.includes('partner')) { 
+                    type = isEn ? 'partner' : 'is-birligi'; 
+                    title = isEn ? 'PARTNERSHIP' : 'İŞ BİRLİĞİ'; 
+                }
+                if (cid.includes('key')) { 
+                    type = 'key'; 
+                    title = isEn ? 'KEY OPERATIONS' : 'KEY İŞLEMLERİ'; 
+                }
 
                 const ticketChannel = await interaction.guild.channels.create({
                     name: `${type}-${interaction.user.username}-${ticketNo}`,
@@ -81,7 +88,6 @@ module.exports = {
                     .setTimestamp();
 
                 const row = new ActionRowBuilder().addComponents(
-                    // Hata veren emojileri en güvenli halleriyle güncelledik
                     new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setEmoji('💬').setStyle(ButtonStyle.Success),
                     new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close' : 'Kapat').setEmoji('📩').setStyle(ButtonStyle.Danger)
                 );
