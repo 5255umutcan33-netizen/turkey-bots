@@ -71,4 +71,13 @@ module.exports = {
             await pMsg.edit('`SYSTEM ERROR: OCR Failed.`'); 
         }
 
-        // Temizlik: 4 saniye sonra mesaj
+        // Temizlik: 4 saniye sonra mesajları sil
+        setTimeout(async () => {
+            try { 
+                await message.delete(); 
+                await pMsg.delete(); 
+            } catch (e) {}
+            processing.delete(message.id);
+        }, 4000);
+    }
+};
