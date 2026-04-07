@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 
 const keySchema = new mongoose.Schema({
-    key: { type: String, required: true },
-    keyId: { type: String, required: true },
-    hwid: { type: String, default: null },
-    createdBy: { type: String, required: true },
+    key: { type: String, required: true, unique: true },
+    hwid: { type: String, default: null }, // Null ise boşta, doluysa bir cihaza kayıtlı
+    expiry: { type: String, default: 'Sınırsız' },
+    owner: { type: String, default: null }, // Hangi Discord ID'sine ait
     createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.models.RypheraKey || mongoose.model('RypheraKey', keySchema);
+module.exports = mongoose.model('RypheraKey', keySchema);

@@ -4,7 +4,71 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const KeyModel = require('./models/Key.js'); // Az önce oluşturduğumuz dosyanın yolu
 
+const app = express();
+app.use(cors()); // Sitenin bota bağlanmasına izin verir
+app.use(express.json()); // Gelen verileri okumasını sağlar
+
+// 1. SİTEDEN TÜM KEYLERİ İSTEME KÖPRÜSÜ
+app.get('/api/keys', async (req, res) => {
+    try {
+        const keys = await KeyModel.find().sort({ createdAt: -1 });
+        res.json(keys);
+    } catch (err) {
+        res.status(500).json({ error: 'Veritabanı hatası' });
+    }
+});
+
+// 2. SİTEDEN YENİ KEY OLUŞTURMA KÖPRÜSÜ
+app.post('/api/keys/generate', async (req, res) => {
+    const { userId, keyName, expiry } = req.body;
+
+    // Sadece Kurucu ID'si key üretebilir (Güvenlik Duvarı)
+    if (userId !== '345821033414262794') {
+        return res.status(403).json({ error: 'Yetkisiz işlem!' });
+    }
+
+    try {
+        const newKey = new KeyModel({
+            key: keyName,
+            expiry: expiry,
+            hwid: null,
+            owner: userId
+        });
+        await newKey.save();
+        res.json({ success: true, message: 'Key başarıyla üretildi.', key: newKey });
+    } catch (err) {
+        res.status(500).json({ error: 'Key oluşturulamadı' });
+    }
+});
+
+// 3. SİTEDEN KEY SİLME VEYA HWID SIFIRLAMA KÖPRÜSÜ
+app.post('/api/keys/action', async (req, res) => {
+    const { userId, keyId, action } = req.body;
+    
+    if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
+
+    try {
+        if (action === 'delete') {
+            await KeyModel.findByIdAndDelete(keyId);
+            res.json({ success: true, message: 'Silindi' });
+        } else if (action === 'reset') {
+            await KeyModel.findByIdAndUpdate(keyId, { hwid: null });
+            res.json({ success: true, message: 'Sıfırlandı' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'İşlem başarısız' });
+    }
+});
+
+// Sunucuyu Ayaklandır
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`[🌐 API] Web Köprüsü Port ${PORT} Üzerinde Aktif!`);
+});
 const app = express();
 const client = new Client({
     intents: [
