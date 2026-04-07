@@ -1,84 +1,76 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 const KeyModel = require('../models/key');
+const Counter = require('../models/counter'); // Bilet sayacı
 
 const cooldown = new Set(); 
 
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
-        const OWNER_ID = '345821033414262794'; // Bütün nükleer yetkiler sana ait kanka
+        const OWNER_ID = '345821033414262794'; 
 
-        // --- 1. SLASH KOMUTLARINI ÇALIŞTIR ---
+        // --- 1. SLASH KOMUTLARI ---
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
             try { await command.execute(interaction); } 
             catch (error) {
-                console.error(error);
                 if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '`HATA`', ephemeral: true });
                 else await interaction.reply({ content: '`HATA`', ephemeral: true });
             }
             return;
         }
 
-        // --- 2. BUTON KONTROLLERİ ---
+        // --- 2. BUTONLAR ---
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
-        // --- TICKET KAPATMA BUTONU ---
+        // --- TICKET KAPATMA ---
         if (cid === 'close_ticket_tr' || cid === 'close_ticket_en') {
             const isEn = cid === 'close_ticket_en';
-            await interaction.reply(`\`${isEn ? 'Channel is closing in 3 seconds...' : 'Kanal 3 saniye içinde imha ediliyor...'}\``);
+            await interaction.reply(`\`${isEn ? 'Channel is closing in 3 seconds... 📩' : 'Kanal 3 saniye içinde imha ediliyor... 📩'}\``);
             setTimeout(() => { interaction.channel.delete().catch(() => {}); }, 3000);
             return;
         }
 
-        // --- YETKİLİ SAHİPLEN BUTONU ---
+        // --- YETKİLİ SAHİPLEN ---
         if (cid === 'claim_ticket_tr' || cid === 'claim_ticket_en') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-                return interaction.reply({ content: '`⚠️ YETKİ YOK: Sadece yetkililer bilet sahiplenebilir.`', ephemeral: true });
+                return interaction.reply({ content: '`⚠️ YETKİ YOK`', ephemeral: true });
             }
-
             const isEn = cid === 'claim_ticket_en';
-
             const row = ActionRowBuilder.from(interaction.message.components[0]);
-            row.components[0].setDisabled(true).setLabel(isEn ? `Claimed by: ${interaction.user.username}` : `Sahiplenen: ${interaction.user.username}`);
-
+            row.components[0].setDisabled(true).setLabel(isEn ? `Claimed: ${interaction.user.username}` : `Sahiplenen: ${interaction.user.username}`);
             await interaction.update({ components: [row] });
 
             const claimEmbed = new EmbedBuilder()
                 .setColor('#00FF00')
                 .setDescription(isEn 
-                    ? `>>> **TICKET CLAIMED!**\n\nStaff member <@${interaction.user.id}> is now handling this ticket.` 
-                    : `>>> **BİLET SAHİPLENİLDİ!**\n\nYetkili <@${interaction.user.id}> bu biletle ilgileniyor.`);
-            
+                    ? `>>> 🗪 **STAFF CONNECTED!**\n\nStaff <@${interaction.user.id}> is now handling your request.` 
+                    : `>>> 🗪 **YETKİLİ BAĞLANDI!**\n\nYetkili <@${interaction.user.id}> talebinizle ilgileniyor.`);
             return interaction.channel.send({ embeds: [claimEmbed] });
         }
 
-        // --- TICKET AÇMA BUTONLARI ---
+        // --- TICKET AÇMA ---
         const ticketIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (ticketIds.includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
-
-            // KORUMA: 1 Kişi sadece 1 ticket açabilir
             const existingTicket = interaction.guild.channels.cache.find(c => c.topic === interaction.user.id);
             if (existingTicket) {
                 return interaction.reply({ content: isEn ? '`You already have an open ticket.`' : '`Zaten açık bir biletiniz var.`', ephemeral: true });
             }
 
+            // SIRALI NUMARA SİSTEMİ (1, 2, 3...)
+            let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
+            const ticketNo = counter.seq;
+
             let typeName = '', titleName = '';
-            const ticketNumber = Math.floor(100 + Math.random() * 900); // 3 Haneli jilet gibi bilet no
-
-            if (cid === 'ticket_tr_support') { typeName = 'destek'; titleName = 'DESTEK'; }
-            if (cid === 'ticket_tr_partner') { typeName = 'is-birligi'; titleName = 'İŞ BİRLİĞİ'; }
-            if (cid === 'ticket_tr_key') { typeName = 'key'; titleName = 'KEY İŞLEMLERİ'; }
-
-            if (cid === 'ticket_en_support') { typeName = 'support'; titleName = 'SUPPORT'; }
-            if (cid === 'ticket_en_partner') { typeName = 'partner'; titleName = 'PARTNERSHIP'; }
-            if (cid === 'ticket_en_key') { typeName = 'key'; titleName = 'KEY OPS'; }
+            if (cid.includes('support')) { typeName = isEn ? 'support' : 'destek'; titleName = isEn ? 'SUPPORT' : 'DESTEK'; }
+            if (cid.includes('partner')) { typeName = isEn ? 'partner' : 'is-birligi'; titleName = isEn ? 'PARTNER' : 'İŞ BİRLİĞİ'; }
+            if (cid.includes('key')) { typeName = 'key'; titleName = isEn ? 'KEY OPS' : 'KEY İŞLEMLERİ'; }
 
             const ticketChannel = await interaction.guild.channels.create({
-                name: `${typeName}-${interaction.user.username}-${ticketNumber}`,
+                name: `${typeName}-${interaction.user.username}-${ticketNo}`,
                 type: ChannelType.GuildText,
                 topic: interaction.user.id, 
                 permissionOverwrites: [
@@ -89,47 +81,44 @@ module.exports = {
             });
 
             const ticketEmbed = new EmbedBuilder()
-                .setTitle(`RYPHERA OS | ${titleName}`)
+                .setTitle(`💬 RYPHERA OS | ${titleName}`)
                 .setColor('#2B2D31')
                 .setDescription(isEn 
-                    ? `>>> **Welcome to the System, <@${interaction.user.id}>**\n\nPlease state your issue or offer in detail.\nRyphera staff will claim your ticket shortly.`
-                    : `>>> **Sisteme Hoş Geldin, <@${interaction.user.id}>**\n\nLütfen sorununuzu veya teklifinizi detaylıca belirtin.\nRyphera yetkilileri en kısa sürede biletinizi üstlenecektir.`)
-                .setFooter({ text: `Ticket ID: #${ticketNumber} | ${interaction.user.tag}` })
+                    ? `>>> 👋 **Hello, <@${interaction.user.id}>**\n\nPlease describe your issue. Our staff will assist you shortly.`
+                    : `>>> 👋 **Merhaba, <@${interaction.user.id}>**\n\nLütfen talebinizi buraya yazın. Yetkililerimiz birazdan sizinle ilgilenecek.`)
+                .setFooter({ text: `Bilet #${ticketNo} | ${interaction.user.tag}` })
                 .setTimestamp();
 
             const actionRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim Ticket' : 'Sahiplen').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close Ticket' : 'Bileti Kapat').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close' : 'Kapat').setStyle(ButtonStyle.Danger)
             );
 
             await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [actionRow] });
-
             return interaction.reply({ content: isEn ? `\`Ticket created:\` <#${ticketChannel.id}>` : `\`Bilet oluşturuldu:\` <#${ticketChannel.id}>`, ephemeral: true });
         }
 
-        // --- MOBİL SCRIPT KOPYALAMA BUTONU ---
+        // --- MOBİL KOPYALAMA ---
         if (cid === 'mobil_kopyala_btn') {
             const embed = interaction.message.embeds[0];
             if (!embed) return interaction.reply({ content: '`Embed bulunamadı.`', ephemeral: true });
-
-            const isEn = embed.footer && embed.footer.text.includes('Mobile users');
-            const scriptAlani = embed.fields[1]; // Kod her zaman 2. sıradadır
             
-            if (!scriptAlani) return interaction.reply({ content: isEn ? '`Code not found.`' : '`Kod bulunamadı.`', ephemeral: true });
-
+            const scriptAlani = embed.fields[1]; 
+            if (!scriptAlani) return interaction.reply({ content: '`Kod bulunamadı.`', ephemeral: true });
+            
             let temizKod = scriptAlani.value.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
-            return interaction.reply({ content: `${temizKod}`, ephemeral: true });
+            return interaction.reply({ content: `💬 **Script Kodu:**\n${temizKod}`, ephemeral: true });
         }
 
-        // --- VERİTABANI SİLME (NÜKLEER) ---
+        // --- VERİTABANI SİLME ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '`⚠️ YETKİ YOK`', ephemeral: true });
             await KeyModel.deleteMany({});
-            return interaction.update({ content: '`✅ Tüm veritabanı mermi gibi temizlendi!`', embeds: [], components: [] });
+            return interaction.update({ content: '`✅ Veritabanı temizlendi.`', components: [] });
         }
-        if (cid === 'cancel_delete_all') return interaction.update({ content: '`İptal edildi.`', embeds: [], components: [] });
+        if (cid === 'cancel_delete_all') return interaction.update({ content: '`İptal edildi.`', components: [] });
 
-        // --- KEY ALMA BUTONLARI ---
+        // --- KEY ALMA ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             if (cooldown.has(interaction.user.id)) return interaction.reply({ content: '`Bekle...`', ephemeral: true });
             cooldown.add(interaction.user.id);
@@ -141,9 +130,8 @@ module.exports = {
 
             const rypKey = `RYP-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
             await new KeyModel({ key: rypKey, keyId: "123456", createdBy: interaction.user.id }).save();
-
             try {
-                await interaction.user.send(`🚀 RYPHERA KEY: \`${rypKey}\``);
+                await interaction.user.send(`👋 **RYPHERA KEY:** \`${rypKey}\``);
                 return interaction.reply({ content: isEn ? '`SUCCESS: Check DMs!`' : '`BAŞARILI: DM kutuna bak!`', ephemeral: true });
             } catch (e) { return interaction.reply({ content: '`DM KAPALI!`', ephemeral: true }); }
         }
