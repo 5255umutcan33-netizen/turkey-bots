@@ -5,54 +5,106 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// --- 1. BOT KURULUMU ---
 const app = express();
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers, 
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent // SS'leri görmek için şart!
+        GatewayIntentBits.MessageContent // SS'leri okumak için şart!
     ]
 });
 
 client.commands = new Collection();
 
+// --- 2. VERİTABANI BAĞLANTISI ---
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ MongoDB Bağlandı!'))
-    .catch(err => console.error('❌ DB Hatası:', err));
+    .then(() => console.log('✅ [DB] MongoDB bağlantısı mermi gibi!'))
+    .catch(err => console.error('❌ [DB] Bağlantı hatası:', err));
 
-// Komut Yükleyici
+// --- 3. GÜVENLİ KOMUT YÜKLEYİCİ ---
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-for (const file of commandFiles) {
-    const command = require(path.join(commandsPath, file));
-    client.commands.set(command.data.name, command);
+if (fs.existsSync(commandsPath)) {
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+    
+    for (const file of commandFiles) {
+        try {
+            const filePath = path.join(commandsPath, file);
+            const command = require(filePath);
+            
+            // Hata kontrolü: 'data' veya 'name' eksikse botu çökertme!
+            if (command && command.data && command.data.name) {
+                client.commands.set(command.data.name, command);
+                console.log(`✅ [KOMUT] ${command.data.name} yüklendi.`);
+            } else {
+                console.warn(`⚠️ [UYARI] ${file} dosyasında 'data.name' eksik! Dosyayı kontrol et.`);
+            }
+        } catch (error) {
+            console.error(`❌ [HATA] ${file} yüklenirken bir sorun oluştu:`, error.message);
+        }
+    }
 }
 
-// Event Yükleyici
+// --- 4. GÜVENLİ EVENT YÜKLEYİCİ ---
 const eventsPath = path.join(__dirname, 'events');
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-for (const file of eventFiles) {
-    const event = require(path.join(eventsPath, file));
-    client.on(event.name, (...args) => event.execute(...args));
+if (fs.existsSync(eventsPath)) {
+    const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+    
+    for (const file of eventFiles) {
+        try {
+            const filePath = path.join(eventsPath, file);
+            const event = require(filePath);
+            if (event.once) {
+                client.once(event.name, (...args) => event.execute(...args));
+            } else {
+                client.on(event.name, (...args) => event.execute(...args));
+            }
+            console.log(`✅ [EVENT] ${event.name} aktif.`);
+        } catch (error) {
+            console.error(`❌ [HATA] ${file} eventi yüklenemedi:`, error.message);
+        }
+    }
 }
 
-// ROBLOX API
+// --- 5. ROBLOX VERIFY API ---
 app.get('/verify', async (req, res) => {
     const { key, hwid } = req.query;
-    if (!key || !hwid) return res.json({ success: false, message: "EKSİK VERİ!" });
+
+    if (!key || !hwid) {
+        return res.json({ success: false, message: "EKSİK VERİ!" });
+    }
 
     try {
         const KeyModel = require('./models/key');
-        const data = await KeyModel.findOne({ key: key });
-        if (!data) return res.json({ success: false, message: "GEÇERSİZ KEY!" });
-        if (data.hwid && data.hwid !== hwid) return res.json({ success: false, message: "HWID KİLİDİ!" });
-        if (!data.hwid) { data.hwid = hwid; await data.save(); }
-        return res.json({ success: true, message: "GİRİŞ BAŞARILI" });
-    } catch (e) { return res.json({ success: false, message: "SUNUCU HATASI" }); }
+        const existingKey = await KeyModel.findOne({ key: key });
+
+        if (!existingKey) {
+            return res.json({ success: false, message: "GEÇERSİZ ANAHTAR!" });
+        }
+
+        if (existingKey.hwid && existingKey.hwid !== hwid) {
+            return res.json({ success: false, message: "FARKLI CİHAZ (HWID)!" });
+        }
+
+        if (!existingKey.hwid) {
+            existingKey.hwid = hwid;
+            await existingKey.save();
+        }
+
+        return res.json({ success: true, message: "GİRİŞ BAŞARILI!" });
+
+    } catch (err) {
+        console.error("API Hatası:", err);
+        return res.json({ success: false, message: "VERİTABANI HATASI!" });
+    }
 });
 
-app.get('/', (req, res) => res.send('RYPHERA ONLINE 🚀'));
-app.listen(process.env.PORT || 10000, () => console.log('🚀 API AKTİF'));
+// Render Sağlık Kontrolü
+app.get('/', (req, res) => res.send('RYPHERA OS ONLINE 🚀'));
+
+// --- 6. BAŞLATMA ---
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🚀 [API] Port ${PORT} üzerinde dinleniyor.`));
 
 client.login(process.env.TOKEN);
