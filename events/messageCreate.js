@@ -15,7 +15,7 @@ module.exports = {
     async execute(message) {
         if (message.author.bot || processing.has(message.id)) return;
 
-        // Kanalın abone onay kanalı olup olmadığını kontrol et
+        // Kanal kontrolü
         const channelData = await AboneChannel.findOne({ channelId: message.channelId });
         if (!channelData) return;
 
@@ -28,7 +28,7 @@ module.exports = {
         const ROLE_ID = '1490996828974612530';
         const LOG_ID = '1490998881553743932';
 
-        const pMsg = await message.reply(isEn ? '`⚡ Scanning screenshot...`' : '`⚡ Ekran görüntüsü taranıyor...`');
+        const pMsg = await message.reply(isEn ? '`⚡ Analyzing screenshot...`' : '`⚡ Ekran görüntüsü analiz ediliyor...`');
 
         try {
             const { data: { text } } = await worker.recognize(attachment.url);
@@ -40,51 +40,59 @@ module.exports = {
             if (hasRyphera && hasScript) {
                 // Rol Ver
                 await message.member.roles.add(ROLE_ID);
-                await pMsg.edit(isEn ? '`✅ VERIFIED! Channel cleaning in 3s...`' : '`✅ ONAYLANDI! Kanal 3 saniye içinde temizleniyor...`');
+                await pMsg.edit(isEn ? '`✅ VERIFIED! Check your DMs.`' : '`✅ ONAYLANDI! DM kutunu kontrol et.`');
                 
-                // Başarı Logu
+                // DM GÖNDER (ONAY)
+                try {
+                    await message.author.send(isEn ? 
+                        '🚀 **RYPHERA OS:** Your subscription has been verified! Welcome to the family.' : 
+                        '🚀 **RYPHERA OS:** Aboneliğiniz başarıyla onaylandı! Ailemize hoş geldiniz.'
+                    );
+                } catch (e) { console.log("Kullanıcının DM'i kapalı."); }
+
+                // Loga Gönder
                 const logChannel = message.guild.channels.cache.get(LOG_ID);
                 if (logChannel) {
                     const log = new EmbedBuilder()
                         .setTitle('✅ ABONE ONAYLANDI')
                         .setColor('#00FF00')
-                        .addFields(
-                            { name: 'Kullanıcı', value: `<@${message.author.id}>` },
-                            { name: 'Kanal', value: isEn ? 'English' : 'Türkçe' }
-                        )
+                        .addFields({ name: 'Kullanıcı', value: `<@${message.author.id}>` })
                         .setImage(attachment.url).setTimestamp();
                     logChannel.send({ embeds: [log] });
                 }
             } else {
-                await pMsg.edit(isEn ? '`❌ NOT FOUND! Channel cleaning in 4s...`' : '`❌ İSİM BULUNAMADI! Kanal 4 saniye içinde temizleniyor...`');
+                await pMsg.edit(isEn ? '`❌ REJECTED! Check your DMs.`' : '`❌ REDDEDİLDİ! DM kutunu kontrol et.`');
                 
+                // DM GÖNDER (RED)
+                try {
+                    await message.author.send(isEn ? 
+                        '❌ **RYPHERA OS:** Verification failed. "Ryphera Scr1pt" name not detected. Please send a clearer screenshot.' : 
+                        '❌ **RYPHERA OS:** Onay başarısız. Resimde "Ryphera Scr1pt" ismi bulunamadı. Lütfen daha net bir SS gönderin.'
+                    );
+                } catch (e) { console.log("Kullanıcının DM'i kapalı."); }
+
                 // Red Logu
                 const logChannel = message.guild.channels.cache.get(LOG_ID);
                 if (logChannel) {
                     const failLog = new EmbedBuilder()
                         .setTitle('❌ ONAY REDDEDİLDİ')
                         .setColor('#FF0000')
-                        .addFields(
-                            { name: 'Kullanıcı', value: `<@${message.author.id}>` },
-                            { name: 'Sebep', value: 'Geçersiz SS veya isim okunamadı.' }
-                        )
+                        .addFields({ name: 'Kullanıcı', value: `<@${message.author.id}>` })
                         .setImage(attachment.url).setTimestamp();
                     logChannel.send({ embeds: [failLog] });
                 }
             }
         } catch (e) { 
-            await pMsg.edit('`SYSTEM ERROR: OCR Failed.`'); 
+            await pMsg.edit('`SYSTEM ERROR: Processing failed.`'); 
         }
 
-        // --- TEMİZLİK: 4 saniye sonra mesajları sil ---
+        // Temizlik: 5 saniye sonra mesajları sil
         setTimeout(async () => {
             try { 
                 await message.delete(); 
                 await pMsg.delete(); 
-            } catch (e) {
-                console.log("Mesaj silinemedi (yetki eksik veya mesaj yok).");
-            }
+            } catch (e) {}
             processing.delete(message.id);
-        }, 4000);
+        }, 5000);
     }
 };
