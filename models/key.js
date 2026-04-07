@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 
-const keySchema = new mongoose.Schema({
-    key: { type: String, required: true },
-    keyId: { type: String, required: true }, // Yeni: 6 haneli teknik ID
+const rypheraSchema = new mongoose.Schema({
+    key: { type: String, required: true }, // RYP-XXXXX
+    keyId: { type: String, required: true }, // 6 Haneli Teknik ID
     hwid: { type: String, default: null },
     createdBy: { type: String, required: true },
     createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Key', keySchema);
+module.exports = mongoose.model('RypheraKey', rypheraSchema);
