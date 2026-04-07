@@ -1,12 +1,13 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 const KeyModel = require('../models/key');
-const Counter = require('../models/counter');
+const Counter = require('../models/counter'); 
 
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
-        const OWNER_ID = '345821033414262794';
+        const OWNER_ID = '345821033414262794'; 
 
+        // --- 1. SLASH KOMUTLARINI ÇALIŞTIR ---
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
@@ -18,46 +19,47 @@ module.exports = {
         const cid = interaction.customId;
 
         // --- TICKET KAPATMA ---
-        if (cid === 'close_ticket_tr' || cid === 'close_ticket_en') {
-            const isEn = cid === 'close_ticket_en';
-            await interaction.reply(`\`${isEn ? 'Closing... 📩' : 'Kapatılıyor... 📩'}\``);
-            setTimeout(() => { interaction.channel.delete().catch(() => {}); }, 2000);
+        if (cid.startsWith('close_ticket')) {
+            const isEn = cid.includes('en');
+            await interaction.reply(`\`${isEn ? 'System: Closing channel... 📩' : 'Sistem: Kanal imha ediliyor... 📩'}\``);
+            setTimeout(() => { interaction.channel.delete().catch(() => {}); }, 2500);
             return;
         }
 
-        // --- SAHİPLEN ---
-        if (cid === 'claim_ticket_tr' || cid === 'claim_ticket_en') {
+        // --- YETKİLİ SAHİPLEN ---
+        if (cid.startsWith('claim_ticket')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-                return interaction.reply({ content: '`⚠️ YETKİ YOK`', ephemeral: true });
+                return interaction.reply({ content: '`⚠️ Yetki Yetersiz!`', ephemeral: true });
             }
+            const isEn = cid.includes('en');
             const row = ActionRowBuilder.from(interaction.message.components[0]);
-            row.components[0].setDisabled(true).setLabel(`OK: ${interaction.user.username}`);
+            row.components[0].setDisabled(true).setLabel(isEn ? `Claimed: ${interaction.user.username}` : `Sahiplenen: ${interaction.user.username}`);
             await interaction.update({ components: [row] });
-            return interaction.channel.send({ content: `⚡ <@${interaction.user.id}> biletle ilgileniyor.` });
+            return interaction.channel.send({ content: `🗪 **<@${interaction.user.id}> ${isEn ? 'is now assisting you.' : 'biletle ilgileniyor.'}**` });
         }
 
-        // --- TICKET AÇMA (HATA RAPORLU) ---
+        // --- TICKET AÇMA (FULL FİX) ---
         const ticketIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (ticketIds.includes(cid)) {
+            // Discord'a "işlem yapıyorum, bekle" diyoruz (Boş kanal hatasını bu bitirir)
             await interaction.deferReply({ ephemeral: true });
 
             const isEn = cid.startsWith('ticket_en_');
-            // Cache yerine aktif kontrol
-            const existingTicket = interaction.guild.channels.cache.find(c => c.topic === interaction.user.id);
-            if (existingTicket) {
-                return interaction.editReply({ content: isEn ? '`You have an open ticket!`' : '`Zaten bir biletin var!`' });
-            }
+            const existing = interaction.guild.channels.cache.find(c => c.topic === interaction.user.id);
+            if (existing) return interaction.editReply({ content: isEn ? '`You already have an open ticket!`' : '`Zaten açık bir biletiniz var!`' });
 
             try {
-                // SAYAÇ KONTROLÜ
+                // Sıradaki numarayı al
                 let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
-                const ticketNo = counter ? counter.seq : "ERR";
+                const ticketNo = counter.seq;
 
-                let typeName = isEn ? 'support' : 'destek';
+                let type = isEn ? 'support' : 'destek';
                 let title = isEn ? 'SUPPORT' : 'DESTEK';
+                if (cid.includes('partner')) { type = isEn ? 'partner' : 'is-birligi'; title = isEn ? 'PARTNER' : 'İŞ BİRLİĞİ'; }
+                if (cid.includes('key')) { type = 'key'; title = isEn ? 'KEY OPERATIONS' : 'KEY İŞLEMLERİ'; }
 
                 const ticketChannel = await interaction.guild.channels.create({
-                    name: `${typeName}-${interaction.user.username}-${ticketNo}`,
+                    name: `${type}-${interaction.user.username}-${ticketNo}`,
                     type: ChannelType.GuildText,
                     topic: interaction.user.id,
                     permissionOverwrites: [
@@ -70,42 +72,33 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle(`💬 RYPHERA OS | ${title}`)
                     .setColor('#2B2D31')
-                    .setDescription(`>>> 👋 **Merhaba <@${interaction.user.id}>**\nLütfen bekleyin, yetkililer biletinizi sahiplenecektir.`)
-                    .setFooter({ text: `Bilet #${ticketNo}` });
+                    .setDescription(isEn 
+                        ? `>>> 👋 **Hello <@${interaction.user.id}>!**\nPlease describe your request. Staff will claim this ticket shortly.`
+                        : `>>> 👋 **Merhaba <@${interaction.user.id}>!**\nLütfen talebinizi buraya yazın. Yetkililerimiz birazdan biletinizi sahiplenecektir.`)
+                    .setFooter({ text: `Ryphera Bilet #${ticketNo}` })
+                    .setTimestamp();
 
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel('Sahiplen').setEmoji('🗪').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel('Kapat').setEmoji('📩').setStyle(ButtonStyle.Danger)
+                    new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setEmoji('🗪').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close' : 'Kapat').setEmoji('📩').setStyle(ButtonStyle.Danger)
                 );
 
                 await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
-                return interaction.editReply({ content: `✅ <#${ticketChannel.id}>` });
+                return interaction.editReply({ content: `✅ **Biletiniz Hazır:** <#${ticketChannel.id}>` });
 
             } catch (err) {
-                console.error("TICKET HATASI:", err);
-                // HATAYI EKRANA YAZDIRALIM Kİ ANLAYALIM
-                return interaction.editReply({ content: `\`❌ HATA: ${err.message}\`` });
+                console.error(err);
+                return interaction.editReply({ content: `❌ **Kanal Oluşturulamadı!** Hata: \`${err.message}\`` });
             }
         }
 
-        // --- MOBİL KOPYALAMA ---
+        // --- MOBİL KOPYALAMA BUTONU ---
         if (cid === 'mobil_kopyala_btn') {
-            try {
-                const embed = interaction.message.embeds[0];
-                const scriptAlani = embed.fields[1]; 
-                let temizKod = scriptAlani.value.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
-                return interaction.reply({ content: `💬 **Kod:**\n${temizKod}`, ephemeral: true });
-            } catch (e) { return interaction.reply({ content: '`Kod okunamadı.`', ephemeral: true }); }
-        }
-
-        // --- KEY SİSTEMİ ---
-        if (cid === 'get_key_tr' || cid === 'get_key_en') {
-            const isEn = cid === 'get_key_en';
-            const rypKey = `RYP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-            try {
-                await interaction.user.send(`👋 **KEY:** \`${rypKey}\``);
-                return interaction.reply({ content: isEn ? '`Check DMs!`' : '`DM kutuna bak!`', ephemeral: true });
-            } catch (e) { return interaction.reply({ content: '`DM KAPALI!`', ephemeral: true }); }
+            const embed = interaction.message.embeds[0];
+            const scriptField = embed.fields[1];
+            if (!scriptField) return interaction.reply({ content: '`Kod alanı okunamadı!`', ephemeral: true });
+            let cleanCode = scriptField.value.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
+            return interaction.reply({ content: `💬 **Script Kodu:**\n${cleanCode}`, ephemeral: true });
         }
     }
 };
