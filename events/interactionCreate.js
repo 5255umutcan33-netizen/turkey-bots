@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 const KeyModel = require('../models/key');
 
 const cooldown = new Set(); 
@@ -26,23 +26,75 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
+        // --- TICKET KAPATMA BUTONU ---
+        if (cid === 'close_ticket') {
+            await interaction.reply('`Kanal 3 saniye içinde imha ediliyor... / Channel is closing...`');
+            setTimeout(() => { interaction.channel.delete().catch(() => {}); }, 3000);
+            return;
+        }
+
+        // --- TICKET AÇMA BUTONLARI ---
+        const ticketIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
+        if (ticketIds.includes(cid)) {
+            const isEn = cid.startsWith('ticket_en_');
+
+            // KORUMA: Adamın zaten bir ticketi var mı? (Topic kısmında ID saklayarak anlıyoruz)
+            const existingTicket = interaction.guild.channels.cache.find(c => c.topic === interaction.user.id);
+            if (existingTicket) {
+                return interaction.reply({ content: isEn ? '`You already have an open ticket.`' : '`Zaten açık bir biletiniz var.`', ephemeral: true });
+            }
+
+            // Hangi butona bastığına göre başlıkları ayarla
+            let typeName = '', titleName = '', desc = '';
+
+            if (cid === 'ticket_tr_support') { typeName = 'destek'; titleName = 'DESTEK'; desc = 'Destek talebiniz alındı. Yetkililer birazdan ilgilenecektir.'; }
+            if (cid === 'ticket_tr_partner') { typeName = 'is-birligi'; titleName = 'İŞ BİRLİĞİ'; desc = 'İş birliği talebiniz alındı. Lütfen teklifinizi yazın.'; }
+            if (cid === 'ticket_tr_key') { typeName = 'key'; titleName = 'KEY İŞLEMLERİ'; desc = 'Key işlemleri için lütfen sorununuzu belirtin.'; }
+
+            if (cid === 'ticket_en_support') { typeName = 'support'; titleName = 'SUPPORT'; desc = 'Support request received. Staff will be with you shortly.'; }
+            if (cid === 'ticket_en_partner') { typeName = 'partner'; titleName = 'PARTNERSHIP'; desc = 'Partnership request received. Please state your offer.'; }
+            if (cid === 'ticket_en_key') { typeName = 'key'; titleName = 'KEY OPS'; desc = 'Please state your issue regarding keys.'; }
+
+            // Özel Kanal Oluşturma
+            const ticketChannel = await interaction.guild.channels.create({
+                name: `${typeName}-${interaction.user.username}`,
+                type: ChannelType.GuildText,
+                topic: interaction.user.id, // Korumayı sağlamak için adamın ID'sini buraya gizliyoruz
+                permissionOverwrites: [
+                    { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, // Herkese kapat
+                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }, // Sadece butona basan kişiye aç
+                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] } // Bota tam yetki
+                ]
+            });
+
+            // İçerideki Karşılama Mesajı (Kapatma butonlu)
+            const ticketEmbed = new EmbedBuilder()
+                .setTitle(`RYPHERA OS | ${titleName}`)
+                .setColor('#2B2D31')
+                .setDescription(`>>> ${desc}`)
+                .setFooter({ text: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
+                .setTimestamp();
+
+            const closeRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('close_ticket').setLabel(isEn ? 'Close Ticket' : 'Bileti Kapat').setStyle(ButtonStyle.Danger)
+            );
+
+            await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [closeRow] });
+
+            return interaction.reply({ content: isEn ? `\`Ticket created:\` <#${ticketChannel.id}>` : `\`Bilet oluşturuldu:\` <#${ticketChannel.id}>`, ephemeral: true });
+        }
+
         // --- MOBİL SCRIPT KOPYALAMA BUTONU (GARANTİLİ YÖNTEM) ---
         if (cid === 'mobil_kopyala_btn') {
             const embed = interaction.message.embeds[0];
             if (!embed) return interaction.reply({ content: '`Embed bulunamadı.`', ephemeral: true });
 
-            // Footer'dan dili algıla
             const isEn = embed.footer && embed.footer.text.includes('Mobile users');
-
-            // İSME GÖRE ARAMAK YERİNE DİREKT 2. KUTUYU (index 1) ÇEKİYORUZ!
             const scriptAlani = embed.fields[1]; 
             
             if (!scriptAlani) return interaction.reply({ content: isEn ? '`Code not found.`' : '`Kod bulunamadı.`', ephemeral: true });
 
-            // Kodun başındaki ve sonundaki ```lua işaretlerini en temiz şekilde yok et
             let temizKod = scriptAlani.value.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
-
-            // Adamın ekranına sadece dümdüz kodu fırlat
             return interaction.reply({ content: `${temizKod}`, ephemeral: true });
         }
 
