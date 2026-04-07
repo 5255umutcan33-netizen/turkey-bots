@@ -1,91 +1,39 @@
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const express = require('express');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const KeyModel = require('./models/Key.js'); // Az önce oluşturduğumuz dosyanın yolu
 
-const app = express();
-app.use(cors()); // Sitenin bota bağlanmasına izin verir
-app.use(express.json()); // Gelen verileri okumasını sağlar
+// 1. MODELLER
+// Not: Klasöründeki dosya adı 'Key.js' ise öyle kalsın, 'key.js' ise küçük yap.
+const KeyModel = require('./models/Key.js'); 
 
-// 1. SİTEDEN TÜM KEYLERİ İSTEME KÖPRÜSÜ
-app.get('/api/keys', async (req, res) => {
-    try {
-        const keys = await KeyModel.find().sort({ createdAt: -1 });
-        res.json(keys);
-    } catch (err) {
-        res.status(500).json({ error: 'Veritabanı hatası' });
-    }
-});
-
-// 2. SİTEDEN YENİ KEY OLUŞTURMA KÖPRÜSÜ
-app.post('/api/keys/generate', async (req, res) => {
-    const { userId, keyName, expiry } = req.body;
-
-    // Sadece Kurucu ID'si key üretebilir (Güvenlik Duvarı)
-    if (userId !== '345821033414262794') {
-        return res.status(403).json({ error: 'Yetkisiz işlem!' });
-    }
-
-    try {
-        const newKey = new KeyModel({
-            key: keyName,
-            expiry: expiry,
-            hwid: null,
-            owner: userId
-        });
-        await newKey.save();
-        res.json({ success: true, message: 'Key başarıyla üretildi.', key: newKey });
-    } catch (err) {
-        res.status(500).json({ error: 'Key oluşturulamadı' });
-    }
-});
-
-// 3. SİTEDEN KEY SİLME VEYA HWID SIFIRLAMA KÖPRÜSÜ
-app.post('/api/keys/action', async (req, res) => {
-    const { userId, keyId, action } = req.body;
-    
-    if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
-
-    try {
-        if (action === 'delete') {
-            await KeyModel.findByIdAndDelete(keyId);
-            res.json({ success: true, message: 'Silindi' });
-        } else if (action === 'reset') {
-            await KeyModel.findByIdAndUpdate(keyId, { hwid: null });
-            res.json({ success: true, message: 'Sıfırlandı' });
-        }
-    } catch (err) {
-        res.status(500).json({ error: 'İşlem başarısız' });
-    }
-});
-
-// Sunucuyu Ayaklandır
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`[🌐 API] Web Köprüsü Port ${PORT} Üzerinde Aktif!`);
-});
+// 2. SUNUCU VE BOT BAŞLATMA
 const app = express();
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, 
-        GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent 
+        GatewayIntentBits.Guilds, 
+        GatewayIntentBits.GuildMembers, 
+        GatewayIntentBits.GuildMessages, 
+        GatewayIntentBits.MessageContent 
     ]
 });
 
+// Middleware Ayarları
+app.use(cors());
+app.use(express.json());
+
 client.commands = new Collection();
-const commandsArray = []; // Discord'a gönderilecek komutlar
+const commandsArray = [];
 
-// --- 1. VERİTABANI BAĞLANTISI ---
+// --- 3. VERİTABANI BAĞLANTISI ---
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ [DB] MongoDB Mermi Gibi!'))
-    .catch(err => console.error('❌ [DB] Hata:', err));
+    .then(() => console.log('✅ [DB] MongoDB Bağlantısı Başarılı!'))
+    .catch(err => console.error('❌ [DB] Bağlantı Hatası:', err));
 
-// --- 2. KOMUT YÜKLEYİCİ ---
+// --- 4. KOMUT VE EVENT YÜKLEYİCİ ---
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
     const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
@@ -98,8 +46,6 @@ if (fs.existsSync(commandsPath)) {
     }
 }
 
-// --- 3. EVENT YÜKLEYİCİ ---
-client.removeAllListeners();
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'));
@@ -113,21 +59,60 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// --- 4. KOMUTLARI DİSCORD'A KAYDET ---
-client.once('ready', async () => {
-    console.log(`🚀 Bot aktif: ${client.user.tag}`);
+// --- 5. WEB API KÖPRÜLERİ (SİTE İÇİN) ---
+
+// Tüm Keyleri Listeleme
+app.get('/api/keys', async (req, res) => {
     try {
-        await client.application.commands.set(commandsArray);
-        console.log('✅ Bütün Slash Komutları Discord\'a Kaydedildi!');
-    } catch (error) { console.error('❌ Komut kayıt hatası:', error); }
+        const keys = await KeyModel.find().sort({ createdAt: -1 });
+        res.json(keys);
+    } catch (err) {
+        res.status(500).json({ error: 'Veritabanı hatası' });
+    }
 });
 
-// --- 5. ROBLOX API ---
+// Yeni Key Oluşturma
+app.post('/api/keys/generate', async (req, res) => {
+    const { userId, keyName, expiry } = req.body;
+    if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
+
+    try {
+        const newKey = new KeyModel({
+            key: keyName,
+            expiry: expiry,
+            hwid: null,
+            owner: userId
+        });
+        await newKey.save();
+        res.json({ success: true, key: newKey });
+    } catch (err) {
+        res.status(500).json({ error: 'Oluşturma hatası' });
+    }
+});
+
+// Key Silme / Resetleme
+app.post('/api/keys/action', async (req, res) => {
+    const { userId, keyId, action } = req.body;
+    if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
+
+    try {
+        if (action === 'delete') {
+            await KeyModel.findByIdAndDelete(keyId);
+            res.json({ success: true });
+        } else if (action === 'reset') {
+            await KeyModel.findByIdAndUpdate(keyId, { hwid: null });
+            res.json({ success: true });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'İşlem hatası' });
+    }
+});
+
+// --- 6. ROBLOX API (ESKİ SİSTEM) ---
 app.get('/verify', async (req, res) => {
     const { key, hwid } = req.query;
     if (!key || !hwid) return res.json({ success: false, message: "EKSİK VERİ!" });
     try {
-        const KeyModel = require('./models/key');
         const data = await KeyModel.findOne({ key: key });
         if (!data) return res.json({ success: false, message: "GEÇERSİZ KEY!" });
         if (data.hwid && data.hwid !== hwid) return res.json({ success: false, message: "HWID KİLİDİ!" });
@@ -136,7 +121,21 @@ app.get('/verify', async (req, res) => {
     } catch (e) { return res.json({ success: false, message: "HATA" }); }
 });
 
+// --- 7. BAŞLATMA ---
 app.get('/', (req, res) => res.send('RYPHERA OS ONLINE 🚀'));
-app.listen(process.env.PORT || 10000, () => console.log('🚀 API Aktif.'));
+
+// SADECE BİR TANE LISTEN OLMALI!
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+    console.log(`🚀 [🌐 Sunucu] Port ${PORT} üzerinde aktif.`);
+});
+
+client.once('ready', async () => {
+    console.log(`🚀 [🤖 Bot] Aktif: ${client.user.tag}`);
+    try {
+        await client.application.commands.set(commandsArray);
+        console.log('✅ Slash Komutları Kaydedildi!');
+    } catch (error) { console.error('❌ Kayıt hatası:', error); }
+});
 
 client.login(process.env.TOKEN);
