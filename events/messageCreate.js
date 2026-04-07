@@ -1,8 +1,8 @@
 const { createWorker } = require('tesseract.js');
 const AboneChannel = require('../models/aboneChannel');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 
-// Sadece en hızlı İngilizce motoru devrede
+// Sadece İngilizce alfabe tarıyoruz, HIZ MAXIMUMDA!
 let worker = null;
 (async () => {
     worker = await createWorker('eng'); 
@@ -21,7 +21,7 @@ module.exports = {
         const attachment = message.attachments.first();
         if (!attachment || !attachment.contentType.startsWith('image')) return;
 
-        // Kullanıcıyı kilitle (Çiftlemeyi önler)
+        // Adamı hemen kilitle, çiftlemeyi engelle
         activeProcessing.add(message.author.id);
 
         const isEn = channelData.lang === 'en';
@@ -29,7 +29,7 @@ module.exports = {
         const LOG_ID = '1490998881553743932';
 
         try {
-            // "Analiz ediliyor..." MESAJINI KOMPLE SİLDİM. DİREKT OKUYOR.
+            // Analiz ediliyor yazısını sildik, direkt taramaya giriyor ki vakit kaybetmesin
             const { data: { text } } = await worker.recognize(attachment.url);
             const cleanText = text.toLowerCase().replace(/[^a-z0-9]/g, '');
             
@@ -37,33 +37,48 @@ module.exports = {
             const hasScript = cleanText.includes('scr1pt') || cleanText.includes('script') || cleanText.includes('scrpt') || cleanText.includes('scrlpt');
 
             if (hasRyphera && hasScript) {
-                // ROL VER VE ZINK DİYE ONAYLA
+                // ✅ BAŞARILI
                 await message.member.roles.add(ROLE_ID).catch(() => {});
                 
                 const finalMsg = await message.reply(isEn ? '`✅ VERIFIED!`' : '`✅ ONAYLANDI!`');
-                try { await message.author.send(isEn ? '🚀 Verified! Welcome.' : '🚀 Onaylandın! Ailemize hoş geldin.'); } catch(e){}
                 
+                // Loga Gönder (KOPYALAYARAK - Resim silinme sorunu çözüldü)
                 const logChannel = client.channels.cache.get(LOG_ID);
                 if (logChannel) {
-                    const log = new EmbedBuilder().setTitle('✅ ONAY').setColor('#00FF00').addFields({name:'Kullanıcı', value:`<@${message.author.id}>`}).setImage(attachment.url);
-                    logChannel.send({ embeds: [log] });
+                    // Resmi Discord'a yeniden yüklüyoruz
+                    const imgFile = new AttachmentBuilder(attachment.url, { name: 'onay.png' });
+                    const log = new EmbedBuilder()
+                        .setTitle(isEn ? '✅ VERIFIED' : '✅ ONAYLANDI')
+                        .setColor('#00FF00')
+                        .addFields({ name: 'Kullanıcı', value: `<@${message.author.id}>` })
+                        .setImage('attachment://onay.png'); // Yeni yüklenen resmi kullan
+                    logChannel.send({ embeds: [log], files: [imgFile] }).catch(()=>console.log("Log atılamadı"));
                 }
 
-                // 5 Saniye sonra kanalı temizle
+                // DM Gönder
+                try { await message.author.send(isEn ? '🚀 Subscription verified! Welcome.' : '🚀 Aboneliğiniz onaylandı! Ailemize hoş geldiniz.'); } catch(e){}
+
+                // 3 Saniye sonra kanalı temizle (Daha hızlı)
                 setTimeout(async () => {
                     try { await message.delete(); await finalMsg.delete(); } catch(e){}
                     activeProcessing.delete(message.author.id);
-                }, 5000);
+                }, 3000);
 
             } else {
-                // ZINK DİYE REDDET
-                const finalMsg = await message.reply(isEn ? '`❌ FAILED!`' : '`❌ BAŞARISIZ!`');
-                try { await message.author.send(isEn ? '❌ Failed. Name not found.' : '❌ Başarısız. Resimde isim bulunamadı.'); } catch(e){}
+                // ❌ BAŞARISIZ (Yeni Hata Mesajı)
+                const failTextTR = '`❌ Üzgünüz, resminiz onaylanmadı. Lütfen tekrar deneyiniz.`';
+                const failTextEN = '`❌ Sorry, your image was not approved. Please try again.`';
                 
+                const finalMsg = await message.reply(isEn ? failTextEN : failTextTR);
+                
+                // DM Gönder
+                try { await message.author.send(isEn ? failTextEN.replace(/`/g, '') : failTextTR.replace(/`/g, '')); } catch(e){}
+                
+                // 4 Saniye sonra kanalı temizle
                 setTimeout(async () => {
                     try { await message.delete(); await finalMsg.delete(); } catch(e){}
                     activeProcessing.delete(message.author.id);
-                }, 5000);
+                }, 4000);
             }
         } catch (e) { 
             console.error(e);
