@@ -21,34 +21,46 @@ module.exports = {
         await message.react('🔍');
 
         try {
+            // eng+tur ile oku ama sonucu temizle
             const { data: { text } } = await Tesseract.recognize(attachment.url, 'eng+tur');
-            const lowerText = text.toLowerCase();
-            const isSubbed = lowerText.includes('ryphera scr1pt') || lowerText.includes('@rypherascr1pt');
+            
+            // Küçük harfe çevir ve tüm boşlukları/noktalama işaretlerini sil (Fuzzy Matching)
+            const cleanText = text.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+            
+            // Kontrol: "ryphera" geçsin VE ("scr1pt" veya "script" veya "scrpt" geçsin)
+            const hasRyphera = cleanText.includes('ryphera');
+            const hasScript = cleanText.includes('scr1pt') || cleanText.includes('script') || cleanText.includes('scrpt') || cleanText.includes('scrlpt');
 
-            if (isSubbed) {
+            if (hasRyphera && hasScript) {
                 await message.member.roles.add(ROLE_ID);
                 await message.react('✅');
-                message.reply(isEn ? '`SUCCESS: Subscriber role granted!`' : '`BAŞARILI: Abone rolün verildi!`');
+                message.reply(isEn ? '`SUCCESS: Subscriber role granted!`' : '`BAŞARILI: Ryphera ailesine hoş geldin!`');
 
                 const logEmbed = new EmbedBuilder()
                     .setTitle('✅ ABONE ONAYLANDI')
                     .setColor('#00FF00')
-                    .addFields({ name: 'Kullanıcı', value: `<@${message.author.id}>` })
+                    .addFields(
+                        { name: 'Kullanıcı', value: `<@${message.author.id}>` },
+                        { name: 'Sistem Notu', value: 'Esnek tarama ile doğrulandı.' }
+                    )
                     .setImage(attachment.url).setTimestamp();
                 logChannel.send({ embeds: [logEmbed] });
             } else {
                 await message.react('❌');
-                message.reply(isEn ? '`FAILED: "Ryphera Scr1pt" name not detected.`' : '`HATA: "Ryphera Scr1pt" ismi bulunamadı.`');
+                message.reply(isEn ? 
+                    '`FAILED: "Ryphera Scr1pt" not detected. Please make sure the channel name is clear.`' : 
+                    '`HATA: "Ryphera Scr1pt" ismi net okunamadı. Lütfen kanal isminin tam göründüğünden emin olun.`');
 
                 const logFailEmbed = new EmbedBuilder()
                     .setTitle('❌ ONAY REDDEDİLDİ')
                     .setColor('#FF0000')
-                    .addFields({ name: 'Kullanıcı', value: `<@${message.author.id}>` })
+                    .addFields({ name: 'Kullanıcı', value: `<@${message.author.id}>` }, { name: 'Okunan Metin', value: `\`${text.substring(0, 100)}...\`` })
                     .setImage(attachment.url).setTimestamp();
                 logChannel.send({ embeds: [logFailEmbed] });
             }
         } catch (err) {
-            message.reply('`HATA: Resim okunamadı.`');
+            console.error(err);
+            message.reply('`SİSTEM HATASI: Resim işlenirken bir sorun oluştu.`');
         }
     }
 };
