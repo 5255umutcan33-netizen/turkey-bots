@@ -1,120 +1,55 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const KeyModel = require('../models/key');
 
-const cooldown = new Set(); // Çift tıklamayı engellemek için
+const cooldown = new Set(); 
 
 module.exports = {
     name: 'interactionCreate',
-    async execute(interaction) {
-        // --- 1. SLASH KOMUTLARI ÇALIŞTIRICI ---
+    async execute(interaction, client) {
+        const OWNER_ID = '345821033414262794'; // SENİN ID'N (Bütün yetkiler buna bağlı)
+
+        // --- 1. SLASH KOMUTLARINI ÇALIŞTIR ---
         if (interaction.isChatInputCommand()) {
-            const command = interaction.client.commands.get(interaction.commandName);
+            const command = client.commands.get(interaction.commandName);
             if (!command) return;
             try {
                 await command.execute(interaction);
             } catch (error) {
                 console.error(error);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: '`HATA: Komut çalıştırılamadı.`', ephemeral: true });
-                } else {
-                    await interaction.reply({ content: '`HATA: Komut çalıştırılamadı.`', ephemeral: true });
-                }
+                if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '`HATA`', ephemeral: true });
+                else await interaction.reply({ content: '`HATA`', ephemeral: true });
             }
             return;
         }
 
-        // --- 2. BUTON ETKİLEŞİMLERİ ---
+        // --- 2. BUTONLARI ÇALIŞTIR ---
         if (!interaction.isButton()) return;
-
         const cid = interaction.customId;
-        
-        // SENİN KENDİ ID'N (BUNU KULLANARAK YETKİ KONTROLÜ YAPACAK)
-        const OWNER_ID = '345821033414262794'; 
 
-        // A) KEY ALMA BUTONLARI (TR/EN)
+        if (cid === 'confirm_delete_all') {
+            if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '`⚠️ YETKİ YOK`', ephemeral: true });
+            await KeyModel.deleteMany({});
+            return interaction.update({ content: '`✅ Tüm veritabanı mermi gibi temizlendi!`', embeds: [], components: [] });
+        }
+
+        if (cid === 'cancel_delete_all') return interaction.update({ content: '`İptal edildi.`', embeds: [], components: [] });
+
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
-            // Cooldown kontrolü (Çift basmayı engeller)
-            if (cooldown.has(interaction.user.id)) {
-                return interaction.reply({ content: '`SİSTEM: Lütfen işlemin bitmesini bekleyin...`', ephemeral: true });
-            }
-
+            if (cooldown.has(interaction.user.id)) return interaction.reply({ content: '`Bekle...`', ephemeral: true });
             cooldown.add(interaction.user.id);
-            setTimeout(() => cooldown.delete(interaction.user.id), 5000); // 5 sn bekleme süresi
+            setTimeout(() => cooldown.delete(interaction.user.id), 5000);
 
             const isEn = cid === 'get_key_en';
             const existing = await KeyModel.findOne({ createdBy: interaction.user.id });
-
-            if (existing) {
-                return interaction.reply({ 
-                    content: isEn ? `\`SYSTEM: You already have a key: ${existing.key}\`` : `\`SİSTEM: Zaten bir anahtarın var: ${existing.key}\``, 
-                    ephemeral: true 
-                });
-            }
+            if (existing) return interaction.reply({ content: `\`Key: ${existing.key}\``, ephemeral: true });
 
             const rypKey = `RYP-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-            const keyId = Math.floor(100000 + Math.random() * 900000).toString();
-
-            const newKey = new KeyModel({ key: rypKey, keyId: keyId, createdBy: interaction.user.id });
-            await newKey.save();
+            await new KeyModel({ key: rypKey, keyId: "123456", createdBy: interaction.user.id }).save();
 
             try {
-                const dmEmbed = new EmbedBuilder()
-                    .setTitle('RYPHERA | LICENSE')
-                    .setColor('#00FF00')
-                    .setDescription(isEn ? `Key: \`${rypKey}\`\nStatus: \`Lifetime\`` : `Anahtar: \`${rypKey}\`\nDurum: \`Sınırsız\``);
-                
-                await interaction.user.send({ embeds: [dmEmbed] });
-                return interaction.reply({ content: isEn ? '`SUCCESS: Key sent to your DMs!`' : '`BAŞARILI: Key DM kutuna atıldı!`', ephemeral: true });
-            } catch (e) {
-                return interaction.reply({ content: isEn ? '`ERROR: Open your DMs!`' : '`HATA: DM kutun kapalı!`', ephemeral: true });
-            }
-        }
-
-        // B) VERİTABANI SİLME BUTONU (SADECE SEN BASABİLİRSİN)
-        if (cid === 'confirm_delete_all') {
-            if (interaction.user.id !== OWNER_ID) {
-                return interaction.reply({ content: '`⚠️ YETKİ YOK: Bu işlemi sadece kurucu yapabilir!`', ephemeral: true });
-            }
-
-            await KeyModel.deleteMany({});
-            return interaction.update({ content: '`✅ SİSTEM: Tüm veritabanı başarıyla temizlendi!`', embeds: [], components: [] });
-        }
-
-        // C) İPTAL BUTONU
-        if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
-            return interaction.update({ content: '`İŞLEM: İptal edildi.`', embeds: [], components: [] });
-        }
-
-        // D) VERİTABANI LİSTELEME BUTONU VE SAYFALAMA
-        if (cid === 'confirm_list_keys' || cid.startsWith('page_')) {
-            // Listelemeyi de sadece sen görebilirsin
-            if (interaction.user.id !== OWNER_ID) {
-                return interaction.reply({ content: '`⚠️ YETKİ YOK: Veritabanını göremezsin.`', ephemeral: true });
-            }
-
-            let page = cid.startsWith('page_') ? parseInt(cid.split('_')[1]) : 0;
-            const allKeys = await KeyModel.find().sort({ createdAt: -1 });
-            const pageSize = 5;
-            const pages = Math.ceil(allKeys.length / pageSize);
-            const current = allKeys.slice(page * pageSize, (page + 1) * pageSize);
-
-            const listEmbed = new EmbedBuilder()
-                .setTitle('RYPHERA | DATABASE')
-                .setColor('#FF0000')
-                .setFooter({ text: `Sayfa ${page + 1} / ${pages || 1}` });
-
-            if (allKeys.length === 0) {
-                listEmbed.setDescription('`Veritabanı boş.`');
-            } else {
-                current.forEach((k, i) => listEmbed.addFields({ name: `Kayıt #${(page * pageSize) + i + 1}`, value: `Key: \`${k.key}\` | Sahip: <@${k.createdBy}>` }));
-            }
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`page_${page - 1}`).setLabel('Geri').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-                new ButtonBuilder().setCustomId(`page_${page + 1}`).setLabel('İleri').setStyle(ButtonStyle.Secondary).setDisabled(page + 1 >= pages || allKeys.length === 0)
-            );
-
-            return interaction.update({ embeds: [listEmbed], components: [row] });
+                await interaction.user.send(`🚀 RYPHERA KEY: \`${rypKey}\``);
+                return interaction.reply({ content: '`BAŞARILI: DM kutuna bak!`', ephemeral: true });
+            } catch (e) { return interaction.reply({ content: '`DM KAPALI!`', ephemeral: true }); }
         }
     }
 };
