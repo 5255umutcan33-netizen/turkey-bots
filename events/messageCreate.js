@@ -15,9 +15,11 @@ module.exports = {
     async execute(message) {
         if (message.author.bot || processing.has(message.id)) return;
 
+        // Kanalın abone onay kanalı olup olmadığını kontrol et
         const channelData = await AboneChannel.findOne({ channelId: message.channelId });
         if (!channelData) return;
 
+        // Resim kontrolü
         const attachment = message.attachments.first();
         if (!attachment || !attachment.contentType.startsWith('image')) return;
 
@@ -36,9 +38,11 @@ module.exports = {
             const hasScript = cleanText.includes('scr1pt') || cleanText.includes('script') || cleanText.includes('scrpt');
 
             if (hasRyphera && hasScript) {
+                // Rol Ver
                 await message.member.roles.add(ROLE_ID);
                 await pMsg.edit(isEn ? '`✅ VERIFIED! Channel cleaning in 3s...`' : '`✅ ONAYLANDI! Kanal 3 saniye içinde temizleniyor...`');
                 
+                // Başarı Logu
                 const logChannel = message.guild.channels.cache.get(LOG_ID);
                 if (logChannel) {
                     const log = new EmbedBuilder()
@@ -54,6 +58,7 @@ module.exports = {
             } else {
                 await pMsg.edit(isEn ? '`❌ NOT FOUND! Channel cleaning in 4s...`' : '`❌ İSİM BULUNAMADI! Kanal 4 saniye içinde temizleniyor...`');
                 
+                // Red Logu
                 const logChannel = message.guild.channels.cache.get(LOG_ID);
                 if (logChannel) {
                     const failLog = new EmbedBuilder()
@@ -61,7 +66,7 @@ module.exports = {
                         .setColor('#FF0000')
                         .addFields(
                             { name: 'Kullanıcı', value: `<@${message.author.id}>` },
-                            { name: 'Durum', value: 'Geçersiz SS veya isim okunamadı.' }
+                            { name: 'Sebep', value: 'Geçersiz SS veya isim okunamadı.' }
                         )
                         .setImage(attachment.url).setTimestamp();
                     logChannel.send({ embeds: [failLog] });
@@ -71,12 +76,14 @@ module.exports = {
             await pMsg.edit('`SYSTEM ERROR: OCR Failed.`'); 
         }
 
-        // Temizlik: 4 saniye sonra mesajları sil
+        // --- TEMİZLİK: 4 saniye sonra mesajları sil ---
         setTimeout(async () => {
             try { 
                 await message.delete(); 
                 await pMsg.delete(); 
-            } catch (e) {}
+            } catch (e) {
+                console.log("Mesaj silinemedi (yetki eksik veya mesaj yok).");
+            }
             processing.delete(message.id);
         }, 4000);
     }
