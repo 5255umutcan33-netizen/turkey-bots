@@ -21,7 +21,7 @@ module.exports = {
             return;
         }
 
-        // --- 2. BUTONLAR ---
+        // --- 2. BUTON KONTROLLERİ ---
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
@@ -40,7 +40,6 @@ module.exports = {
             }
             const isEn = cid === 'claim_ticket_en';
             const row = ActionRowBuilder.from(interaction.message.components[0]);
-            
             row.components[0].setDisabled(true).setLabel(isEn ? `Claimed: ${interaction.user.username}` : `Sahiplenen: ${interaction.user.username}`);
             await interaction.update({ components: [row] });
 
@@ -52,7 +51,7 @@ module.exports = {
             return interaction.channel.send({ embeds: [claimEmbed] });
         }
 
-        // --- TICKET AÇMA (SIRALI NUMARA SİSTEMLİ) ---
+        // --- TICKET AÇMA (SIRALI NUMARA SİSTEMİ) ---
         const ticketIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (ticketIds.includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
@@ -61,13 +60,13 @@ module.exports = {
                 return interaction.reply({ content: isEn ? '`You already have an open ticket.`' : '`Zaten açık bir biletiniz var.`', ephemeral: true });
             }
 
-            // SAYAÇTAN SIRADAKİ NUMARAYI AL (1, 2, 3...)
+            // SAYAÇTAN SIRADAKİ NUMARAYI ÇEK (1, 2, 3...)
             let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
             const ticketNo = counter.seq;
 
             let typeName = '', titleName = '';
             if (cid.includes('support')) { typeName = isEn ? 'support' : 'destek'; titleName = isEn ? 'SUPPORT' : 'DESTEK'; }
-            if (cid.includes('partner')) { typeName = isEn ? 'partner' : 'is-birligi'; titleName = isEn ? 'PARTNERSHIP' : 'İŞ BİRLİĞİ'; }
+            if (cid.includes('partner')) { typeName = isEn ? 'partner' : 'is-birligi'; titleName = isEn ? 'PARTNER' : 'İŞ BİRLİĞİ'; }
             if (cid.includes('key')) { typeName = 'key'; titleName = isEn ? 'KEY OPS' : 'KEY İŞLEMLERİ'; }
 
             const ticketChannel = await interaction.guild.channels.create({
@@ -102,11 +101,7 @@ module.exports = {
         // --- MOBİL SCRIPT KOPYALAMA ---
         if (cid === 'mobil_kopyala_btn') {
             const embed = interaction.message.embeds[0];
-            if (!embed) return interaction.reply({ content: '`Embed bulunamadı.`', ephemeral: true });
-            
             const scriptAlani = embed.fields[1]; 
-            if (!scriptAlani) return interaction.reply({ content: '`Kod bulunamadı.`', ephemeral: true });
-            
             let temizKod = scriptAlani.value.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
             return interaction.reply({ content: `💬 **Script Kodu:**\n${temizKod}`, ephemeral: true });
         }
@@ -124,11 +119,9 @@ module.exports = {
             if (cooldown.has(interaction.user.id)) return interaction.reply({ content: '`Bekle...`', ephemeral: true });
             cooldown.add(interaction.user.id);
             setTimeout(() => cooldown.delete(interaction.user.id), 5000);
-
             const isEn = cid === 'get_key_en';
             const existing = await KeyModel.findOne({ createdBy: interaction.user.id });
             if (existing) return interaction.reply({ content: `\`Key: ${existing.key}\``, ephemeral: true });
-
             const rypKey = `RYP-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
             await new KeyModel({ key: rypKey, keyId: "123456", createdBy: interaction.user.id }).save();
             try {
