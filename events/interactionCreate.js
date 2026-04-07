@@ -17,24 +17,30 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
-        // --- DOĞRULAMA SİSTEMİ (YENİ!) ---
+        // --- DOĞRULAMA SİSTEMİ (KANAL GİZLEME EKLENDİ) ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const TR_ROLE = '1491090280466747685';
             const GB_ROLE = '1491090834165334167';
             const isTr = cid === 'verify_tr';
 
             try {
-                // Rolü ver
+                // 1. Rolü veriyoruz
                 await interaction.member.roles.add(isTr ? TR_ROLE : GB_ROLE);
                 
-                // Cevap ver
+                // 2. KANALI ADAMA GİZLİYORUZ (Büyü burada kanka)
+                // Bu kod, butona basan kişinin o kanalı görme yetkisini o an kapatır.
+                await interaction.channel.permissionOverwrites.create(interaction.user, {
+                    ViewChannel: false
+                }).catch(() => {}); // Hata olursa bot çökmesin diye boş catch
+
+                // 3. Başarılı mesajını fırlatıyoruz
                 return interaction.reply({ 
-                    content: isTr ? '`✅ Doğrulandı! Kanallara erişiminiz açıldı.`' : '`✅ Verified! You now have access to the channels.`', 
+                    content: isTr ? '`✅ Doğrulandı! Kanal artık sizin için gizlendi ve tüm sunucu açıldı.`' : '`✅ Verified! Channel is now hidden and server is open for you.`', 
                     ephemeral: true 
                 });
             } catch (err) {
                 console.error(err);
-                return interaction.reply({ content: '`❌ Rol verilirken bir hata oluştu!`', ephemeral: true });
+                return interaction.reply({ content: '`❌ Hata: Rol verilemedi veya kanal gizlenemedi!`', ephemeral: true });
             }
         }
 
@@ -88,7 +94,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle(`💬 RYPHERA OS | ${title}`)
                     .setColor('#2B2D31')
-                    .setDescription(isEn ? `>>> 👋 **Hello <@${interaction.user.id}>!**\nPlease state your request. Staff will be with you shortly.` : `>>> 👋 **Merhaba <@${interaction.user.id}>!**\nLütfen talebinizi buraya yazın. Yetkililerimiz birazdan ilgilenecektir.`)
+                    .setDescription(isEn ? `>>> 👋 **Hello <@${interaction.user.id}>!**\nPlease state your request.` : `>>> 👋 **Merhaba <@${interaction.user.id}>!**\nLütfen talebinizi buraya yazın.`)
                     .setFooter({ text: `Bilet #${ticketNo}` });
 
                 const row = new ActionRowBuilder().addComponents(
