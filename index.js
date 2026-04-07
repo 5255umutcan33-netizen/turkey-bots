@@ -6,9 +6,8 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// 1. MODELLER
-// Not: Klasöründeki dosya adı 'Key.js' ise öyle kalsın, 'key.js' ise küçük yap.
-const KeyModel = require('./models/Key.js'); 
+// 1. MODELLER (Küçük harf 'key' en garantisidir kanka)
+const KeyModel = require('./models/key.js'); 
 
 // 2. SUNUCU VE BOT BAŞLATMA
 const app = express();
@@ -21,7 +20,7 @@ const client = new Client({
     ]
 });
 
-// Middleware Ayarları
+// Middleware (Sitenin bota bağlanması için şart)
 app.use(cors());
 app.use(express.json());
 
@@ -59,9 +58,9 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// --- 5. WEB API KÖPRÜLERİ (SİTE İÇİN) ---
+// --- 5. WEB API KÖPRÜLERİ (Vercel Sitesi İçin) ---
 
-// Tüm Keyleri Listeleme
+// Sitedeki Tabloyu Doldurmak İçin Keyleri Gönderir
 app.get('/api/keys', async (req, res) => {
     try {
         const keys = await KeyModel.find().sort({ createdAt: -1 });
@@ -71,7 +70,7 @@ app.get('/api/keys', async (req, res) => {
     }
 });
 
-// Yeni Key Oluşturma
+// Siteden Gelen Key Üretme İsteği
 app.post('/api/keys/generate', async (req, res) => {
     const { userId, keyName, expiry } = req.body;
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
@@ -79,7 +78,7 @@ app.post('/api/keys/generate', async (req, res) => {
     try {
         const newKey = new KeyModel({
             key: keyName,
-            expiry: expiry,
+            expiry: expiry || 'Sınırsız',
             hwid: null,
             owner: userId
         });
@@ -90,7 +89,7 @@ app.post('/api/keys/generate', async (req, res) => {
     }
 });
 
-// Key Silme / Resetleme
+// Siteden Gelen Silme/Sıfırlama İsteği
 app.post('/api/keys/action', async (req, res) => {
     const { userId, keyId, action } = req.body;
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
@@ -108,7 +107,7 @@ app.post('/api/keys/action', async (req, res) => {
     }
 });
 
-// --- 6. ROBLOX API (ESKİ SİSTEM) ---
+// --- 6. ROBLOX / SCRIPT VERIFY SİSTEMİ ---
 app.get('/verify', async (req, res) => {
     const { key, hwid } = req.query;
     if (!key || !hwid) return res.json({ success: false, message: "EKSİK VERİ!" });
@@ -121,10 +120,10 @@ app.get('/verify', async (req, res) => {
     } catch (e) { return res.json({ success: false, message: "HATA" }); }
 });
 
-// --- 7. BAŞLATMA ---
+// --- 7. BAŞLATMA VE PORT AYARI ---
 app.get('/', (req, res) => res.send('RYPHERA OS ONLINE 🚀'));
 
-// SADECE BİR TANE LISTEN OLMALI!
+// Render'ın Portunu Kullan (Tek Listen kuralı!)
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`🚀 [🌐 Sunucu] Port ${PORT} üzerinde aktif.`);
