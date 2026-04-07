@@ -4,14 +4,10 @@ const AboneChannel = require('../models/aboneChannel');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('trabonekur')
-        .setDescription('Bu kanalı Türkçe abone onay kanalına dönüştürür.')
+        .setDescription('Kanalı Türkçe abone kontrol kanalına çevirir.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
-        await AboneChannel.findOneAndUpdate(
-            { channelId: interaction.channelId },
-            { lang: 'tr' },
-            { upsert: true }
-        );
-        await interaction.reply('✅ `SİSTEM: Bu kanal artık otomatik Türkçe abone onay kanalıdır.`');
+        await AboneChannel.findOneAndUpdate({ channelId: interaction.channelId }, { lang: 'tr' }, { upsert: true });
+        await interaction.reply('✅ `SİSTEM: Bu kanal Türkçe abone onay kanalı olarak ayarlandı.`');
     },
 };

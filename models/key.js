@@ -8,5 +8,4 @@ const keySchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-// Hata almamak için kalkanlı model
 module.exports = mongoose.models.RypheraKey || mongoose.model('RypheraKey', keySchema);

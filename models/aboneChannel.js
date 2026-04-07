@@ -5,5 +5,4 @@ const aboneChannelSchema = new mongoose.Schema({
     lang: { type: String, enum: ['tr', 'en'], required: true }
 });
 
-// Hata almamak için kalkanlı model
 module.exports = mongoose.models.AboneChannel || mongoose.model('AboneChannel', aboneChannelSchema);
