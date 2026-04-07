@@ -8,19 +8,17 @@ module.exports = {
 
     async execute(interaction) {
         const embed = new EmbedBuilder()
-            .setTitle('RYPHERA OS | DESTEK SİSTEMİ')
+            .setTitle('💬 RYPHERA OS | DESTEK SİSTEMİ')
             .setColor('#2B2D31')
-            .setDescription('>>> Lütfen iletişime geçmek istediğiniz departmanı aşağıdaki butonlardan seçin.\nEkibimiz en kısa sürede size dönüş yapacaktır.')
+            .setDescription('>>> 👋 **Merhaba!**\n\nLütfen iletişime geçmek istediğiniz departmanı aşağıdaki butonlardan seçin.\nEkibimiz en kısa sürede size dönüş yapacaktır.')
             .setFooter({ text: 'Ryphera Scripting Solutions' });
 
-        // Butonlar tamamen siyah/gri (Secondary) tasarlandı. Jilet gibi durur.
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('ticket_tr_support').setLabel('Destek').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('ticket_tr_partner').setLabel('İş Birliği').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('ticket_tr_key').setLabel('Key İşlemleri').setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('ticket_tr_support').setLabel('Destek').setEmoji('📩').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('ticket_tr_partner').setLabel('İş Birliği').setEmoji('🤝').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('ticket_tr_key').setLabel('Key İşlemleri').setEmoji('🔑').setStyle(ButtonStyle.Secondary)
         );
 
-        // Komutu yazdığın kanala menüyü fırlatır
         await interaction.channel.send({ embeds: [embed], components: [row] });
         await interaction.reply({ content: '`Ticket sistemi başarıyla bu kanala kuruldu.`', ephemeral: true });
     },

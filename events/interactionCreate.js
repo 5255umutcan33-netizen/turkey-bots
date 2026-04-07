@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 const KeyModel = require('../models/key');
-const Counter = require('../models/counter'); // Bilet sayacı
+const Counter = require('../models/counter'); 
 
 const cooldown = new Set(); 
 
@@ -28,7 +28,7 @@ module.exports = {
         // --- TICKET KAPATMA ---
         if (cid === 'close_ticket_tr' || cid === 'close_ticket_en') {
             const isEn = cid === 'close_ticket_en';
-            await interaction.reply(`\`${isEn ? 'Channel is closing in 3 seconds... 📩' : 'Kanal 3 saniye içinde imha ediliyor... 📩'}\``);
+            await interaction.reply(`\`${isEn ? 'Channel is closing... 📩' : 'Kanal imha ediliyor... 📩'}\``);
             setTimeout(() => { interaction.channel.delete().catch(() => {}); }, 3000);
             return;
         }
@@ -40,6 +40,7 @@ module.exports = {
             }
             const isEn = cid === 'claim_ticket_en';
             const row = ActionRowBuilder.from(interaction.message.components[0]);
+            
             row.components[0].setDisabled(true).setLabel(isEn ? `Claimed: ${interaction.user.username}` : `Sahiplenen: ${interaction.user.username}`);
             await interaction.update({ components: [row] });
 
@@ -51,7 +52,7 @@ module.exports = {
             return interaction.channel.send({ embeds: [claimEmbed] });
         }
 
-        // --- TICKET AÇMA ---
+        // --- TICKET AÇMA (SIRALI NUMARA SİSTEMLİ) ---
         const ticketIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (ticketIds.includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
@@ -60,13 +61,13 @@ module.exports = {
                 return interaction.reply({ content: isEn ? '`You already have an open ticket.`' : '`Zaten açık bir biletiniz var.`', ephemeral: true });
             }
 
-            // SIRALI NUMARA SİSTEMİ (1, 2, 3...)
+            // SAYAÇTAN SIRADAKİ NUMARAYI AL (1, 2, 3...)
             let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
             const ticketNo = counter.seq;
 
             let typeName = '', titleName = '';
             if (cid.includes('support')) { typeName = isEn ? 'support' : 'destek'; titleName = isEn ? 'SUPPORT' : 'DESTEK'; }
-            if (cid.includes('partner')) { typeName = isEn ? 'partner' : 'is-birligi'; titleName = isEn ? 'PARTNER' : 'İŞ BİRLİĞİ'; }
+            if (cid.includes('partner')) { typeName = isEn ? 'partner' : 'is-birligi'; titleName = isEn ? 'PARTNERSHIP' : 'İŞ BİRLİĞİ'; }
             if (cid.includes('key')) { typeName = 'key'; titleName = isEn ? 'KEY OPS' : 'KEY İŞLEMLERİ'; }
 
             const ticketChannel = await interaction.guild.channels.create({
@@ -90,15 +91,15 @@ module.exports = {
                 .setTimestamp();
 
             const actionRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close' : 'Kapat').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setEmoji('🗪').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(isEn ? 'close_ticket_en' : 'close_ticket_tr').setLabel(isEn ? 'Close' : 'Kapat').setEmoji('📩').setStyle(ButtonStyle.Danger)
             );
 
             await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [actionRow] });
             return interaction.reply({ content: isEn ? `\`Ticket created:\` <#${ticketChannel.id}>` : `\`Bilet oluşturuldu:\` <#${ticketChannel.id}>`, ephemeral: true });
         }
 
-        // --- MOBİL KOPYALAMA ---
+        // --- MOBİL SCRIPT KOPYALAMA ---
         if (cid === 'mobil_kopyala_btn') {
             const embed = interaction.message.embeds[0];
             if (!embed) return interaction.reply({ content: '`Embed bulunamadı.`', ephemeral: true });
