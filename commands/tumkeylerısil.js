@@ -1,21 +1,21 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
-const OWNER_ID = '345821033414262794';
+const OWNER_ID = '345821033414262794'; // Burayı kendi ID'nle değiştir kanka
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('tumkeylerisil')
-        .setDescription('Veritabanını temizler.'),
+        .setDescription('Sistemi tamamen sıfırlar.'),
     async execute(interaction) {
-        if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '\`YETKİ YOK!\`', ephemeral: true });
+        if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '`YETKİ: Erişim reddedildi.`', ephemeral: true });
 
         const delEmbed = new EmbedBuilder()
-            .setTitle('RYPHERA | SIFIRLAMA')
+            .setTitle('RYPHERA | RESET')
             .setColor('#FF0000')
-            .setDescription(`Tüm veriler \`SİLİNECEK\`. Onaylıyor musun?`);
+            .setDescription('Tüm veritabanı `SİLİNECEK`. Bu işlem geri alınamaz.\nOnaylıyor musun?');
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('confirm_delete_all').setLabel('Tümünü Sil').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId('confirm_delete_all').setLabel('Sıfırla').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId('cancel_delete_all').setLabel('İptal').setStyle(ButtonStyle.Secondary)
         );
 
