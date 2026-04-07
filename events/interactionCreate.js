@@ -7,7 +7,6 @@ module.exports = {
     async execute(interaction, client) {
         const OWNER_ID = '345821033414262794'; 
 
-        // --- 1. SLASH KOMUTLARINI ÇALIŞTIR ---
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
@@ -18,6 +17,27 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId;
 
+        // --- DOĞRULAMA SİSTEMİ (YENİ!) ---
+        if (cid === 'verify_tr' || cid === 'verify_en') {
+            const TR_ROLE = '1491090280466747685';
+            const GB_ROLE = '1491090834165334167';
+            const isTr = cid === 'verify_tr';
+
+            try {
+                // Rolü ver
+                await interaction.member.roles.add(isTr ? TR_ROLE : GB_ROLE);
+                
+                // Cevap ver
+                return interaction.reply({ 
+                    content: isTr ? '`✅ Doğrulandı! Kanallara erişiminiz açıldı.`' : '`✅ Verified! You now have access to the channels.`', 
+                    ephemeral: true 
+                });
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '`❌ Rol verilirken bir hata oluştu!`', ephemeral: true });
+            }
+        }
+
         // --- TICKET KAPATMA ---
         if (cid.startsWith('close_ticket')) {
             const isEn = cid.includes('en');
@@ -26,16 +46,14 @@ module.exports = {
             return;
         }
 
-        // --- YETKİLİ SAHİPLEN ---
+        // --- SAHİPLEN ---
         if (cid.startsWith('claim_ticket')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
                 return interaction.reply({ content: '`⚠️ Yetkin yok!`', ephemeral: true });
             }
             const isEn = cid.includes('en');
             const row = ActionRowBuilder.from(interaction.message.components[0]);
-            
             row.components[0].setDisabled(true).setLabel(isEn ? `Claimed: ${interaction.user.username}` : `Sahiplenen: ${interaction.user.username}`);
-            
             await interaction.update({ components: [row] });
             return interaction.channel.send({ content: `💬 **<@${interaction.user.id}> ${isEn ? 'is now assisting you.' : 'biletle ilgileniyor.'}**` });
         }
@@ -44,28 +62,17 @@ module.exports = {
         const ticketIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (ticketIds.includes(cid)) {
             await interaction.deferReply({ ephemeral: true });
-
             const isEn = cid.startsWith('ticket_en_');
             const existing = interaction.guild.channels.cache.find(c => c.topic === interaction.user.id);
             if (existing) return interaction.editReply({ content: isEn ? '`You already have an open ticket!`' : '`Zaten açık bir biletiniz var!`' });
 
             try {
-                // Sıralı numara sistemi
                 let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
                 const ticketNo = counter.seq;
-
                 let type = isEn ? 'support' : 'destek';
                 let title = isEn ? 'SUPPORT' : 'DESTEK';
-                
-                // BURAYI DÜZELTTİM KANKA!
-                if (cid.includes('partner')) { 
-                    type = isEn ? 'partner' : 'is-birligi'; 
-                    title = isEn ? 'PARTNERSHIP' : 'İŞ BİRLİĞİ'; 
-                }
-                if (cid.includes('key')) { 
-                    type = 'key'; 
-                    title = isEn ? 'KEY OPERATIONS' : 'KEY İŞLEMLERİ'; 
-                }
+                if (cid.includes('partner')) { type = isEn ? 'partner' : 'is-birligi'; title = isEn ? 'PARTNERSHIP' : 'İŞ BİRLİĞİ'; }
+                if (cid.includes('key')) { type = 'key'; title = isEn ? 'KEY OPERATIONS' : 'KEY İŞLEMLERİ'; }
 
                 const ticketChannel = await interaction.guild.channels.create({
                     name: `${type}-${interaction.user.username}-${ticketNo}`,
@@ -81,11 +88,8 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle(`💬 RYPHERA OS | ${title}`)
                     .setColor('#2B2D31')
-                    .setDescription(isEn 
-                        ? `>>> 👋 **Hello <@${interaction.user.id}>!**\nPlease state your request. Staff will be with you shortly.`
-                        : `>>> 👋 **Merhaba <@${interaction.user.id}>!**\nLütfen talebinizi buraya yazın. Yetkililerimiz birazdan ilgilenecektir.`)
-                    .setFooter({ text: `Bilet #${ticketNo}` })
-                    .setTimestamp();
+                    .setDescription(isEn ? `>>> 👋 **Hello <@${interaction.user.id}>!**\nPlease state your request. Staff will be with you shortly.` : `>>> 👋 **Merhaba <@${interaction.user.id}>!**\nLütfen talebinizi buraya yazın. Yetkililerimiz birazdan ilgilenecektir.`)
+                    .setFooter({ text: `Bilet #${ticketNo}` });
 
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId(isEn ? 'claim_ticket_en' : 'claim_ticket_tr').setLabel(isEn ? 'Claim' : 'Sahiplen').setEmoji('💬').setStyle(ButtonStyle.Success),
@@ -93,8 +97,7 @@ module.exports = {
                 );
 
                 await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
-                return interaction.editReply({ content: `✅ **Kanal Açıldı:** <#${ticketChannel.id}>` });
-
+                return interaction.editReply({ content: `✅ **Bilet Açıldı:** <#${ticketChannel.id}>` });
             } catch (err) {
                 console.error(err);
                 return interaction.editReply({ content: `❌ **Hata Oluştu:** \`${err.message}\`` });
