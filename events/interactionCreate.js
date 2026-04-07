@@ -6,7 +6,7 @@ const cooldown = new Set(); // Çift tıklamayı engellemek için
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction) {
-        // --- 1. KOMUT ÇALIŞTIRICI ---
+        // --- 1. SLASH KOMUTLARI ÇALIŞTIRICI ---
         if (interaction.isChatInputCommand()) {
             const command = interaction.client.commands.get(interaction.commandName);
             if (!command) return;
@@ -23,19 +23,21 @@ module.exports = {
             return;
         }
 
-        // --- 2. BUTON KONTROLLERİ ---
+        // --- 2. BUTON ETKİLEŞİMLERİ ---
         if (!interaction.isButton()) return;
-        
-        // Cooldown Kontrolü (Çift İşlemi Engeller)
-        if (cooldown.has(interaction.user.id)) {
-            return interaction.reply({ content: '`SİSTEM: Lütfen işlemin bitmesini bekleyin...`', ephemeral: true });
-        }
 
         const cid = interaction.customId;
-        const OWNER_ID = 'SENIN_ID_BURAYA_YAZILACAK'; // KENDI ID'NI YAZ!
+        
+        // SENİN KENDİ ID'N (BUNU KULLANARAK YETKİ KONTROLÜ YAPACAK)
+        const OWNER_ID = '345821033414262794'; 
 
-        // A) KEY ALMA BUTONLARI
+        // A) KEY ALMA BUTONLARI (TR/EN)
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
+            // Cooldown kontrolü (Çift basmayı engeller)
+            if (cooldown.has(interaction.user.id)) {
+                return interaction.reply({ content: '`SİSTEM: Lütfen işlemin bitmesini bekleyin...`', ephemeral: true });
+            }
+
             cooldown.add(interaction.user.id);
             setTimeout(() => cooldown.delete(interaction.user.id), 5000); // 5 sn bekleme süresi
 
@@ -68,15 +70,38 @@ module.exports = {
             }
         }
 
-        // B) VERİTABANI SAYFALAMA
+        // B) VERİTABANI SİLME BUTONU (SADECE SEN BASABİLİRSİN)
+        if (cid === 'confirm_delete_all') {
+            if (interaction.user.id !== OWNER_ID) {
+                return interaction.reply({ content: '`⚠️ YETKİ YOK: Bu işlemi sadece kurucu yapabilir!`', ephemeral: true });
+            }
+
+            await KeyModel.deleteMany({});
+            return interaction.update({ content: '`✅ SİSTEM: Tüm veritabanı başarıyla temizlendi!`', embeds: [], components: [] });
+        }
+
+        // C) İPTAL BUTONU
+        if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
+            return interaction.update({ content: '`İŞLEM: İptal edildi.`', embeds: [], components: [] });
+        }
+
+        // D) VERİTABANI LİSTELEME BUTONU VE SAYFALAMA
         if (cid === 'confirm_list_keys' || cid.startsWith('page_')) {
+            // Listelemeyi de sadece sen görebilirsin
+            if (interaction.user.id !== OWNER_ID) {
+                return interaction.reply({ content: '`⚠️ YETKİ YOK: Veritabanını göremezsin.`', ephemeral: true });
+            }
+
             let page = cid.startsWith('page_') ? parseInt(cid.split('_')[1]) : 0;
             const allKeys = await KeyModel.find().sort({ createdAt: -1 });
             const pageSize = 5;
             const pages = Math.ceil(allKeys.length / pageSize);
             const current = allKeys.slice(page * pageSize, (page + 1) * pageSize);
 
-            const listEmbed = new EmbedBuilder().setTitle('RYPHERA | DATABASE').setColor('#FF0000').setFooter({ text: `Sayfa ${page + 1} / ${pages || 1}` });
+            const listEmbed = new EmbedBuilder()
+                .setTitle('RYPHERA | DATABASE')
+                .setColor('#FF0000')
+                .setFooter({ text: `Sayfa ${page + 1} / ${pages || 1}` });
 
             if (allKeys.length === 0) {
                 listEmbed.setDescription('`Veritabanı boş.`');
@@ -90,17 +115,6 @@ module.exports = {
             );
 
             return interaction.update({ embeds: [listEmbed], components: [row] });
-        }
-
-        // C) VERİTABANI TEMİZLEME
-        if (cid === 'confirm_delete_all') {
-            if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '`YETKİ YOK`', ephemeral: true });
-            await KeyModel.deleteMany({});
-            return interaction.update({ content: '`SİSTEM: Veritabanı temizlendi.`', embeds: [], components: [] });
-        }
-
-        if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
-            return interaction.update({ content: '`İptal edildi.`', embeds: [], components: [] });
         }
     }
 };
