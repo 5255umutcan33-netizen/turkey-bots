@@ -51,6 +51,7 @@ module.exports = {
         }
 
         if (!interaction.isButton()) return;
+        
         // --- BAŞVURU ONAY/RED BUTONLARI ---
         if (interaction.customId.startsWith('app_onay_') || interaction.customId.startsWith('app_red_')) {
             // Sadece senin ID'n basabilir (Güvenlik)
@@ -94,7 +95,75 @@ module.exports = {
                 return interaction.reply({ content: '`❌ Hata: Kullanıcı bulunamadı veya işlem başarısız.`', ephemeral: true });
             }
         }
+        
         const cid = interaction.customId;
+
+        // ===============================================
+        // YENİ EKLENEN: KEY SİSTEMİ BUTONLARI (DB BAĞLANTILI)
+        // ===============================================
+
+        // İptal Butonları (Hem listeleme hem silme için ortak)
+        if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
+            return interaction.update({ content: '`❌ İşlem iptal edildi.`', embeds: [], components: [] });
+        }
+
+        // Tüm Keyleri Sil Onayı
+        if (cid === 'confirm_delete_all') {
+            try {
+                await KeyModel.deleteMany({}); // Veritabanını tamamen temizler
+                return interaction.update({ 
+                    content: '`✅ ONAYLANDI:` **Tüm lisans anahtarları sistemden ve veritabanından kalıcı olarak silindi!**', 
+                    components: [], 
+                    embeds: [] 
+                });
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '`❌ Veritabanı silinirken bir hata oluştu.`', ephemeral: true });
+            }
+        }
+
+        // Mevcut Keyleri Listele Onayı
+        if (cid === 'confirm_list_keys') {
+            try {
+                const keys = await KeyModel.find(); // DB'den tüm keyleri çeker
+                
+                if (!keys || keys.length === 0) {
+                    return interaction.update({ 
+                        content: '`⚠️ Veritabanında kayıtlı hiçbir lisans anahtarı bulunamadı.`', 
+                        embeds: [], 
+                        components: [] 
+                    });
+                }
+
+                // HWID doluluk durumuna göre listeyi fiyakalı hale getirelim
+                let desc = keys.map(k => {
+                    let hwidStatus = k.hwid ? `[DOLU: \`${k.hwid}\`]` : '[BOŞ]';
+                    return `🔑 \`${k.key}\` - ${hwidStatus}`;
+                }).join('\n');
+
+                // Eğer çok fazla key varsa Discord'un limitini (4096 karakter) aşmasın diye kesiyoruz
+                if (desc.length > 4000) {
+                    desc = desc.substring(0, 4000) + '\n... *(Çok fazla kayıt var, devamı kesildi)*';
+                }
+
+                const listEmbed = new EmbedBuilder()
+                    .setTitle('RYPHERA | AKTİF LİSANSLAR')
+                    .setColor('#00FF00')
+                    .setDescription(desc)
+                    .setTimestamp();
+
+                return interaction.update({ 
+                    content: '`✅ Veritabanı başarıyla çekildi.`', 
+                    embeds: [listEmbed], 
+                    components: [] 
+                });
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '`❌ Veritabanı okunduğunda bir hata oluştu.`', ephemeral: true });
+            }
+        }
+
+        // ===============================================
 
         // --- BAŞVURU BUTONU (MODAL AÇMA) ---
         if (cid === 'apply_tr' || cid === 'apply_en') {
@@ -122,7 +191,6 @@ module.exports = {
         }
 
         // --- DİĞER BUTONLAR (DOĞRULAMA, TICKET VB.) ---
-        // (Daha önceki mesajdaki verify, ticket ve mobil kopyalama kodlarını buraya eklemeyi unutma kanka!)
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const TR_ROLE = '1491090280466747685';
             const GB_ROLE = '1491090834165334167';
