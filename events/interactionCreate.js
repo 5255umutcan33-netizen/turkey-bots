@@ -51,54 +51,87 @@ module.exports = {
         }
 
         if (!interaction.isButton()) return;
-        
-        const cid = interaction.customId; // Kolaylık için
+        const cid = interaction.customId; 
 
         // ==========================================
-        // KEY SİSTEMİ: KULLANICI KEY ALMA BUTONLARI
+        // 💎 KEY SİSTEMİ (ID'Lİ VE DM GÖNDERMELİ)
         // ==========================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
+            await interaction.deferReply({ ephemeral: true }); // Botun düşünme süresini açıyoruz ki DM atarken hata vermesin
             
             try {
-                // Spamlara karşı önlem: Kullanıcının zaten keyi var mı?
+                // 1. KONTROL: Adamın zaten keyi var mı?
                 let userKey = await KeyModel.findOne({ owner: interaction.user.id });
                 
                 if (userKey) {
-                    return interaction.reply({ 
+                    return interaction.editReply({ 
                         content: isTR 
                             ? `❌ Sistemde zaten kayıtlı bir lisans anahtarın var!\n🔑 **Mevcut Anahtarın:** \`${userKey.key}\`` 
-                            : `❌ You already have a registered license key in the system!\n🔑 **Current Key:** \`${userKey.key}\``, 
-                        ephemeral: true 
+                            : `❌ You already have a registered license key in the system!\n🔑 **Current Key:** \`${userKey.key}\``
                     });
                 }
 
-                // Yeni Key Üret
+                // 2. YENİ KEY ÜRET
                 const p1 = Math.random().toString(36).substr(2, 4).toUpperCase();
                 const p2 = Math.random().toString(36).substr(2, 4).toUpperCase();
-                const newKeyString = `RYP-USER-${p1}-${p2}`; // Örn: RYP-USER-A1B2-C3D4
+                const newKeyString = `RYP-USER-${p1}-${p2}`; // RYP-USER-XXXX-XXXX (17 Hane)
 
-                // MongoDB'ye Kaydet
+                // 3. SIRALI LİSANS ID'Sİ OLUŞTUR (Senin o efsane sistem)
+                let counter = await Counter.findOneAndUpdate({ id: 'license' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
+                const licenseId = counter.seq;
+
+                // 4. MONGODB'YE KAYDET
                 const newKey = new KeyModel({
                     key: newKeyString,
-                    expiry: 'Sınırsız', // İstersen bunu 30 Gün yapabilirsin
+                    expiry: 'Sınırsız',
                     hwid: null,
                     owner: interaction.user.id
                 });
                 await newKey.save();
 
-                return interaction.reply({ 
-                    content: isTR 
-                        ? `✅ **BAŞARILI!** Sisteme başarıyla kayıt oldun.\n🔑 **Sana Özel Lisans Anahtarın:** \`${newKeyString}\`\n*(Bu anahtarı kimseyle paylaşma)*` 
-                        : `✅ **SUCCESS!** You have been successfully registered.\n🔑 **Your Personal License Key:** \`${newKeyString}\`\n*(Do not share this key with anyone)*`, 
-                    ephemeral: true 
-                });
+                // 5. DM İÇİN ŞIK EMBED TASARIMI
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle(isTR ? '💎 RYPHERA OS | LİSANS MERKEZİ' : '💎 RYPHERA OS | LICENSE CENTER')
+                    .setColor('#5865F2')
+                    .setDescription(isTR ? `Merhaba <@${interaction.user.id}>, sistemimize hoş geldin! İşte sana özel üretilen lisans anahtarın:` : `Hello <@${interaction.user.id}>, welcome to our system! Here is your generated license key:`)
+                    .addFields(
+                        { name: isTR ? '🆔 Lisans ID' : '🆔 License ID', value: `#${licenseId}`, inline: true },
+                        { name: isTR ? '⏳ Süre' : '⏳ Duration', value: isTR ? '`Sınırsız`' : '`Lifetime`', inline: true },
+                        { name: isTR ? '🔑 Lisans Anahtarı' : '🔑 License Key', value: `\`\`\`\n${newKeyString}\n\`\`\``, inline: false },
+                        { name: isTR ? '⚠️ Uyarı' : '⚠️ Warning', value: isTR ? 'Bu anahtarı **kimseyle paylaşma**. Anahtar, girdiğin ilk cihaza kilitlenir (HWID).' : 'Do not share this key with **anyone**. It will lock to the first device used (HWID).', inline: false }
+                    )
+                    .setFooter({ text: 'Ryphera OS Authentication' })
+                    .setTimestamp();
+
+                // 6. ADAMA DM ATMAYI DENE
+                let dmSuccess = false;
+                try {
+                    await interaction.user.send({ embeds: [dmEmbed] });
+                    dmSuccess = true;
+                } catch (dmErr) {
+                    dmSuccess = false; // Adamın DM kapalıysa buraya düşer
+                }
+
+                // 7. KANALA BİLGİ VER
+                if (dmSuccess) {
+                    return interaction.editReply({ 
+                        content: isTR 
+                            ? `✅ **BAŞARILI!** Lisans anahtarın **Özel Mesaj (DM)** kutuna gönderildi. Lütfen kontrol et.` 
+                            : `✅ **SUCCESS!** Your license key has been sent to your **Direct Messages (DM)**. Please check.`
+                    });
+                } else {
+                    return interaction.editReply({ 
+                        content: isTR 
+                            ? `⚠️ **DM Kutun Kapalı!** Sana özel mesaj atamadım. Ama sorun değil, anahtarın üretildi:\n🔑 \`${newKeyString}\`` 
+                            : `⚠️ **Your DMs are closed!** I couldn't send you a private message. But your key is ready:\n🔑 \`${newKeyString}\``
+                    });
+                }
 
             } catch (err) {
                 console.error(err);
-                return interaction.reply({ 
-                    content: isTR ? '❌ Veritabanı hatası oluştu. Lütfen daha sonra tekrar dene.' : '❌ A database error occurred. Please try again later.', 
-                    ephemeral: true 
+                return interaction.editReply({ 
+                    content: isTR ? '❌ Veritabanı hatası oluştu. Lütfen daha sonra tekrar dene.' : '❌ A database error occurred. Please try again later.'
                 });
             }
         }
@@ -143,7 +176,7 @@ module.exports = {
             }
         }
 
-        // --- KEY SİSTEMİ (LİSTELEME VE SİLME ONAYLARI) ---
+        // --- ADMIN KEY SİSTEMİ (LİSTELEME VE SİLME) ---
         if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
             return interaction.update({ content: '`❌ İşlem iptal edildi.`', embeds: [], components: [] });
         }
