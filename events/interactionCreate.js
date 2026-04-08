@@ -52,20 +52,69 @@ module.exports = {
 
         if (!interaction.isButton()) return;
         
+        const cid = interaction.customId; // Kolaylık için
+
+        // ==========================================
+        // KEY SİSTEMİ: KULLANICI KEY ALMA BUTONLARI
+        // ==========================================
+        if (cid === 'get_key_tr' || cid === 'get_key_en') {
+            const isTR = cid === 'get_key_tr';
+            
+            try {
+                // Spamlara karşı önlem: Kullanıcının zaten keyi var mı?
+                let userKey = await KeyModel.findOne({ owner: interaction.user.id });
+                
+                if (userKey) {
+                    return interaction.reply({ 
+                        content: isTR 
+                            ? `❌ Sistemde zaten kayıtlı bir lisans anahtarın var!\n🔑 **Mevcut Anahtarın:** \`${userKey.key}\`` 
+                            : `❌ You already have a registered license key in the system!\n🔑 **Current Key:** \`${userKey.key}\``, 
+                        ephemeral: true 
+                    });
+                }
+
+                // Yeni Key Üret
+                const p1 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                const p2 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                const newKeyString = `RYP-USER-${p1}-${p2}`; // Örn: RYP-USER-A1B2-C3D4
+
+                // MongoDB'ye Kaydet
+                const newKey = new KeyModel({
+                    key: newKeyString,
+                    expiry: 'Sınırsız', // İstersen bunu 30 Gün yapabilirsin
+                    hwid: null,
+                    owner: interaction.user.id
+                });
+                await newKey.save();
+
+                return interaction.reply({ 
+                    content: isTR 
+                        ? `✅ **BAŞARILI!** Sisteme başarıyla kayıt oldun.\n🔑 **Sana Özel Lisans Anahtarın:** \`${newKeyString}\`\n*(Bu anahtarı kimseyle paylaşma)*` 
+                        : `✅ **SUCCESS!** You have been successfully registered.\n🔑 **Your Personal License Key:** \`${newKeyString}\`\n*(Do not share this key with anyone)*`, 
+                    ephemeral: true 
+                });
+
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ 
+                    content: isTR ? '❌ Veritabanı hatası oluştu. Lütfen daha sonra tekrar dene.' : '❌ A database error occurred. Please try again later.', 
+                    ephemeral: true 
+                });
+            }
+        }
+        // ==========================================
+
         // --- BAŞVURU ONAY/RED BUTONLARI ---
-        if (interaction.customId.startsWith('app_onay_') || interaction.customId.startsWith('app_red_')) {
-            // Sadece senin ID'n basabilir (Güvenlik)
-            if (interaction.user.id !== '345821033414262794') {
+        if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
+            if (interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '`⚠️ Bu işlemi sadece Kurucu yapabilir!`', ephemeral: true });
             }
 
-            const action = interaction.customId.startsWith('app_onay_') ? 'onay' : 'red';
-            const targetId = interaction.customId.split('_')[2]; // ID'yi butondan çektik
+            const action = cid.startsWith('app_onay_') ? 'onay' : 'red';
+            const targetId = cid.split('_')[2]; 
 
             try {
                 const targetUser = await client.users.fetch(targetId);
-                
-                // DM Mesajı Tasarımı
                 const dmEmbed = new EmbedBuilder()
                     .setTitle('Ryphera OS | Başvuru Sonucu')
                     .setTimestamp();
@@ -76,17 +125,15 @@ module.exports = {
                     dmEmbed.setColor('#FF0000').setDescription('❌ **Üzgünüz,** Ryphera OS yetkili başvurunuz maalesef **REDDEDİLMİŞTİR**.');
                 }
 
-                // Kullanıcıya DM Şutla (Adamın DM'si kapalıysa catch ile hatayı yutar, bot çökmez)
-                await targetUser.send({ embeds: [dmEmbed] }).catch(() => console.log('DM atılamadı, adamın özeli kapalı.'));
+                await targetUser.send({ embeds: [dmEmbed] }).catch(() => console.log('DM atılamadı.'));
 
-                // Log Kanalındaki Mesajı Güncelle (Butonları kaldır ki bir daha basılamasın)
                 const statusText = action === 'onay' ? '✅ **KABUL EDİLDİ**' : '❌ **REDDEDİLDİ**';
                 const originalEmbed = interaction.message.embeds[0];
 
                 await interaction.update({
                     content: `> **DURUM:** ${statusText} \n> **İşlemi Yapan:** <@${interaction.user.id}>`,
                     embeds: [originalEmbed],
-                    components: [] // Butonları sildik
+                    components: [] 
                 });
                 return;
 
@@ -95,22 +142,15 @@ module.exports = {
                 return interaction.reply({ content: '`❌ Hata: Kullanıcı bulunamadı veya işlem başarısız.`', ephemeral: true });
             }
         }
-        
-        const cid = interaction.customId;
 
-        // ===============================================
-        // YENİ EKLENEN: KEY SİSTEMİ BUTONLARI (DB BAĞLANTILI)
-        // ===============================================
-
-        // İptal Butonları (Hem listeleme hem silme için ortak)
+        // --- KEY SİSTEMİ (LİSTELEME VE SİLME ONAYLARI) ---
         if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
             return interaction.update({ content: '`❌ İşlem iptal edildi.`', embeds: [], components: [] });
         }
 
-        // Tüm Keyleri Sil Onayı
         if (cid === 'confirm_delete_all') {
             try {
-                await KeyModel.deleteMany({}); // Veritabanını tamamen temizler
+                await KeyModel.deleteMany({}); 
                 return interaction.update({ 
                     content: '`✅ ONAYLANDI:` **Tüm lisans anahtarları sistemden ve veritabanından kalıcı olarak silindi!**', 
                     components: [], 
@@ -122,11 +162,9 @@ module.exports = {
             }
         }
 
-        // Mevcut Keyleri Listele Onayı
         if (cid === 'confirm_list_keys') {
             try {
-                const keys = await KeyModel.find(); // DB'den tüm keyleri çeker
-                
+                const keys = await KeyModel.find(); 
                 if (!keys || keys.length === 0) {
                     return interaction.update({ 
                         content: '`⚠️ Veritabanında kayıtlı hiçbir lisans anahtarı bulunamadı.`', 
@@ -135,13 +173,11 @@ module.exports = {
                     });
                 }
 
-                // HWID doluluk durumuna göre listeyi fiyakalı hale getirelim
                 let desc = keys.map(k => {
                     let hwidStatus = k.hwid ? `[DOLU: \`${k.hwid}\`]` : '[BOŞ]';
                     return `🔑 \`${k.key}\` - ${hwidStatus}`;
                 }).join('\n');
 
-                // Eğer çok fazla key varsa Discord'un limitini (4096 karakter) aşmasın diye kesiyoruz
                 if (desc.length > 4000) {
                     desc = desc.substring(0, 4000) + '\n... *(Çok fazla kayıt var, devamı kesildi)*';
                 }
@@ -162,8 +198,6 @@ module.exports = {
                 return interaction.reply({ content: '`❌ Veritabanı okunduğunda bir hata oluştu.`', ephemeral: true });
             }
         }
-
-        // ===============================================
 
         // --- BAŞVURU BUTONU (MODAL AÇMA) ---
         if (cid === 'apply_tr' || cid === 'apply_en') {

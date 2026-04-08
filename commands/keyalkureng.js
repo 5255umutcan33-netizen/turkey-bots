@@ -7,14 +7,15 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
         const enEmbed = new EmbedBuilder()
-            .setTitle('RYPHERA | LICENSE')
+            .setTitle('RYPHERA | LICENSE CENTER')
             .setColor('#FF0000')
-            .setDescription('Status: `ACTIVE`\nSystem: `RYPHERA OS`\n\nClick the button below to get your key.');
+            .setDescription('Status: `🟢 ACTIVE`\nSystem: `RYPHERA OS`\n\nClick the button below to get your personal license key.');
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('get_key_en').setLabel('Get Key').setStyle(ButtonStyle.Primary)
+            new ButtonBuilder().setCustomId('get_key_en').setLabel('Get Key').setStyle(ButtonStyle.Primary).setEmoji('🔑')
         );
 
-        await interaction.reply({ embeds: [enEmbed], components: [row] });
+        await interaction.channel.send({ embeds: [enEmbed], components: [row] });
+        await interaction.reply({ content: '✅ English Key Panel successfully setup in this channel!', ephemeral: true });
     },
 };
