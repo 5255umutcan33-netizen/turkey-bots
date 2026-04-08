@@ -54,11 +54,11 @@ module.exports = {
         const cid = interaction.customId; 
 
         // ==========================================
-        // 💎 KEY SİSTEMİ (ID'Lİ VE DM GÖNDERMELİ)
+        // 💎 KEY SİSTEMİ (RASTGELE 5 HANELİ ID'Lİ)
         // ==========================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
-            await interaction.deferReply({ ephemeral: true }); // Botun düşünme süresini açıyoruz ki DM atarken hata vermesin
+            await interaction.deferReply({ ephemeral: true }); 
             
             try {
                 // 1. KONTROL: Adamın zaten keyi var mı?
@@ -77,9 +77,8 @@ module.exports = {
                 const p2 = Math.random().toString(36).substr(2, 4).toUpperCase();
                 const newKeyString = `RYP-USER-${p1}-${p2}`; // RYP-USER-XXXX-XXXX (17 Hane)
 
-                // 3. SIRALI LİSANS ID'Sİ OLUŞTUR (Senin o efsane sistem)
-                let counter = await Counter.findOneAndUpdate({ id: 'license' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
-                const licenseId = counter.seq;
+                // 3. RASTGELE 5 HANELİ LİSANS ID'Sİ OLUŞTUR
+                const licenseId = Math.floor(10000 + Math.random() * 90000); // 10000 ile 99999 arası rastgele sayı
 
                 // 4. MONGODB'YE KAYDET
                 const newKey = new KeyModel({
@@ -110,7 +109,7 @@ module.exports = {
                     await interaction.user.send({ embeds: [dmEmbed] });
                     dmSuccess = true;
                 } catch (dmErr) {
-                    dmSuccess = false; // Adamın DM kapalıysa buraya düşer
+                    dmSuccess = false; 
                 }
 
                 // 7. KANALA BİLGİ VER
@@ -123,8 +122,8 @@ module.exports = {
                 } else {
                     return interaction.editReply({ 
                         content: isTR 
-                            ? `⚠️ **DM Kutun Kapalı!** Sana özel mesaj atamadım. Ama sorun değil, anahtarın üretildi:\n🔑 \`${newKeyString}\`` 
-                            : `⚠️ **Your DMs are closed!** I couldn't send you a private message. But your key is ready:\n🔑 \`${newKeyString}\``
+                            ? `⚠️ **DM Kutun Kapalı!** Sana özel mesaj atamadım. Ama sorun değil, anahtarın üretildi:\n🔑 \`${newKeyString}\`\n🆔 **ID:** #${licenseId}` 
+                            : `⚠️ **Your DMs are closed!** I couldn't send you a private message. But your key is ready:\n🔑 \`${newKeyString}\`\n🆔 **ID:** #${licenseId}`
                     });
                 }
 
