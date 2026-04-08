@@ -12,7 +12,7 @@ module.exports = {
         const LOG_EN = '1491105631434969218';
         const SUGGEST_LOG_TR = '1491388986923552869'; 
         const SUGGEST_LOG_EN = '1491389032524021790';
-        const VERIFY_LOG_ID = '1491473038204469308';
+        const VERIFY_LOG_ID = '1491555788945227967';
 
         // ==========================================
         // 1. SLASH KOMUTLARI MOTORU
