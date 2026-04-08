@@ -23,14 +23,21 @@ module.exports = {
             .map(feature => `• ${feature}`)
             .join('\n');
 
+        // 💎 PREMİUM FORMAT EKRANI (İNGİLİZCE)
         const embed = new EmbedBuilder()
-            .setTitle(name)
+            .setTitle(`💎 Ryphera OS | Script Release`)
             .setColor('#2B2D31')
-            .addFields(
-                { name: 'Features', value: `>>> ${featureList}`, inline: false },
-                { name: 'Script Code', value: `\`\`\`lua\n${code}\n\`\`\``, inline: false }
+            .setDescription(
+                `📌 **Status -->** \`Active & Working\`\n` +
+                `🎮 **Game / Script Name -->** \`${name}\`\n` +
+                `👮 **Shared by -->** <@${interaction.user.id}>`
             )
-            .setFooter({ text: 'RYPHERA OS | Mobile users click the button below.' })
+            // ⚠️ DİKKAT: Mobil kopyalama butonu kodları fields[1]'den çektiği için sıra bozulmadı!
+            .addFields(
+                { name: '✨ Features', value: `>>> ${featureList}`, inline: false },
+                { name: '💻 Script Code', value: `\`\`\`lua\n${code}\n\`\`\``, inline: false }
+            )
+            .setFooter({ text: 'Ryphera OS System | Mobile users click the button below' })
             .setTimestamp();
 
         if (image) {
@@ -41,6 +48,7 @@ module.exports = {
             new ButtonBuilder()
                 .setCustomId('mobil_kopyala_btn')
                 .setLabel('Copy for Mobile')
+                .setEmoji('📱') // TR versiyonundaki gibi uyumlu olması için emoji eklendi
                 .setStyle(ButtonStyle.Secondary)
         );
 

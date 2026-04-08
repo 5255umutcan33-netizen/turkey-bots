@@ -16,20 +16,33 @@ module.exports = {
 
         const channelId = interaction.channel.id;
 
+        // 💎 HATA: KANAL ZATEN KORUNUYORSA PREMİUM YANIT
         if (protectedChannels.includes(channelId)) {
             const errorEmbed = new EmbedBuilder()
-                .setColor('#ED4245')
-                .setDescription('❌ **Hata:** Bu kanal zaten Ryphera Guard koruması altında!');
+                .setTitle('⚠️ İşlem Başarısız')
+                .setColor('#FEE75C')
+                .setDescription(
+                    `⚙️ **İşlem -->** \`Anti-Spam Kalkanı Kurulumu\`\n` +
+                    `❌ **Hata -->** \`Bu kanal zaten Ryphera Guard koruması altında!\``
+                );
             return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
 
         protectedChannels.push(channelId);
         fs.writeFileSync(dbPath, JSON.stringify(protectedChannels, null, 2));
 
+        // 💎 BAŞARILI KURULUM PREMİUM RAPORU
         const successEmbed = new EmbedBuilder()
-            .setTitle('🛡️ Ryphera Kalkanı Aktif Edildi')
+            .setTitle('🛡️ Ryphera OS | Kalkan Aktif Edildi')
             .setColor('#57F287')
-            .setDescription(`**${interaction.channel.name}** kanalı başarıyla koruma altına alındı.\n\n\`\`\`Kural: 5 Saniyede 5 Mesaj atan 2 dakika susturulur.\`\`\``)
+            .setDescription(
+                `⚙️ **İşlem -->** \`Anti-Spam Kalkanı Kurulumu\`\n` +
+                `✅ **Durum -->** \`Başarıyla Aktif Edildi\`\n` +
+                `📍 **Korunan Kanal -->** <#${channelId}>\n` +
+                `👮 **Kurulumu Yapan -->** <@${interaction.user.id}>\n` +
+                `📅 **İşlem Zamanı -->** <t:${Math.floor(Date.now() / 1000)}:f>\n\n` +
+                `⚠️ **Kural Tablosu -->** \`5 Saniyede 5 Mesaj atan otomatik olarak 2 dakika susturulur.\``
+            )
             .setFooter({ text: 'Ryphera Security Systems', iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.reply({ embeds: [successEmbed] });

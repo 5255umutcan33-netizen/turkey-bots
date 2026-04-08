@@ -14,10 +14,15 @@ module.exports = {
         if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify([]));
         let protectedChannels = JSON.parse(fs.readFileSync(dbPath));
 
+        // 💎 HATA: EĞER KORUNAN KANAL YOKSA PREMİUM YANIT
         if (protectedChannels.length === 0) {
             const emptyEmbed = new EmbedBuilder()
+                .setTitle('🛡️ Ryphera OS | Guard Paneli')
                 .setColor('#FEE75C')
-                .setDescription('🛡️ Şu anda Ryphera Guard tarafından korunan aktif bir kanal bulunmuyor.');
+                .setDescription(
+                    `⚙️ **Sistem -->** \`Ryphera Anti-Spam Guard\`\n` +
+                    `⚠️ **Durum -->** \`Aktif koruma altında olan hiçbir kanal bulunmuyor.\``
+                );
             return interaction.reply({ embeds: [emptyEmbed], ephemeral: true });
         }
 
@@ -35,12 +40,19 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
+        // 💎 ANA KONTROL PANELİ PREMİUM FORMATI
         const embed = new EmbedBuilder()
-            .setTitle('🛡️ Ryphera Guard Kontrol Paneli')
-            .setDescription(`Aşağıdaki listede kalkanı aktif olan kanallar gösterilmektedir. İptal etmek istediğiniz kanalı aşağıdaki menüden seçebilirsiniz.\n\n**Aktif Kanallar:**\n` + 
-                            protectedChannels.map(id => `> 🟢 <#${id}>`).join('\n'))
+            .setTitle('🛡️ Ryphera OS | Guard Kontrol Paneli')
             .setColor('#2B2D31')
-            .setThumbnail(interaction.client.user.displayAvatarURL());
+            .setThumbnail(interaction.client.user.displayAvatarURL())
+            .setDescription(
+                `📌 **Durum -->** \`Aktif Kalkanlar Listeleniyor\`\n` +
+                `📝 **İşlem -->** \`Kalkanı indirmek istediğiniz kanalı aşağıdaki menüden seçin.\`\n\n` +
+                `🛡️ **Koruma Altındaki Kanallar:**\n` +
+                protectedChannels.map(id => `> 🟢 <#${id}>`).join('\n')
+            )
+            .setFooter({ text: 'Ryphera Security Systems' })
+            .setTimestamp();
 
         const response = await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 
@@ -53,9 +65,18 @@ module.exports = {
                 protectedChannels = protectedChannels.filter(id => id !== channelIdToRemove);
                 fs.writeFileSync(dbPath, JSON.stringify(protectedChannels, null, 2));
 
+                // 💎 İŞLEM BAŞARILI PREMİUM RAPORU
                 const removedEmbed = new EmbedBuilder()
+                    .setTitle('✅ Kalkan Devre Dışı Bırakıldı')
                     .setColor('#ED4245')
-                    .setDescription(`✅ <#${channelIdToRemove}> kanalından kalkan **başarıyla kaldırıldı**!`);
+                    .setDescription(
+                        `⚙️ **İşlem -->** \`Anti-Spam Kalkanı İptali\`\n` +
+                        `✅ **Durum -->** \`Başarıyla Kapatıldı\`\n` +
+                        `📍 **Kanal -->** <#${channelIdToRemove}>\n` +
+                        `👮 **İşlemi Yapan -->** <@${i.user.id}>\n` +
+                        `📅 **Zaman -->** <t:${Math.floor(Date.now() / 1000)}:f>`
+                    )
+                    .setFooter({ text: 'Ryphera OS Guard' });
 
                 await i.update({ embeds: [removedEmbed], components: [] });
             }

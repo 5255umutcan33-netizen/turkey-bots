@@ -7,11 +7,19 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        
+        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM BİLET EKRANI
         const embed = new EmbedBuilder()
-            .setTitle('💬 RYPHERA OS | SUPPORT SYSTEM')
+            .setTitle('💬 Ryphera OS | Support System')
             .setColor('#2B2D31')
-            .setDescription('>>> 👋 **Hello!**\n\nPlease select the department you wish to contact from the buttons below.\nOur team will assist you shortly.')
-            .setFooter({ text: 'Ryphera Scripting Solutions' });
+            .setDescription(
+                `👋 **Need Assistance?**\n\n` +
+                `📌 **Status -->** \`Support Active\`\n` +
+                `🏢 **Departments -->** \`Support, Partnership, Key Operations\`\n` +
+                `📝 **Action -->** \`Select a department below to open a ticket.\`\n\n` +
+                `⚠️ **Note!! DO NOT OPEN MULTIPLE TICKETS FOR THE SAME ISSUE**`
+            )
+            .setFooter({ text: 'Ryphera OS System' });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('ticket_en_support').setLabel('Support').setEmoji('📩').setStyle(ButtonStyle.Secondary),
@@ -20,6 +28,19 @@ module.exports = {
         );
 
         await interaction.channel.send({ embeds: [embed], components: [row] });
-        await interaction.reply({ content: '`Ticket system successfully created in this channel.`', ephemeral: true });
+
+        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        const successEmbed = new EmbedBuilder()
+            .setTitle('✅ Setup Complete')
+            .setColor('#57F287')
+            .setDescription(
+                `⚙️ **İşlem -->** \`İngilizce Ticket Menüsü Kurulumu\`\n` +
+                `✅ **Durum -->** \`Başarıyla Oluşturuldu\`\n` +
+                `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
+                `👮 **İşlemi Yapan -->** <@${interaction.user.id}>`
+            )
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [successEmbed], ephemeral: true });
     },
 };

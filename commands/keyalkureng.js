@@ -5,17 +5,44 @@ module.exports = {
         .setName('keyalkureng')
         .setDescription('Setup English license panel.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        
     async execute(interaction) {
+        
+        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM LİSANS EKRANI
         const enEmbed = new EmbedBuilder()
-            .setTitle('RYPHERA | LICENSE CENTER')
-            .setColor('#FF0000')
-            .setDescription('Status: `🟢 ACTIVE`\nSystem: `RYPHERA OS`\n\nClick the button below to get your personal license key.');
+            .setTitle('💎 Ryphera OS | License Center')
+            .setColor('#2B2D31')
+            .setDescription(
+                `👋 **Welcome to the License Center!**\n\n` +
+                `📌 **Status -->** \`🟢 Active\`\n` +
+                `⚙️ **System -->** \`Ryphera OS\`\n` +
+                `📝 **Action -->** \`Click the button below to generate your personal key.\`\n\n` +
+                `⚠️ **Note!! DO NOT SHARE YOUR KEY WITH ANYONE**`
+            )
+            .setFooter({ text: 'Ryphera OS Security' });
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('get_key_en').setLabel('Get Key').setStyle(ButtonStyle.Primary).setEmoji('🔑')
+            new ButtonBuilder()
+                .setCustomId('get_key_en')
+                .setLabel('Get Key')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('🔑')
         );
 
         await interaction.channel.send({ embeds: [enEmbed], components: [row] });
-        await interaction.reply({ content: '✅ English Key Panel successfully setup in this channel!', ephemeral: true });
+
+        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        const successEmbed = new EmbedBuilder()
+            .setTitle('✅ Setup Complete')
+            .setColor('#57F287')
+            .setDescription(
+                `⚙️ **İşlem -->** \`İngilizce Key Menüsü Kurulumu\`\n` +
+                `✅ **Durum -->** \`Başarıyla Oluşturuldu\`\n` +
+                `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
+                `👮 **İşlemi Yapan -->** <@${interaction.user.id}>`
+            )
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [successEmbed], ephemeral: true });
     },
 };

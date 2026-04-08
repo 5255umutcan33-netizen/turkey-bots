@@ -14,10 +14,19 @@ module.exports = {
             { upsert: true }
         );
 
+        // 💎 PREMİUM FORMAT
         const embed = new EmbedBuilder()
             .setTitle('🛡️ Ryphera | SS Sistemi Aktif')
-            .setDescription(`✅ Bu kanal artık **Abone Kanıt** kanalı olarak ayarlandı.`)
-            .setColor('#57F287');
+            .setColor('#57F287')
+            .setDescription(
+                `⚙️ **İşlem -->** \`Abone SS Sistemi Kurulumu\`\n` +
+                `✅ **Durum -->** \`Başarıyla Aktif Edildi\`\n` +
+                `📍 **Ayarlanan Kanal -->** <#${interaction.channelId}>\n` +
+                `👮 **İşlemi Yapan -->** <@${interaction.user.id}>\n` +
+                `📅 **İşlem Zamanı -->** <t:${Math.floor(Date.now() / 1000)}:f>`
+            )
+            .setFooter({ text: 'Ryphera OS System' })
+            .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
     },

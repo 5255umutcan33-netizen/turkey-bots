@@ -18,22 +18,23 @@ module.exports = {
             const userKey = await KeyModel.findOne({ owner: targetUser.id });
 
             if (!userKey) {
-                return interaction.reply({ content: `❌ <@${targetUser.id}> adlı kullanıcının sistemimizde kayıtlı bir lisans anahtarı bulunmuyor.`, ephemeral: true });
+                return interaction.reply({ content: `❌ <@${targetUser.id}> adlı kullanıcının sistemimizde kayıtlı bir lisansı yok.`, ephemeral: true });
             }
 
             const hwidStatus = userKey.hwid ? `\`${userKey.hwid}\`` : '`Boş (Henüz girilmemiş)`';
             const gosterilenID = userKey.licenseId ? `#${userKey.licenseId}` : 'Eski Sürüm Key';
 
+            // 💎 PREMİUM FORMAT
             const embed = new EmbedBuilder()
-                .setTitle('🔍 Ryphera | Lisans Sorgulama')
+                .setTitle('Ryphera | Lisans Sorgulama')
                 .setColor('#FEE75C')
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-                .addFields(
-                    { name: '👤 Kullanıcı', value: `<@${targetUser.id}>`, inline: true },
-                    { name: '⏳ Lisans Süresi', value: `\`${userKey.expiry}\``, inline: true },
-                    { name: '🆔 5 Haneli ID', value: `\`${gosterilenID}\``, inline: false },
-                    { name: '🔑 Lisans Anahtarı', value: `\`\`\`\n${userKey.key}\n\`\`\``, inline: false },
-                    { name: '💻 Cihaz Kilidi (HWID)', value: hwidStatus, inline: false }
+                .setDescription(
+                    `👤 **Kullanıcı -->** <@${targetUser.id}>\n` +
+                    `🆔 **5 Haneli ID -->** \`${gosterilenID}\`\n` +
+                    `🔑 **Lisans Anahtarı -->** \`${userKey.key}\`\n` +
+                    `💻 **Cihaz Kilidi (HWID) -->** ${hwidStatus}\n` +
+                    `⌛ **Lisans Süresi -->** \`${userKey.expiry}\``
                 )
                 .setFooter({ text: 'Ryphera OS Database' })
                 .setTimestamp();
@@ -41,7 +42,7 @@ module.exports = {
             await interaction.reply({ embeds: [embed], ephemeral: true });
 
         } catch (error) {
-            await interaction.reply({ content: '❌ Veritabanında sorgulama yapılırken bir hata oluştu.', ephemeral: true });
+            await interaction.reply({ content: '❌ Veritabanı sorgu hatası.', ephemeral: true });
         }
     },
 };

@@ -4,7 +4,6 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('format')
         .setDescription('Profesyonel script tanıtım şablonu oluşturur. (Sadece Yetkililer)')
-        // YALNIZCA YÖNETİCİLER (ADMİN) KULLANABİLİR
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) 
         .addStringOption(option => option.setName('isim').setDescription('Scriptin Adı (Örn: Ryphera Hub)').setRequired(true))
         .addStringOption(option => option.setName('kod').setDescription('Script Kodu (Örn: loadstring...)').setRequired(true))
@@ -23,14 +22,21 @@ module.exports = {
             .map(ozellik => `• ${ozellik}`)
             .join('\n');
 
+        // 💎 PREMİUM FORMAT EKRANI
         const embed = new EmbedBuilder()
-            .setTitle(isim)
+            .setTitle(`💎 Ryphera OS | Script Paylaşımı`)
             .setColor('#2B2D31')
-            .addFields(
-                { name: 'Özellikler', value: `>>> ${ozellikListesi}`, inline: false },
-                { name: 'Script Kodu', value: `\`\`\`lua\n${kod}\n\`\`\``, inline: false }
+            .setDescription(
+                `📌 **Durum -->** \`Aktif ve Çalışıyor\`\n` +
+                `🎮 **Oyun / Script Adı -->** \`${isim}\`\n` +
+                `👮 **Paylaşan -->** <@${interaction.user.id}>`
             )
-            .setFooter({ text: 'RYPHERA OS | Mobiller için aşağıdaki butona tıkla.' })
+            // ⚠️ DİKKAT: Mobil kopyalama butonu kodları fields[1]'den çektiği için sıra bozulmadı!
+            .addFields(
+                { name: '✨ Özellikler', value: `>>> ${ozellikListesi}`, inline: false },
+                { name: '💻 Script Kodu', value: `\`\`\`lua\n${kod}\n\`\`\``, inline: false }
+            )
+            .setFooter({ text: 'Ryphera OS System | Mobiller için butona tıklayın' })
             .setTimestamp();
 
         if (resim) {
@@ -41,6 +47,7 @@ module.exports = {
             new ButtonBuilder()
                 .setCustomId('mobil_kopyala_btn')
                 .setLabel('Mobiller İçin Kopyala')
+                .setEmoji('📱')
                 .setStyle(ButtonStyle.Secondary)
         );
 
