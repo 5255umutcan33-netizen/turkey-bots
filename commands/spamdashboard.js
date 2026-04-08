@@ -6,8 +6,8 @@ const dbPath = path.join(__dirname, '../spam-db.json');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('spamdashboard')
-        .setDescription('Spam koruması aktif olan kanalları yönetir.')
+        .setName('guard-panel')
+        .setDescription('🎛️ Ryphera Guard aktif koruma sistemlerini yönetin.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction) {
@@ -15,43 +15,49 @@ module.exports = {
         let protectedChannels = JSON.parse(fs.readFileSync(dbPath));
 
         if (protectedChannels.length === 0) {
-            return interaction.reply({ content: '🛡️ Şu anda spam koruması aktif olan hiçbir kanal yok.', ephemeral: true });
+            const emptyEmbed = new EmbedBuilder()
+                .setColor('#FEE75C')
+                .setDescription('🛡️ Şu anda Ryphera Guard tarafından korunan aktif bir kanal bulunmuyor.');
+            return interaction.reply({ embeds: [emptyEmbed], ephemeral: true });
         }
 
-        // Açılır menü seçeneklerini hazırla
         const options = protectedChannels.map(id => ({
             label: interaction.guild.channels.cache.get(id)?.name || 'Bilinmeyen Kanal',
-            description: 'Bu kanaldan korumayı kaldır',
+            description: 'Bu kanalın kalkanını devre dışı bırak.',
+            emoji: '🛑',
             value: id,
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('remove_spam_protection')
-            .setPlaceholder('Korumayı kaldırmak için kanal seçin...')
+            .setPlaceholder('Korumayı kaldırmak için bir kanal seçin...')
             .addOptions(options);
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
         const embed = new EmbedBuilder()
-            .setTitle('🛡️ Ryphera Spam Dashboard')
-            .setDescription(`Aşağıdaki kanallarda koruma aktif. Kapatmak istediğini menüden seç.\n\n` + 
-                            protectedChannels.map(id => `> <#${id}>`).join('\n'))
-            .setColor('#2F3136');
+            .setTitle('🛡️ Ryphera Guard Kontrol Paneli')
+            .setDescription(`Aşağıdaki listede kalkanı aktif olan kanallar gösterilmektedir. İptal etmek istediğiniz kanalı aşağıdaki menüden seçebilirsiniz.\n\n**Aktif Kanallar:**\n` + 
+                            protectedChannels.map(id => `> 🟢 <#${id}>`).join('\n'))
+            .setColor('#2B2D31')
+            .setThumbnail(interaction.client.user.displayAvatarURL());
 
         const response = await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 
-        // Tıklamaları dinle
         const collector = response.createMessageComponentCollector({ time: 60000 });
 
         collector.on('collect', async i => {
             if (i.customId === 'remove_spam_protection') {
                 const channelIdToRemove = i.values[0];
                 
-                // Veritabanından sil
                 protectedChannels = protectedChannels.filter(id => id !== channelIdToRemove);
                 fs.writeFileSync(dbPath, JSON.stringify(protectedChannels, null, 2));
 
-                await i.update({ content: `✅ <#${channelIdToRemove}> kanalından spam koruması **kaldırıldı**!`, embeds: [], components: [] });
+                const removedEmbed = new EmbedBuilder()
+                    .setColor('#ED4245')
+                    .setDescription(`✅ <#${channelIdToRemove}> kanalından kalkan **başarıyla kaldırıldı**!`);
+
+                await i.update({ embeds: [removedEmbed], components: [] });
             }
         });
     },

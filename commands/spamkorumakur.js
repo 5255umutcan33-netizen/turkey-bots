@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -6,8 +6,8 @@ const dbPath = path.join(__dirname, '../spam-db.json');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('spamkorumakur')
-        .setDescription('Bu kanala flood/spam koruması kurar.')
+        .setName('guard-spam')
+        .setDescription('🛡️ Bulunulan kanala Ryphera Anti-Spam & Flood kalkanı kurar.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction) {
@@ -17,12 +17,21 @@ module.exports = {
         const channelId = interaction.channel.id;
 
         if (protectedChannels.includes(channelId)) {
-            return interaction.reply({ content: '❌ Bu kanalda zaten spam koruması aktif!', ephemeral: true });
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setDescription('❌ **Hata:** Bu kanal zaten Ryphera Guard koruması altında!');
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
 
         protectedChannels.push(channelId);
         fs.writeFileSync(dbPath, JSON.stringify(protectedChannels, null, 2));
 
-        await interaction.reply(`✅ **${interaction.channel.name}** kanalı Ryphera Spam koruması altına alındı! (5 mesaj = 2 Dk Mute)`);
+        const successEmbed = new EmbedBuilder()
+            .setTitle('🛡️ Ryphera Kalkanı Aktif Edildi')
+            .setColor('#57F287')
+            .setDescription(`**${interaction.channel.name}** kanalı başarıyla koruma altına alındı.\n\n\`\`\`Kural: 5 Saniyede 5 Mesaj atan 2 dakika susturulur.\`\`\``)
+            .setFooter({ text: 'Ryphera Security Systems', iconURL: interaction.client.user.displayAvatarURL() });
+
+        await interaction.reply({ embeds: [successEmbed] });
     },
 };
