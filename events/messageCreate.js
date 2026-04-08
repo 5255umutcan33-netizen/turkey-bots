@@ -2,7 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = r
 const { createWorker } = require('tesseract.js');
 const fs = require('fs');
 const path = require('path');
-const AboneChannel = require('../models/aboneChannel'); // Eski SS sistemin
+const AboneChannel = require('../models/aboneChannel');
 
 // --- GLOBAL DEĞİŞKENLER (OCR VE SPAM TAKİP) ---
 let worker = null;
@@ -38,12 +38,11 @@ module.exports = {
         if (message.author.bot) return;
 
         // ---------------------------------------------------------
-        // 2. RYPHERA GUARD: SPAM VE FLOOD KORUMASI (YENİ EKLENDİ)
+        // 2. RYPHERA GUARD: SPAM VE FLOOD KORUMASI
         // ---------------------------------------------------------
         if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify([]));
         const protectedChannels = JSON.parse(fs.readFileSync(dbPath));
 
-        // Eğer mesaj atılan kanal koruma altındaysa izlemeye al
         if (protectedChannels.includes(message.channel.id)) {
             const userId = message.author.id;
             const userData = spamTracker.get(userId) || { msgCount: 0, timer: null };
@@ -51,25 +50,22 @@ module.exports = {
             userData.msgCount++;
 
             if (userData.msgCount >= 5) {
-                // 5 Mesajı geçti, affetme!
                 try {
                     await message.member.timeout(120000, "Ryphera Guard: Flood/Spam Koruması");
                     const reply = await message.reply(`🚨 <@${userId}>, çok hızlı mesaj atıyorsun! 2 dakika susturuldun.`);
                     setTimeout(() => reply.delete().catch(()=>null), 5000); 
                     
-                    await message.channel.bulkDelete(5).catch(()=>null); // O 5 mesajı temizle
+                    await message.channel.bulkDelete(5).catch(()=>null); 
                 } catch (err) {
-                    console.error("Mute atılamadı (Yetki yetersiz olabilir):", err);
+                    console.error("Mute atılamadı:", err);
                 }
                 spamTracker.delete(userId); 
-                return; // Spam yapıldıysa aşağıdaki SS veya Komut sistemlerine inmesine izin verme
+                return; 
             } else {
-                // 5 saniye içinde 5 mesaj atmazsa sicilini temizle
                 if (userData.timer) clearTimeout(userData.timer);
                 userData.timer = setTimeout(() => {
                     spamTracker.delete(userId);
                 }, 5000);
-
                 spamTracker.set(userId, userData);
             }
         }
@@ -87,7 +83,7 @@ module.exports = {
         }
 
         // ---------------------------------------------------------
-        // 4. SS OKUMA SİSTEMİ (TESSERACT)
+        // 4. SS OKUMA SİSTEMİ (TESSERACT) & KANAL GİZLEME
         // ---------------------------------------------------------
         const channelData = await AboneChannel.findOne({ channelId: message.channelId }).catch(() => null);
         if (!channelData) return;
@@ -103,21 +99,39 @@ module.exports = {
             const clean = text.toLowerCase().replace(/[^a-z0-9]/g, '');
             
             if (clean.includes('ryphera') && (clean.includes('script') || clean.includes('scr1pt'))) {
-                await message.member.roles.add(ROLE_ID).catch(() => {});
-                const okMsg = await message.reply('`✅ ONAYLANDI: Abone rolünüz verildi.`');
                 
+                // 1. Abone Rolünü Ver
+                await message.member.roles.add(ROLE_ID).catch(() => {});
+                
+                // 2. Çift Dilli Onay Mesajı
+                const okMsg = await message.reply('`✅ APPROVED: Subscriber role granted. / ONAYLANDI: Abone rolünüz verildi.`');
+                
+                // 3. İstenilen 2 Kanalı Kullanıcıdan Gizle
+                const hiddenChannels = ['1491457136159621301', '1491457214974656552'];
+                for (const channelId of hiddenChannels) {
+                    const hideChannel = message.guild.channels.cache.get(channelId);
+                    if (hideChannel) {
+                        await hideChannel.permissionOverwrites.edit(message.author.id, {
+                            ViewChannel: false // Kanalı Görme yetkisini kapatır
+                        }).catch(() => console.log(`Kanal gizlenemedi: ${channelId}`));
+                    }
+                }
+
+                // 4. Log Kanalına Bildir
                 const logChan = client.channels.cache.get(LOG_ID);
                 if (logChan) {
                     const log = new EmbedBuilder()
-                        .setTitle('ABONE ONAYLANDI')
+                        .setTitle('ABONE ONAYLANDI / SUB VERIFIED')
                         .setColor('#00FF00')
                         .addFields({name:'Kullanıcı', value:`<@${message.author.id}>`})
                         .setImage(attachment.url);
                     logChan.send({ embeds: [log] });
                 }
+                
+                // Temizlik İşlemi
                 setTimeout(() => { message.delete().catch(()=>{}); okMsg.delete().catch(()=>{}); }, 4000);
             } else {
-                const failMsg = await message.reply('`❌ RED: Ryphera Script ibaresi bulunamadı.`');
+                const failMsg = await message.reply('`❌ RED: Ryphera Script ibaresi bulunamadı. / REJECTED: Ryphera Script text not found.`');
                 setTimeout(() => { message.delete().catch(()=>{}); failMsg.delete().catch(()=>{}); }, 5000);
             }
         } catch (e) { 
