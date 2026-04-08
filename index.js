@@ -58,42 +58,86 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// --- 5. WEB API KÖPRÜLERİ (Vercel Sitesi İçin) ---
+// --- 5. ETKİLEŞİM YAKALAYICI (KOMUTLAR VE BUTONLAR İÇİN) ---
+client.on('interactionCreate', async interaction => {
+    
+    // a. SLASH KOMUTLARI ÇALIŞTIRMA MOTORU
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command) return;
 
-// Sitedeki Tabloyu Doldurmak İçin Keyleri Gönderir
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            console.error("Komut çalışırken hata:", error);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: '❌ Komut çalıştırılırken bir hata oluştu!', ephemeral: true });
+            } else {
+                await interaction.reply({ content: '❌ Komut çalıştırılırken bir hata oluştu!', ephemeral: true });
+            }
+        }
+    }
+
+    // b. VERIFY BUTONLARI MOTORU (TÜRKÇE VE İNGİLİZCE)
+    if (interaction.isButton()) {
+        if (interaction.customId === 'verify_tr' || interaction.customId === 'verify_en') {
+            const entryRole = '1491450686637080737'; // Kayıtsız (İlk girince verilen) rol
+            const verifiedRole = '1491452394087780552'; // Doğrulanmış asıl rol
+
+            const member = interaction.member;
+
+            try {
+                // Zaten doğrulanmışsa engelle
+                if (member.roles.cache.has(verifiedRole)) {
+                    const alreadyMsg = interaction.customId === 'verify_tr' 
+                        ? '❌ Zaten doğrulama yapmışsın aslanım!' 
+                        : '❌ You are already verified!';
+                    return interaction.reply({ content: alreadyMsg, ephemeral: true });
+                }
+
+                // Asıl rolü ver, giriş rolünü al
+                await member.roles.add(verifiedRole);
+                await member.roles.remove(entryRole).catch(() => {});
+
+                // Bayrağa göre mesaj at
+                const successMsg = interaction.customId === 'verify_tr' 
+                    ? '✅ **Başarıyla Doğrulandın!** Sunucuya tam erişim sağlandı.' 
+                    : '✅ **Successfully Verified!** Full access to the server granted.';
+
+                await interaction.reply({ content: successMsg, ephemeral: true });
+                console.log(`🛡️ [VERIFY] ${member.user.tag} (${interaction.customId}) üzerinden doğrulandı.`);
+            } catch (err) {
+                console.error('Verify hatası:', err);
+                const errMsg = interaction.customId === 'verify_tr' 
+                    ? '❌ Yetkim yetmedi, rol veremedim! Yöneticiye bildir.' 
+                    : '❌ Missing permissions to give roles! Contact an admin.';
+                await interaction.reply({ content: errMsg, ephemeral: true });
+            }
+        }
+    }
+});
+
+// --- 6. WEB API KÖPRÜLERİ (Vercel Sitesi İçin) ---
 app.get('/api/keys', async (req, res) => {
     try {
         const keys = await KeyModel.find().sort({ createdAt: -1 });
         res.json(keys);
-    } catch (err) {
-        res.status(500).json({ error: 'Veritabanı hatası' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Veritabanı hatası' }); }
 });
 
-// Siteden Gelen Key Üretme İsteği
 app.post('/api/keys/generate', async (req, res) => {
     const { userId, keyName, expiry } = req.body;
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
-
     try {
-        const newKey = new KeyModel({
-            key: keyName,
-            expiry: expiry || 'Sınırsız',
-            hwid: null,
-            owner: userId
-        });
+        const newKey = new KeyModel({ key: keyName, expiry: expiry || 'Sınırsız', hwid: null, owner: userId });
         await newKey.save();
         res.json({ success: true, key: newKey });
-    } catch (err) {
-        res.status(500).json({ error: 'Oluşturma hatası' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Oluşturma hatası' }); }
 });
 
-// Siteden Gelen Silme/Sıfırlama İsteği
 app.post('/api/keys/action', async (req, res) => {
     const { userId, keyId, action } = req.body;
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
-
     try {
         if (action === 'delete') {
             await KeyModel.findByIdAndDelete(keyId);
@@ -102,52 +146,34 @@ app.post('/api/keys/action', async (req, res) => {
             await KeyModel.findByIdAndUpdate(keyId, { hwid: null });
             res.json({ success: true });
         }
-    } catch (err) {
-        res.status(500).json({ error: 'İşlem hatası' });
-    }
+    } catch (err) { res.status(500).json({ error: 'İşlem hatası' }); }
 });
 
-// 🚀 YENİ EKLENEN: SİTEDEN CANLI YETKİLİ VE ROL RENGİ ÇEKME KÖPRÜSÜ
 app.get('/api/staff', async (req, res) => {
     try {
-        const guild = client.guilds.cache.first(); // Botun bulunduğu ilk sunucu
+        const guild = client.guilds.cache.first(); 
         if (!guild) return res.json([]);
-        
         await guild.members.fetch(); 
-        
-        // Yönetici yetkisi olanları veya rolünde admin/mod/kurucu/owner/yetkili geçenleri bulur
         const staffMembers = guild.members.cache.filter(m => 
-            !m.user.bot && 
-            (m.permissions.has('Administrator') || 
-             m.roles.cache.some(r => r.name.toLowerCase().match(/admin|mod|kurucu|owner|yetkili/)))
+            !m.user.bot && (m.permissions.has('Administrator') || m.roles.cache.some(r => r.name.toLowerCase().match(/admin|mod|kurucu|owner|yetkili/)))
         );
-
         const staffList = staffMembers.map(m => {
             const highestRole = m.roles.cache.sort((a, b) => b.position - a.position).first();
-            
-            // DİSCORD'DAKİ ROL RENGİNİ ÇEKİYORUZ (Siyahsa default mavi veriyoruz)
             let roleColor = '#5865F2'; 
-            if (highestRole && highestRole.hexColor !== '#000000') {
-                roleColor = highestRole.hexColor;
-            }
-
+            if (highestRole && highestRole.hexColor !== '#000000') roleColor = highestRole.hexColor;
             return {
                 id: m.user.id,
                 username: m.user.username,
                 avatar: m.user.displayAvatarURL({ dynamic: true, format: 'png', size: 256 }) || 'https://cdn.discordapp.com/embed/avatars/0.png',
                 role: highestRole ? highestRole.name : 'YETKİLİ',
-                color: roleColor // Rengi siteye gönderiyoruz
+                color: roleColor
             };
         });
-
         res.json(staffList);
-    } catch (err) {
-        console.error("Yetkili çekme hatası:", err);
-        res.status(500).json([]);
-    }
+    } catch (err) { res.status(500).json([]); }
 });
 
-// --- 6. ROBLOX / SCRIPT VERIFY SİSTEMİ ---
+// --- 7. ROBLOX / SCRIPT VERIFY SİSTEMİ ---
 app.get('/verify', async (req, res) => {
     const { key, hwid } = req.query;
     if (!key || !hwid) return res.json({ success: false, message: "EKSİK VERİ!" });
@@ -160,10 +186,9 @@ app.get('/verify', async (req, res) => {
     } catch (e) { return res.json({ success: false, message: "HATA" }); }
 });
 
-// --- 7. BAŞLATMA VE PORT AYARI ---
+// --- 8. BAŞLATMA VE PORT AYARI ---
 app.get('/', (req, res) => res.send('RYPHERA OS ONLINE 🚀'));
 
-// Render'ın Portunu Kullan (Tek Listen kuralı!)
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`🚀 [🌐 Sunucu] Port ${PORT} üzerinde aktif.`);
