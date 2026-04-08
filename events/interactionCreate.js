@@ -12,10 +12,10 @@ module.exports = {
         const LOG_EN = '1491105631434969218';
         const SUGGEST_LOG_TR = '1491388986923552869'; 
         const SUGGEST_LOG_EN = '1491389032524021790';
-        const VERIFY_LOG_ID = '1491473038204469308'; 
+        const VERIFY_LOG_ID = '1491473038204469308'; // Kayıt ve Key Logları
 
         // ==========================================
-        // 1. SLASH KOMUTLARI
+        // 1. SLASH KOMUTLARI MOTORU
         // ==========================================
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
@@ -28,6 +28,8 @@ module.exports = {
         // 2. FORM GÖNDERME (MODAL SUBMIT)
         // ==========================================
         if (interaction.isModalSubmit()) {
+            
+            // A. YETKİLİ BAŞVURU FORMU
             if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
                 const isEn = interaction.customId === 'modal_en';
                 const logEmbed = new EmbedBuilder()
@@ -48,6 +50,7 @@ module.exports = {
                 return interaction.reply({ content: isEn ? '`✅ Your application has been submitted!`' : '`✅ Başvurunuz başarıyla iletildi!`', ephemeral: true });
             }
 
+            // B. SCRİPT ÖNERİ FORMU
             if (interaction.customId === 'modal_suggest_tr' || interaction.customId === 'modal_suggest_en') {
                 const isEn = interaction.customId === 'modal_suggest_en';
                 const suggestEmbed = new EmbedBuilder()
@@ -72,6 +75,7 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
+        // --- A. DOĞRULAMA (VERIFY) SİSTEMİ ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             const ENTRY_ROLE = '1491450686637080737'; 
@@ -92,12 +96,12 @@ module.exports = {
                 const logChannel = client.channels.cache.get(VERIFY_LOG_ID);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
-                        .setTitle('✅ ÜYE DOĞRULANDI')
+                        .setTitle('✅ ÜYE DOĞRULANDI / MEMBER VERIFIED')
                         .setColor('#57F287')
                         .setThumbnail(interaction.user.displayAvatarURL())
                         .addFields(
-                            { name: 'Kullanıcı', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: true },
-                            { name: 'Dil', value: isTr ? '🇹🇷 Türkçe' : '🇬🇧 English', inline: true }
+                            { name: 'Kullanıcı / User', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: 'Dil / Language', value: isTr ? '🇹🇷 Türkçe' : '🇬🇧 English', inline: true }
                         ).setTimestamp();
                     logChannel.send({ embeds: [logEmbed] }).catch(() => {});
                 }
@@ -105,63 +109,70 @@ module.exports = {
             } catch (err) { return interaction.reply({ content: '`❌ Hata!`', ephemeral: true }); }
         }
 
+        // --- B. SCRIPT ÖNERİ MODALI ---
         if (cid === 'suggest_script_tr' || cid === 'suggest_script_en') {
             const isEn = cid === 'suggest_script_en';
             const modal = new ModalBuilder().setCustomId(isEn ? 'modal_suggest_en' : 'modal_suggest_tr').setTitle(isEn ? 'Script Suggestion' : 'Script Öneri');
             modal.addComponents(
                 new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('suggest_name').setLabel('Oyun Adı').setStyle(TextInputStyle.Short).setRequired(true)),
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('suggest_features').setLabel('Özellikler').setStyle(TextInputStyle.Paragraph).setRequired(true))
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('suggest_features').setLabel('İstediğiniz Özellikler').setStyle(TextInputStyle.Paragraph).setRequired(true))
             );
             return interaction.showModal(modal);
         }
 
+        // --- C. 💎 KEY ÜRETME SİSTEMİ (PREMIUM FORMAT & MOBİL KOPYALAMA) ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             await interaction.deferReply({ ephemeral: true }); 
             try {
                 let userKey = await KeyModel.findOne({ owner: interaction.user.id });
                 if (userKey) {
-                    return interaction.editReply({ content: isTR ? `❌ Zaten keyin var:\n🔑 \`${userKey.key}\`` : `❌ You already have a key:\n🔑 \`${userKey.key}\`` });
+                    return interaction.editReply({ content: isTR ? `❌ Zaten kayıtlı bir keyin var!\n🔑 **Key:** \`${userKey.key}\`` : `❌ You already have a key!\n🔑 **Key:** \`${userKey.key}\`` });
                 }
 
+                // 5 Haneli ID ve Key Hazırlığı
                 const newKeyString = `RYP-USER-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
                 const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
+                const timestamp = `<t:${Math.floor(Date.now() / 1000)}:F>`;
 
                 const newKeyDoc = new KeyModel({ key: newKeyString, expiry: 'Sınırsız', hwid: null, owner: interaction.user.id, licenseId: licenseId });
                 await newKeyDoc.save();
 
-                const logChan = client.channels.cache.get(VERIFY_LOG_ID);
-                if (logChan) {
-                    const keyLogEmbed = new EmbedBuilder()
-                        .setTitle('🔑 YENİ KEY OLUŞTURULDU (Discord)')
-                        .setColor('#FEE75C')
-                        .addFields(
-                            { name: '🛠️ Alan Kullanıcı', value: `<@${interaction.user.id}>`, inline: true },
-                            { name: '📜 Key Adı', value: `\`${newKeyString}\``, inline: true },
-                            { name: '🆔 5 Haneli ID', value: `\`#${licenseId}\``, inline: true }
-                        ).setTimestamp();
-                    logChan.send({ embeds: [keyLogEmbed] }).catch(()=>{});
-                }
-
-                const dmEmbed = new EmbedBuilder()
-                    .setTitle(isTR ? '💎 RYPHERA OS | LİSANS' : '💎 RYPHERA OS | LICENSE')
-                    .setColor('#5865F2')
-                    .addFields(
-                        { name: '🆔 Lisans ID', value: `\`#${licenseId}\``, inline: true },
-                        { name: '🔑 Key', value: `\`\`\`\n${newKeyString}\n\`\`\``, inline: false }
-                    ).setTimestamp();
+                // 💎 GÖRSELDEKİ FORMAT (ABONE KEY OLUŞTURULDU)
+                const premiumEmbed = new EmbedBuilder()
+                    .setTitle('Abone Key Oluşturuldu')
+                    .setColor('#2B2D31')
+                    .setDescription(
+                        `🖇️ **Abone Key -->** \`${newKeyString}\`\n` +
+                        `🆔 **Abone Key ID -->** \`${licenseId}\`\n` +
+                        `🎭 **Abone Key'i Oluşturan Kişi -->** <@${client.user.id}>\n` +
+                        `👑 **Abone Key Sahibi -->** <@${interaction.user.id}>\n` +
+                        `📝 **Abone Key'in Oluşturulma Sebebi -->** Abone Key\n` +
+                        `📅 **Abone Key'in Oluşturulma Zamanı -->** ${timestamp}\n` +
+                        `⌛ **Abone Key'in Bitiş Zamanı -->** \`Sınırsız\`\n\n` +
+                        `⚠️ **Dikkat!! KEY TEK KULLANIMLIKTIR KİMSE İLE PAYLAŞMAYIN**`
+                    )
+                    .setTimestamp();
 
                 let dmSuccess = true;
-                await interaction.user.send({ embeds: [dmEmbed] }).catch(() => { dmSuccess = false; });
+                // Mobiller kopyalayabilsin diye altına yalın mesaj atıyoruz
+                await interaction.user.send({ embeds: [premiumEmbed] })
+                    .then(() => interaction.user.send({ content: `${newKeyString}` }))
+                    .catch(() => { dmSuccess = false; });
+
+                // Log Kanalına Bildir
+                const logChan = client.channels.cache.get(VERIFY_LOG_ID);
+                if (logChan) logChan.send({ embeds: [premiumEmbed] }).catch(()=>{});
 
                 if (dmSuccess) {
-                    return interaction.editReply({ content: isTR ? `✅ Keyin **DM** kutuna gönderildi.` : `✅ Key sent to **DM**.` });
+                    return interaction.editReply({ content: isTR ? `✅ Keyin oluşturuldu ve **DM** kutuna gönderildi.` : `✅ Key created and sent to your **DM**.` });
                 } else {
-                    return interaction.editReply({ content: isTR ? `⚠️ DM Kapalı! Anahtarın:\n🔑 \`${newKeyString}\`\n🆔 ID: #${licenseId}` : `⚠️ DMs closed! Key:\n🔑 \`${newKeyString}\`` });
+                    return interaction.editReply({ content: isTR ? `⚠️ DM Kapalı! Anahtarın: \`${newKeyString}\`\n🆔 ID: #${licenseId}` : `⚠️ DMs closed! Key: \`${newKeyString}\`` });
                 }
             } catch (err) { return interaction.editReply({ content: '❌ Hata oluştu.' }); }
         }
 
+        // --- D. BAŞVURU ONAY/RED ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '`⚠️ Yetkiniz yok!`', ephemeral: true });
             const action = cid.startsWith('app_onay_') ? 'onay' : 'red';
@@ -178,6 +189,7 @@ module.exports = {
             } catch (err) { return interaction.reply({ content: '`❌ Hata!`', ephemeral: true }); }
         }
 
+        // --- E. TİCKET SİSTEMİ ---
         if (cid.startsWith('close_ticket')) {
             await interaction.reply('`Kapatılıyor... 📩`');
             return setTimeout(() => interaction.channel.delete().catch(() => {}), 2500);
@@ -219,6 +231,7 @@ module.exports = {
             } catch (err) { return interaction.editReply({ content: `❌ Hata!` }); }
         }
 
+        // --- F. KOPYALA BUTONU ---
         if (cid === 'mobil_kopyala_btn') {
             const embed = interaction.message.embeds[0];
             const scriptField = embed.fields[1];
@@ -227,6 +240,7 @@ module.exports = {
             return interaction.reply({ content: `💬 **Kod:**\n${cleanCode}`, ephemeral: true });
         }
 
+        // --- G. ADMIN KEY SİSTEMİ (SAYFALAMA & 5 HANELİ ID) ---
         if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
             return interaction.update({ content: '`❌ İşlem iptal edildi.`', embeds: [], components: [] });
         }
@@ -236,22 +250,22 @@ module.exports = {
             try {
                 await KeyModel.deleteMany({}); 
                 return interaction.update({ content: '`✅ ONAYLANDI:` **Tüm lisans anahtarları sistemden kalıcı olarak silindi!**', components: [], embeds: [] });
-            } catch (err) { return interaction.reply({ content: '`❌ Veritabanı silinirken bir hata oluştu.`', ephemeral: true }); }
+            } catch (err) { return interaction.reply({ content: '`❌ Hata!`', ephemeral: true }); }
         }
 
         if (cid === 'confirm_list_keys') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
             try {
                 const keys = await KeyModel.find(); 
-                if (!keys || keys.length === 0) return interaction.update({ content: '`⚠️ Veritabanında kayıtlı lisans bulunamadı.`', embeds: [], components: [] });
+                if (!keys || keys.length === 0) return interaction.update({ content: '`⚠️ Kayıtlı lisans bulunamadı.`', embeds: [], components: [] });
 
                 const pageSize = 10;
                 const embeds = [];
                 for (let i = 0; i < keys.length; i += pageSize) {
                     const currentKeys = keys.slice(i, i + pageSize);
                     const desc = currentKeys.map(k => {
-                        let hwidStatus = k.hwid ? `[DOLU: \`${k.hwid}\`]` : '[BOŞ]';
-                        let gosterilenID = k.licenseId ? `#${k.licenseId}` : 'Eski Key'; 
+                        let hwidStatus = k.hwid ? `DOLU: \`${k.hwid}\`` : 'BOŞ';
+                        let gosterilenID = k.licenseId ? `#${k.licenseId}` : 'ID Yok'; 
                         return `🆔 **ID:** \`${gosterilenID}\`\n🔑 **Key:** \`${k.key}\`\n💻 **HWID:** ${hwidStatus}\n👤 **Sahibi:** <@${k.owner}>`;
                     }).join('\n\n');
 
@@ -259,7 +273,7 @@ module.exports = {
                 }
 
                 return interaction.update({ content: `✅ **${keys.length}** adet lisans bulundu.`, embeds: embeds.slice(0, 10), components: [] });
-            } catch (err) { return interaction.reply({ content: '`❌ Veritabanı okunurken hata oluştu.`', ephemeral: true }); }
+            } catch (err) { return interaction.reply({ content: '`❌ Hata oluştu.`', ephemeral: true }); }
         }
     }
 };
