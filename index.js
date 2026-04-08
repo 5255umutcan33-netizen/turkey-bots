@@ -78,17 +78,16 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // b. VERIFY BUTONLARI MOTORU (TÜRKÇE VE İNGİLİZCE)
+    // b. VERIFY BUTONLARI MOTORU
     if (interaction.isButton()) {
         if (interaction.customId === 'verify_tr' || interaction.customId === 'verify_en') {
-            const entryRole = '1491450686637080737'; // Kayıtsız (İlk girince verilen) rol
-            const verifiedRole = '1491452394087780552'; // Doğrulanmış asıl rol
-            const VERIFY_LOG_ID = '1491473038204469308'; // O istediğin Log Kanalı
+            const entryRole = '1491450686637080737'; 
+            const verifiedRole = '1491452394087780552'; 
+            const VERIFY_LOG_ID = '1491473038204469308'; 
 
             const member = interaction.member;
 
             try {
-                // Zaten doğrulanmışsa engelle
                 if (member.roles.cache.has(verifiedRole)) {
                     const alreadyMsg = interaction.customId === 'verify_tr' 
                         ? '❌ Zaten doğrulama yapmışsın aslanım!' 
@@ -96,18 +95,15 @@ client.on('interactionCreate', async interaction => {
                     return interaction.reply({ content: alreadyMsg, ephemeral: true });
                 }
 
-                // Asıl rolü ver, giriş rolünü al
                 await member.roles.add(verifiedRole);
                 await member.roles.remove(entryRole).catch(() => {});
 
-                // Bayrağa göre mesaj at
                 const successMsg = interaction.customId === 'verify_tr' 
                     ? '✅ **Başarıyla Doğrulandın!** Sunucuya tam erişim sağlandı.' 
                     : '✅ **Successfully Verified!** Full access to the server granted.';
 
                 await interaction.reply({ content: successMsg, ephemeral: true });
                 
-                // --- KANKA BURASI İSTEDİĞİN LOG KISMI ---
                 const logChannel = client.channels.cache.get(VERIFY_LOG_ID);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
@@ -142,14 +138,36 @@ app.get('/api/keys', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Veritabanı hatası' }); }
 });
 
+// 📌 YENİ EKLENEN KEY LOG SİSTEMİ BURADA
 app.post('/api/keys/generate', async (req, res) => {
     const { userId, keyName, expiry } = req.body;
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
+    
     try {
         const newKey = new KeyModel({ key: keyName, expiry: expiry || 'Sınırsız', hwid: null, owner: userId });
         await newKey.save();
+
+        // LOG KANALINA BİLDİR
+        const KEY_LOG_ID = '1491473038204469308'; // Verify log kanalıyla aynı yeri istemiştin
+        const logChannel = client.channels.cache.get(KEY_LOG_ID);
+        if (logChannel) {
+            const keyLog = new EmbedBuilder()
+                .setTitle('🔑 YENİ KEY OLUŞTURULDU')
+                .setColor('#FEE75C')
+                .addFields(
+                    { name: '🛠️ Oluşturan', value: `<@${userId}>`, inline: true },
+                    { name: '📜 Key Adı', value: `\`${keyName}\``, inline: true },
+                    { name: '🆔 Key ID', value: `\`${newKey._id}\``, inline: true },
+                    { name: '⏳ Süre', value: `${expiry || 'Sınırsız'}`, inline: true }
+                )
+                .setTimestamp();
+            logChannel.send({ embeds: [keyLog] }).catch(()=>{});
+        }
+
         res.json({ success: true, key: newKey });
-    } catch (err) { res.status(500).json({ error: 'Oluşturma hatası' }); }
+    } catch (err) { 
+        res.status(500).json({ error: 'Oluşturma hatası' }); 
+    }
 });
 
 app.post('/api/keys/action', async (req, res) => {
