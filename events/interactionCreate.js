@@ -8,6 +8,10 @@ module.exports = {
         const OWNER_ID = '345821033414262794'; 
         const LOG_TR = '1491105445564387359';
         const LOG_EN = '1491105631434969218';
+        
+        // Öneri Kanalları
+        const SUGGEST_LOG_TR = '1491388986923552869'; 
+        const SUGGEST_LOG_EN = '1491105631434969218';
 
         // --- SLASH KOMUTLARI ---
         if (interaction.isChatInputCommand()) {
@@ -19,39 +23,103 @@ module.exports = {
 
         // --- FORM GÖNDERME (MODAL SUBMIT) ---
         if (interaction.isModalSubmit()) {
-            const isEn = interaction.customId === 'modal_en';
             
-            const name = interaction.fields.getTextInputValue('name');
-            const age = interaction.fields.getTextInputValue('age');
-            const active = interaction.fields.getTextInputValue('active');
-            const cmd = interaction.fields.getTextInputValue('cmd');
-            const why = interaction.fields.getTextInputValue('why');
+            // 1. YETKİLİ BAŞVURU FORMU
+            if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
+                const isEn = interaction.customId === 'modal_en';
+                
+                const name = interaction.fields.getTextInputValue('name');
+                const age = interaction.fields.getTextInputValue('age');
+                const active = interaction.fields.getTextInputValue('active');
+                const cmd = interaction.fields.getTextInputValue('cmd');
+                const why = interaction.fields.getTextInputValue('why');
 
-            const logEmbed = new EmbedBuilder()
-                .setTitle(isEn ? '📩 NEW STAFF APPLICATION' : '📩 YENİ YETKİLİ BAŞVURUSU')
-                .setColor('#2B2D31')
-                .addFields(
-                    { name: isEn ? 'User:' : 'Kullanıcı:', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: true },
-                    { name: isEn ? 'Name:' : 'İsim:', value: name, inline: true },
-                    { name: isEn ? 'Age:' : 'Yaş:', value: age, inline: true },
-                    { name: isEn ? 'Active Hours:' : 'Aktiflik Süresi:', value: active, inline: false },
-                    { name: isEn ? 'Command Knowledge:' : 'Komut Bilgisi:', value: cmd, inline: false },
-                    { name: isEn ? 'Reason:' : 'Neden Yetkili Olmak İstiyor:', value: why, inline: false }
-                )
-                .setTimestamp()
-                .setFooter({ text: 'Ryphera OS Staff Application' });
+                const logEmbed = new EmbedBuilder()
+                    .setTitle(isEn ? '📩 NEW STAFF APPLICATION' : '📩 YENİ YETKİLİ BAŞVURUSU')
+                    .setColor('#2B2D31')
+                    .addFields(
+                        { name: isEn ? 'User:' : 'Kullanıcı:', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: true },
+                        { name: isEn ? 'Name:' : 'İsim:', value: name, inline: true },
+                        { name: isEn ? 'Age:' : 'Yaş:', value: age, inline: true },
+                        { name: isEn ? 'Active Hours:' : 'Aktiflik Süresi:', value: active, inline: false },
+                        { name: isEn ? 'Command Knowledge:' : 'Komut Bilgisi:', value: cmd, inline: false },
+                        { name: isEn ? 'Reason:' : 'Neden Yetkili Olmak İstiyor:', value: why, inline: false }
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: 'Ryphera OS Staff Application' });
 
-            const logChannel = client.channels.cache.get(isEn ? LOG_EN : LOG_TR);
-            if (logChannel) await logChannel.send({ embeds: [logEmbed] });
+                const logChannel = client.channels.cache.get(isEn ? LOG_EN : LOG_TR);
+                if (logChannel) await logChannel.send({ embeds: [logEmbed] });
 
-            return interaction.reply({ 
-                content: isEn ? '`✅ Your application has been submitted!`' : '`✅ Başvurunuz başarıyla iletildi!`', 
-                ephemeral: true 
-            });
+                return interaction.reply({ 
+                    content: isEn ? '`✅ Your application has been submitted!`' : '`✅ Başvurunuz başarıyla iletildi!`', 
+                    ephemeral: true 
+                });
+            }
+
+            // 2. SCRİPT ÖNERİ FORMU (YENİ EKLENDİ)
+            if (interaction.customId === 'modal_suggest_tr' || interaction.customId === 'modal_suggest_en') {
+                const isEn = interaction.customId === 'modal_suggest_en';
+                
+                const gameName = interaction.fields.getTextInputValue('suggest_name');
+                const features = interaction.fields.getTextInputValue('suggest_features');
+
+                const suggestEmbed = new EmbedBuilder()
+                    .setTitle(isEn ? '💡 NEW SCRIPT SUGGESTION' : '💡 YENİ SCRIPT ÖNERİSİ')
+                    .setColor('#FFD700') // Altın sarısı, fiyakalı dursun
+                    .addFields(
+                        { name: isEn ? 'User:' : 'Öneren Kullanıcı:', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: false },
+                        { name: isEn ? 'Game/Script Name:' : 'Oyun / Script Adı:', value: `> **${gameName}**`, inline: false },
+                        { name: isEn ? 'Desired Features:' : 'İstenen Özellikler:', value: `\`\`\`\n${features}\n\`\`\``, inline: false }
+                    )
+                    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+                    .setTimestamp();
+
+                const logChannel = client.channels.cache.get(isEn ? SUGGEST_LOG_EN : SUGGEST_LOG_TR);
+                if (logChannel) await logChannel.send({ embeds: [suggestEmbed] });
+
+                return interaction.reply({ 
+                    content: isEn ? '`✅ Thank you! Your suggestion has been sent to our team.`' : '`✅ Teşekkürler! Öneriniz başarıyla geliştirici ekibimize iletildi.`', 
+                    ephemeral: true 
+                });
+            }
         }
 
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
+
+        // ==========================================
+        // 💡 SCRIPT ÖNERİ BUTONLARI (MODAL AÇAR)
+        // ==========================================
+        if (cid === 'suggest_script_tr' || cid === 'suggest_script_en') {
+            const isEn = cid === 'suggest_script_en';
+            
+            const modal = new ModalBuilder()
+                .setCustomId(isEn ? 'modal_suggest_en' : 'modal_suggest_tr')
+                .setTitle(isEn ? 'Script Suggestion Form' : 'Script Öneri Formu');
+
+            const nameInput = new TextInputBuilder()
+                .setCustomId('suggest_name')
+                .setLabel(isEn ? 'Game or Script Name' : 'Oyun veya Script Adı')
+                .setPlaceholder(isEn ? 'e.g., Blox Fruits, Da Hood' : 'Örn: Blox Fruits, Da Hood')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const featuresInput = new TextInputBuilder()
+                .setCustomId('suggest_features')
+                .setLabel(isEn ? 'Features you want to see' : 'İstediğiniz Özellikler')
+                .setPlaceholder(isEn ? 'Aimbot, ESP, Auto Farm etc.' : 'Aimbot, ESP, Auto Farm vb.')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(nameInput),
+                new ActionRowBuilder().addComponents(featuresInput)
+            );
+
+            await interaction.showModal(modal);
+            return;
+        }
 
         // ==========================================
         // 💎 KEY SİSTEMİ (RASTGELE 5 HANELİ ID'Lİ)
@@ -61,7 +129,6 @@ module.exports = {
             await interaction.deferReply({ ephemeral: true }); 
             
             try {
-                // 1. KONTROL: Adamın zaten keyi var mı?
                 let userKey = await KeyModel.findOne({ owner: interaction.user.id });
                 
                 if (userKey) {
@@ -72,15 +139,11 @@ module.exports = {
                     });
                 }
 
-                // 2. YENİ KEY ÜRET
                 const p1 = Math.random().toString(36).substr(2, 4).toUpperCase();
                 const p2 = Math.random().toString(36).substr(2, 4).toUpperCase();
                 const newKeyString = `RYP-USER-${p1}-${p2}`; // RYP-USER-XXXX-XXXX (17 Hane)
+                const licenseId = Math.floor(10000 + Math.random() * 90000); 
 
-                // 3. RASTGELE 5 HANELİ LİSANS ID'Sİ OLUŞTUR
-                const licenseId = Math.floor(10000 + Math.random() * 90000); // 10000 ile 99999 arası rastgele sayı
-
-                // 4. MONGODB'YE KAYDET
                 const newKey = new KeyModel({
                     key: newKeyString,
                     expiry: 'Sınırsız',
@@ -89,7 +152,6 @@ module.exports = {
                 });
                 await newKey.save();
 
-                // 5. DM İÇİN ŞIK EMBED TASARIMI
                 const dmEmbed = new EmbedBuilder()
                     .setTitle(isTR ? '💎 RYPHERA OS | LİSANS MERKEZİ' : '💎 RYPHERA OS | LICENSE CENTER')
                     .setColor('#5865F2')
@@ -103,7 +165,6 @@ module.exports = {
                     .setFooter({ text: 'Ryphera OS Authentication' })
                     .setTimestamp();
 
-                // 6. ADAMA DM ATMAYI DENE
                 let dmSuccess = false;
                 try {
                     await interaction.user.send({ embeds: [dmEmbed] });
@@ -112,7 +173,6 @@ module.exports = {
                     dmSuccess = false; 
                 }
 
-                // 7. KANALA BİLGİ VER
                 if (dmSuccess) {
                     return interaction.editReply({ 
                         content: isTR 
@@ -134,7 +194,6 @@ module.exports = {
                 });
             }
         }
-        // ==========================================
 
         // --- BAŞVURU ONAY/RED BUTONLARI ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
