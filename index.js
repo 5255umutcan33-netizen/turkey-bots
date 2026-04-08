@@ -107,32 +107,36 @@ app.post('/api/keys/action', async (req, res) => {
     }
 });
 
-// 🚀 YENİ EKLENEN: SİTEDEN CANLI YETKİLİ ÇEKME KÖPRÜSÜ
+// 🚀 YENİ EKLENEN: SİTEDEN CANLI YETKİLİ VE ROL RENGİ ÇEKME KÖPRÜSÜ
 app.get('/api/staff', async (req, res) => {
     try {
-        const guild = client.guilds.cache.first(); // Botun bulunduğu ilk sunucuyu seçer
+        const guild = client.guilds.cache.first(); // Botun bulunduğu ilk sunucu
         if (!guild) return res.json([]);
         
-        await guild.members.fetch(); // Sunucudaki tüm üyeleri garantili olarak yükler
+        await guild.members.fetch(); 
         
-        // Yönetici yetkisi olanları veya rolünde admin/mod/kurucu/owner geçenleri bulur
+        // Yönetici yetkisi olanları veya rolünde admin/mod/kurucu/owner/yetkili geçenleri bulur
         const staffMembers = guild.members.cache.filter(m => 
             !m.user.bot && 
             (m.permissions.has('Administrator') || 
-             m.roles.cache.some(r => r.name.toLowerCase().includes('admin') || 
-                                     r.name.toLowerCase().includes('mod') || 
-                                     r.name.toLowerCase().includes('kurucu') || 
-                                     r.name.toLowerCase().includes('owner')))
+             m.roles.cache.some(r => r.name.toLowerCase().match(/admin|mod|kurucu|owner|yetkili/)))
         );
 
         const staffList = staffMembers.map(m => {
-            // Adamın sahip olduğu en yüksek rolü alır
             const highestRole = m.roles.cache.sort((a, b) => b.position - a.position).first();
+            
+            // DİSCORD'DAKİ ROL RENGİNİ ÇEKİYORUZ (Siyahsa default mavi veriyoruz)
+            let roleColor = '#5865F2'; 
+            if (highestRole && highestRole.hexColor !== '#000000') {
+                roleColor = highestRole.hexColor;
+            }
+
             return {
                 id: m.user.id,
                 username: m.user.username,
                 avatar: m.user.displayAvatarURL({ dynamic: true, format: 'png', size: 256 }) || 'https://cdn.discordapp.com/embed/avatars/0.png',
-                role: highestRole ? highestRole.name : 'YETKİLİ'
+                role: highestRole ? highestRole.name : 'YETKİLİ',
+                color: roleColor // Rengi siteye gönderiyoruz
             };
         });
 
@@ -159,7 +163,7 @@ app.get('/verify', async (req, res) => {
 // --- 7. BAŞLATMA VE PORT AYARI ---
 app.get('/', (req, res) => res.send('RYPHERA OS ONLINE 🚀'));
 
-// Render'ın Portunu Kullan
+// Render'ın Portunu Kullan (Tek Listen kuralı!)
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`🚀 [🌐 Sunucu] Port ${PORT} üzerinde aktif.`);
