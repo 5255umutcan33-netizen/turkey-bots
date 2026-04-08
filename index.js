@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -20,7 +20,7 @@ const client = new Client({
     ]
 });
 
-// Middleware (Sitenin bota bağlanması için şart)
+// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -58,10 +58,10 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// --- 5. ETKİLEŞİM YAKALAYICI (KOMUTLAR VE BUTONLAR İÇİN) ---
+// --- 5. ETKİLEŞİM YAKALAYICI (KOMUTLAR VE BUTONLAR) ---
 client.on('interactionCreate', async interaction => {
     
-    // a. SLASH KOMUTLARI ÇALIŞTIRMA MOTORU
+    // a. SLASH KOMUTLARI MOTORU
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -83,6 +83,7 @@ client.on('interactionCreate', async interaction => {
         if (interaction.customId === 'verify_tr' || interaction.customId === 'verify_en') {
             const entryRole = '1491450686637080737'; // Kayıtsız (İlk girince verilen) rol
             const verifiedRole = '1491452394087780552'; // Doğrulanmış asıl rol
+            const VERIFY_LOG_ID = '1491473038204469308'; // O istediğin Log Kanalı
 
             const member = interaction.member;
 
@@ -105,7 +106,23 @@ client.on('interactionCreate', async interaction => {
                     : '✅ **Successfully Verified!** Full access to the server granted.';
 
                 await interaction.reply({ content: successMsg, ephemeral: true });
-                console.log(`🛡️ [VERIFY] ${member.user.tag} (${interaction.customId}) üzerinden doğrulandı.`);
+                
+                // --- KANKA BURASI İSTEDİĞİN LOG KISMI ---
+                const logChannel = client.channels.cache.get(VERIFY_LOG_ID);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setTitle('✅ ÜYE DOĞRULANDI / MEMBER VERIFIED')
+                        .setColor('#57F287')
+                        .setThumbnail(member.user.displayAvatarURL())
+                        .addFields(
+                            { name: 'Kullanıcı / User', value: `<@${member.user.id}> (${member.user.tag})`, inline: true },
+                            { name: 'Seçilen Dil / Language', value: interaction.customId === 'verify_tr' ? '🇹🇷 Türkçe' : '🇬🇧 English', inline: true }
+                        )
+                        .setTimestamp();
+                    
+                    logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+                }
+
             } catch (err) {
                 console.error('Verify hatası:', err);
                 const errMsg = interaction.customId === 'verify_tr' 
