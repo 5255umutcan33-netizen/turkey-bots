@@ -58,77 +58,8 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// --- 5. ETKİLEŞİM YAKALAYICI (KOMUTLAR VE BUTONLAR) ---
-client.on('interactionCreate', async interaction => {
-    
-    // a. SLASH KOMUTLARI MOTORU
-    if (interaction.isChatInputCommand()) {
-        const command = client.commands.get(interaction.commandName);
-        if (!command) return;
-
-        try {
-            await command.execute(interaction);
-        } catch (error) {
-            console.error("Komut çalışırken hata:", error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: '❌ Komut çalıştırılırken bir hata oluştu!', ephemeral: true });
-            } else {
-                await interaction.reply({ content: '❌ Komut çalıştırılırken bir hata oluştu!', ephemeral: true });
-            }
-        }
-    }
-
-    // b. VERIFY BUTONLARI MOTORU
-    if (interaction.isButton()) {
-        if (interaction.customId === 'verify_tr' || interaction.customId === 'verify_en') {
-            const entryRole = '1491450686637080737'; 
-            const verifiedRole = '1491452394087780552'; 
-            const VERIFY_LOG_ID = '1491473038204469308'; 
-
-            const member = interaction.member;
-
-            try {
-                if (member.roles.cache.has(verifiedRole)) {
-                    const alreadyMsg = interaction.customId === 'verify_tr' 
-                        ? '❌ Zaten doğrulama yapmışsın aslanım!' 
-                        : '❌ You are already verified!';
-                    return interaction.reply({ content: alreadyMsg, ephemeral: true });
-                }
-
-                await member.roles.add(verifiedRole);
-                await member.roles.remove(entryRole).catch(() => {});
-
-                const successMsg = interaction.customId === 'verify_tr' 
-                    ? '✅ **Başarıyla Doğrulandın!** Sunucuya tam erişim sağlandı.' 
-                    : '✅ **Successfully Verified!** Full access to the server granted.';
-
-                await interaction.reply({ content: successMsg, ephemeral: true });
-                
-                const logChannel = client.channels.cache.get(VERIFY_LOG_ID);
-                if (logChannel) {
-                    const logEmbed = new EmbedBuilder()
-                        .setTitle('✅ ÜYE DOĞRULANDI / MEMBER VERIFIED')
-                        .setColor('#57F287')
-                        .setThumbnail(member.user.displayAvatarURL())
-                        .addFields(
-                            { name: 'Kullanıcı / User', value: `<@${member.user.id}> (${member.user.tag})`, inline: true },
-                            { name: 'Seçilen Dil / Language', value: interaction.customId === 'verify_tr' ? '🇹🇷 Türkçe' : '🇬🇧 English', inline: true }
-                        )
-                        .setTimestamp();
-                    
-                    logChannel.send({ embeds: [logEmbed] }).catch(() => {});
-                }
-
-            } catch (err) {
-                console.error('Verify hatası:', err);
-                const errMsg = interaction.customId === 'verify_tr' 
-                    ? '❌ Yetkim yetmedi, rol veremedim! Yöneticiye bildir.' 
-                    : '❌ Missing permissions to give roles! Contact an admin.';
-                await interaction.reply({ content: errMsg, ephemeral: true });
-            }
-        }
-    }
-});
+// ❌ interactionCreate bloğu buradan kalıcı olarak silindi!
+// ❌ Artık buton ve komutları "events/interactionCreate.js" okuyacak ve çakışma bitecek.
 
 // --- 6. WEB API KÖPRÜLERİ (Vercel Sitesi İçin) ---
 app.get('/api/keys', async (req, res) => {
@@ -138,7 +69,7 @@ app.get('/api/keys', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Veritabanı hatası' }); }
 });
 
-// 📌 YENİ EKLENEN KEY LOG SİSTEMİ BURADA
+// 📌 KEY LOG SİSTEMİ
 app.post('/api/keys/generate', async (req, res) => {
     const { userId, keyName, expiry } = req.body;
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
@@ -148,7 +79,7 @@ app.post('/api/keys/generate', async (req, res) => {
         await newKey.save();
 
         // LOG KANALINA BİLDİR
-        const KEY_LOG_ID = '1491473038204469308'; // Verify log kanalıyla aynı yeri istemiştin
+        const KEY_LOG_ID = '1491473038204469308'; 
         const logChannel = client.channels.cache.get(KEY_LOG_ID);
         if (logChannel) {
             const keyLog = new EmbedBuilder()
@@ -238,3 +169,14 @@ client.once('ready', async () => {
 });
 
 client.login(process.env.TOKEN);
+
+// --- 🛡️ RYPHERA ANTI-CRASH SİSTEMİ (ÖLÜMSÜZLÜK KALKANI) ---
+process.on('unhandledRejection', (reason, promise) => {
+    console.log('🚨 [Anti-Crash] İşlenmeyen Hata Engellendi (unhandledRejection):', reason);
+});
+process.on('uncaughtException', (err, origin) => {
+    console.log('🚨 [Anti-Crash] Beklenmeyen Hata Engellendi (uncaughtException):', err);
+});
+process.on('uncaughtExceptionMonitor', (err, origin) => {
+    console.log('🚨 [Anti-Crash] Beklenmeyen Hata Monitörü:', err);
+});
