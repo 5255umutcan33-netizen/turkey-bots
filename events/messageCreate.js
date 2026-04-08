@@ -1,18 +1,25 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
 const { createWorker } = require('tesseract.js');
-const AboneChannel = require('../models/aboneChannel'); // Eski SS sistemin varsa bozulmasın diye tuttum
+const fs = require('fs');
+const path = require('path');
+const AboneChannel = require('../models/aboneChannel'); // Eski SS sistemin
 
+// --- GLOBAL DEĞİŞKENLER (OCR VE SPAM TAKİP) ---
 let worker = null;
 (async () => { worker = await createWorker('eng'); })();
 
+const spamTracker = new Map();
+const dbPath = path.join(__dirname, '../spam-db.json');
+
 module.exports = {
-    name: 'messageCreate',
+    name: Events.MessageCreate,
     async execute(message, client) {
         
-        // --- YENİ: WEBHOOK BAŞVURU YAKALAMA OPERASYONU ---
+        // ---------------------------------------------------------
+        // 1. WEBHOOK BAŞVURU YAKALAMA OPERASYONU
+        // ---------------------------------------------------------
         if (message.webhookId) {
             const embed = message.embeds[0];
-            // Eğer gelen mesajda embed varsa ve altında "User ID:" yazıyorsa bu bizim siteden gelen başvurudur
             if (embed && embed.footer && embed.footer.text && embed.footer.text.includes('User ID:')) {
                 const userId = embed.footer.text.replace('User ID: ', '').trim();
                 
@@ -21,18 +28,55 @@ module.exports = {
                     new ButtonBuilder().setCustomId(`app_red_${userId}`).setLabel('Reddet ❌').setStyle(ButtonStyle.Danger)
                 );
 
-                // Bot mesajı kopyalayıp kendisi atıyor ki butonlar çalışsın
                 await message.channel.send({ embeds: [embed], components: [row] });
-                
-                // Orijinal webhook mesajını yok et
                 return message.delete().catch(() => {}); 
             }
             return; 
         }
 
+        // Botların kendi mesajlarını okumasını engelle
         if (message.author.bot) return;
 
-        // --- R!YARDIM KOMUTU ---
+        // ---------------------------------------------------------
+        // 2. RYPHERA GUARD: SPAM VE FLOOD KORUMASI (YENİ EKLENDİ)
+        // ---------------------------------------------------------
+        if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify([]));
+        const protectedChannels = JSON.parse(fs.readFileSync(dbPath));
+
+        // Eğer mesaj atılan kanal koruma altındaysa izlemeye al
+        if (protectedChannels.includes(message.channel.id)) {
+            const userId = message.author.id;
+            const userData = spamTracker.get(userId) || { msgCount: 0, timer: null };
+
+            userData.msgCount++;
+
+            if (userData.msgCount >= 5) {
+                // 5 Mesajı geçti, affetme!
+                try {
+                    await message.member.timeout(120000, "Ryphera Guard: Flood/Spam Koruması");
+                    const reply = await message.reply(`🚨 <@${userId}>, çok hızlı mesaj atıyorsun! 2 dakika susturuldun.`);
+                    setTimeout(() => reply.delete().catch(()=>null), 5000); 
+                    
+                    await message.channel.bulkDelete(5).catch(()=>null); // O 5 mesajı temizle
+                } catch (err) {
+                    console.error("Mute atılamadı (Yetki yetersiz olabilir):", err);
+                }
+                spamTracker.delete(userId); 
+                return; // Spam yapıldıysa aşağıdaki SS veya Komut sistemlerine inmesine izin verme
+            } else {
+                // 5 saniye içinde 5 mesaj atmazsa sicilini temizle
+                if (userData.timer) clearTimeout(userData.timer);
+                userData.timer = setTimeout(() => {
+                    spamTracker.delete(userId);
+                }, 5000);
+
+                spamTracker.set(userId, userData);
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 3. BASİT KOMUTLAR (r!yardım)
+        // ---------------------------------------------------------
         if (message.content.toLowerCase() === 'r!yardım') {
             const help = new EmbedBuilder()
                 .setTitle('💬 RYPHERA OS | YARDIM')
@@ -42,8 +86,10 @@ module.exports = {
             return message.reply({ embeds: [help] });
         }
 
-        // --- SS OKUMA SİSTEMİ (Eskiden kalan kodun) ---
-        const channelData = await AboneChannel.findOne({ channelId: message.channelId });
+        // ---------------------------------------------------------
+        // 4. SS OKUMA SİSTEMİ (TESSERACT)
+        // ---------------------------------------------------------
+        const channelData = await AboneChannel.findOne({ channelId: message.channelId }).catch(() => null);
         if (!channelData) return;
 
         const attachment = message.attachments.first();
@@ -74,6 +120,8 @@ module.exports = {
                 const failMsg = await message.reply('`❌ RED: Ryphera Script ibaresi bulunamadı.`');
                 setTimeout(() => { message.delete().catch(()=>{}); failMsg.delete().catch(()=>{}); }, 5000);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("SS Okunurken hata:", e); 
+        }
     }
 };
