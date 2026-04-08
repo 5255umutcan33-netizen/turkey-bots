@@ -11,7 +11,7 @@ module.exports = {
         
         // Öneri Kanalları
         const SUGGEST_LOG_TR = '1491388986923552869'; 
-        const SUGGEST_LOG_EN = '1491105631434969218';
+        const SUGGEST_LOG_EN = '1491389032524021790';
 
         // --- SLASH KOMUTLARI ---
         if (interaction.isChatInputCommand()) {
