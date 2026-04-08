@@ -48,7 +48,6 @@ module.exports = {
                     .setFooter({ text: 'Ryphera OS Staff System' })
                     .setTimestamp();
 
-                // Onay/Red Butonları
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId(`app_onay_${interaction.user.id}`).setLabel(isEn ? 'Approve' : 'Onayla').setStyle(ButtonStyle.Success).setEmoji('✅'),
                     new ButtonBuilder().setCustomId(`app_red_${interaction.user.id}`).setLabel(isEn ? 'Reject' : 'Reddet').setStyle(ButtonStyle.Danger).setEmoji('❌')
@@ -58,7 +57,7 @@ module.exports = {
                 if (logChannel) await logChannel.send({ embeds: [logEmbed], components: [row] });
 
                 return interaction.reply({ 
-                    embeds: [new EmbedBuilder().setColor('#57F287').setDescription(isEn ? '✅ **Your application has been submitted to the management!**' : '✅ **Başvurunuz yönetime başarıyla iletildi!**')], 
+                    embeds: [new EmbedBuilder().setColor('#57F287').setDescription(isEn ? '✅ **Your application has been submitted!**' : '✅ **Başvurunuz yönetime başarıyla iletildi!**')], 
                     ephemeral: true 
                 });
             }
@@ -82,7 +81,7 @@ module.exports = {
                 if (logChannel) await logChannel.send({ embeds: [suggestEmbed] });
 
                 return interaction.reply({ 
-                    embeds: [new EmbedBuilder().setColor('#57F287').setDescription(isEn ? '✅ **Suggestion sent! Thank you.**' : '✅ **Öneriniz iletildi, teşekkür ederiz.**')], 
+                    embeds: [new EmbedBuilder().setColor('#57F287').setDescription(isEn ? '✅ **Suggestion sent!**' : '✅ **Öneriniz iletildi, teşekkür ederiz.**')], 
                     ephemeral: true 
                 });
             }
@@ -94,18 +93,23 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // --- A. DOĞRULAMA (VERIFY) ---
+        // --- A. DOĞRULAMA (VERIFY) SİSTEMİ (FIXED) ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
-            const VERIFIED_ROLE = '1491452394087780552'; 
+            const ENTRY_ROLE = '1491450686637080737'; // Kayıtsız Rolü
+            const VERIFIED_ROLE = '1491452394087780552'; // Doğrulanmış Üye
             const TR_ROLE = '1491090280466747685';
             const GB_ROLE = '1491090834165334167';
 
             if (interaction.member.roles.cache.has(VERIFIED_ROLE)) return interaction.reply({ content: isTr ? '❌ Zaten doğrulandın!' : '❌ Already verified!', ephemeral: true });
 
             try {
+                // Rolleri veriyoruz
                 await interaction.member.roles.add(VERIFIED_ROLE);
                 await interaction.member.roles.add(isTr ? TR_ROLE : GB_ROLE);
+                
+                // 💎 FIX: KAYITSIZ ROLÜNÜ BURADA SİLİYORUZ
+                await interaction.member.roles.remove(ENTRY_ROLE).catch(() => {});
                 
                 const logChan = client.channels.cache.get(VERIFY_LOG_ID);
                 if (logChan) {
@@ -153,7 +157,7 @@ module.exports = {
                 .setTimestamp();
 
             await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
-            await interaction.user.send({ content: `${newKeyString}` }).catch(() => {}); // Mobil kopyalama için yalın mesaj
+            await interaction.user.send({ content: `${newKeyString}` }).catch(() => {}); 
 
             const logChan = client.channels.cache.get(VERIFY_LOG_ID);
             if (logChan) logChan.send({ embeds: [premiumEmbed] });
