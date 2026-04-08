@@ -44,7 +44,7 @@ module.exports = {
             if (userData.msgCount >= 5) {
                 try {
                     await message.member.timeout(120000, "Ryphera Guard: Spam Protection");
-                    const reply = await message.reply(`🚨 <@${userId}>, stop spamming! 2 min mute. / Çok hızlısın, 2 dakika mola.`);
+                    const reply = await message.reply(`🚨 <@${userId}>, stop spamming! 2 min mute.`);
                     setTimeout(() => reply.delete().catch(()=>null), 5000); 
                     await message.channel.bulkDelete(5).catch(()=>null); 
                 } catch (err) {}
@@ -67,16 +67,22 @@ module.exports = {
             return message.reply({ embeds: [help] });
         }
 
-        // 4. SS OKUMA SİSTEMİ (ONAY/RED/DM/LOG/GİZLEME)
+        // 4. SS OKUMA SİSTEMİ
         const channelData = await AboneChannel.findOne({ channelId: message.channelId }).catch(() => null);
         if (!channelData) return;
 
         const attachment = message.attachments.first();
         if (!attachment || !attachment.contentType.startsWith('image')) return;
 
-        const ROLE_ID = '1490996828974612530'; // Abone Rolü
-        const LOG_ID = '1491104204763304166';  // Log Kanalı
-        const GIZLE_KANALLAR = ['1491457136159621301', '1491457214974656552']; // Gizlenecekler
+        const ROLE_ID = '1490996828974612530'; 
+        const LOG_ID = '1491104204763304166';  
+        
+        // --- GÜNCELLENEN KISIM: YENİ KANAL BURAYA EKLENDİ ---
+        const GIZLE_KANALLAR = [
+            '1491457136159621301', 
+            '1491457214974656552', 
+            '1491460319002755152' // Senin istediğin o son kanal!
+        ]; 
 
         try {
             const { data: { text } } = await worker.recognize(attachment.url);
@@ -84,7 +90,6 @@ module.exports = {
             
             if (clean.includes('ryphera') && (clean.includes('script') || clean.includes('scr1pt'))) {
                 
-                // ONAYLANDI İŞLEMLERİ
                 await message.member.roles.add(ROLE_ID).catch(() => {});
                 
                 // Kanalları Gizle
@@ -98,7 +103,7 @@ module.exports = {
                 // DM Gönder
                 const dmEmbed = new EmbedBuilder()
                     .setTitle('✅ Ryphera OS | Approved')
-                    .setDescription('**Your screenshot has been approved!**\nYou have been given the Subscriber role and access has been updated.\n\n**Ekran görüntünüz onaylandı!**\nAbone rolünüz verildi ve erişim izinleriniz güncellendi.')
+                    .setDescription('**Your screenshot has been approved!**\nAccess has been updated.\n\n**Ekran görüntünüz onaylandı!**\nErişim izinleriniz güncellendi.')
                     .setColor('#57F287');
                 await message.author.send({ embeds: [dmEmbed] }).catch(() => {});
 
@@ -109,27 +114,25 @@ module.exports = {
                         .setTitle('📸 SUCCESSFUL VERIFICATION')
                         .setColor('#57F287')
                         .addFields(
-                            { name: 'User / Kullanıcı', value: `<@${message.author.id}> (${message.author.tag})`, inline: true },
-                            { name: 'Status / Durum', value: '✅ Approved (Onaylandı)', inline: true }
+                            { name: 'User', value: `<@${message.author.id}>`, inline: true },
+                            { name: 'Status', value: '✅ Approved', inline: true }
                         )
-                        .setImage(attachment.url)
-                        .setTimestamp();
+                        .setImage(attachment.url);
                     logChan.send({ embeds: [log] });
                 }
 
-                const okMsg = await message.reply('`✅ APPROVED: Role given & channels hidden. / ONAYLANDI: Rol verildi ve kanallar gizlendi.`');
+                const okMsg = await message.reply('`✅ APPROVED: Role given & channels hidden.`');
                 setTimeout(() => { message.delete().catch(()=>{}); okMsg.delete().catch(()=>{}); }, 4000);
 
             } else {
-                
-                // REDDEDİLDİ İŞLEMLERİ
+                // REDDEDİLDİ
                 const dmFail = new EmbedBuilder()
                     .setTitle('❌ Ryphera OS | Rejected')
-                    .setDescription('**Verification Failed!**\nRyphera Script text was not found in your screenshot. Please send a valid one.\n\n**Onay Başarısız!**\nEkran görüntüsünde Ryphera Script ibaresi bulunamadı. Lütfen geçerli bir resim atın.')
+                    .setDescription('**Verification Failed!** Ryphera Script text not found.')
                     .setColor('#ED4245');
                 await message.author.send({ embeds: [dmFail] }).catch(() => {});
 
-                const failMsg = await message.reply('`❌ REJECTED: Ryphera Script text not found. / RED: Ryphera Script ibaresi bulunamadı.`');
+                const failMsg = await message.reply('`❌ REJECTED: Ryphera Script text not found.`');
                 setTimeout(() => { message.delete().catch(()=>{}); failMsg.delete().catch(()=>{}); }, 5000);
             }
         } catch (e) { console.error(e); }
