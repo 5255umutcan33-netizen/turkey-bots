@@ -22,6 +22,7 @@ module.exports = {
             }
 
             const hwidStatus = userKey.hwid ? `\`${userKey.hwid}\`` : '`Boş (Henüz girilmemiş)`';
+            const gosterilenID = userKey.licenseId ? `#${userKey.licenseId}` : 'Eski Sürüm Key';
 
             const embed = new EmbedBuilder()
                 .setTitle('🔍 Ryphera | Lisans Sorgulama')
@@ -30,7 +31,7 @@ module.exports = {
                 .addFields(
                     { name: '👤 Kullanıcı', value: `<@${targetUser.id}>`, inline: true },
                     { name: '⏳ Lisans Süresi', value: `\`${userKey.expiry}\``, inline: true },
-                    { name: '🆔 Veritabanı ID', value: `\`${userKey._id}\``, inline: false },
+                    { name: '🆔 5 Haneli ID', value: `\`${gosterilenID}\``, inline: false },
                     { name: '🔑 Lisans Anahtarı', value: `\`\`\`\n${userKey.key}\n\`\`\``, inline: false },
                     { name: '💻 Cihaz Kilidi (HWID)', value: hwidStatus, inline: false }
                 )
