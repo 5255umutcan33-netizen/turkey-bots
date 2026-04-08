@@ -1,9 +1,11 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('format')
-        .setDescription('Profesyonel script tanıtım şablonu oluşturur.')
+        .setDescription('Profesyonel script tanıtım şablonu oluşturur. (Sadece Yetkililer)')
+        // YALNIZCA YÖNETİCİLER (ADMİN) KULLANABİLİR
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) 
         .addStringOption(option => option.setName('isim').setDescription('Scriptin Adı (Örn: Ryphera Hub)').setRequired(true))
         .addStringOption(option => option.setName('kod').setDescription('Script Kodu (Örn: loadstring...)').setRequired(true))
         .addStringOption(option => option.setName('ozellikler').setDescription('Özellikler (Boşluk bırakarak yazın. Örn: Aimbot ESP Fly)').setRequired(true))
@@ -15,10 +17,9 @@ module.exports = {
         const ozellikler = interaction.options.getString('ozellikler');
         const resim = interaction.options.getAttachment('resim');
 
-        // Her boşlukta kelimeyi alıp alt satıra geçirir
         const ozellikListesi = ozellikler.split(/\s+/)
-            .slice(0, 20) // Max 20 sınırını koruyoruz
-            .filter(ozellik => ozellik.length > 0) // Fazladan boşlukları yok sayar
+            .slice(0, 20) 
+            .filter(ozellik => ozellik.length > 0) 
             .map(ozellik => `• ${ozellik}`)
             .join('\n');
 

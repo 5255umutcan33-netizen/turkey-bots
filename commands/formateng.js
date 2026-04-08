@@ -1,9 +1,11 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('formateng')
-        .setDescription('Creates a professional script presentation template.')
+        .setDescription('Creates a professional script presentation template. (Admins Only)')
+        // YALNIZCA YÖNETİCİLER (ADMİN) KULLANABİLİR
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) 
         .addStringOption(option => option.setName('name').setDescription('Script Name (e.g., Ryphera Hub)').setRequired(true))
         .addStringOption(option => option.setName('code').setDescription('Script Code (e.g., loadstring...)').setRequired(true))
         .addStringOption(option => option.setName('features').setDescription('Features (separate with spaces. e.g., Aimbot ESP Fly)').setRequired(true))
@@ -15,7 +17,6 @@ module.exports = {
         const features = interaction.options.getString('features');
         const image = interaction.options.getAttachment('image');
 
-        // Her boşlukta kelimeyi alıp alt satıra geçirir
         const featureList = features.split(/\s+/)
             .slice(0, 20)
             .filter(feature => feature.length > 0)
