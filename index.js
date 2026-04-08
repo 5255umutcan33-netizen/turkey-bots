@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// 1. MODELLER (Küçük harf 'key' en garantisidir kanka)
+// 1. MODELLER
 const KeyModel = require('./models/key.js'); 
 
 // 2. SUNUCU VE BOT BAŞLATMA
@@ -104,6 +104,46 @@ app.post('/api/keys/action', async (req, res) => {
         }
     } catch (err) {
         res.status(500).json({ error: 'İşlem hatası' });
+    }
+});
+
+// 🚀 YENİ EKLENEN: SİTEDEN CANLI YETKİLİ VE ROL RENGİ ÇEKME KÖPRÜSÜ
+app.get('/api/staff', async (req, res) => {
+    try {
+        const guild = client.guilds.cache.first(); // Botun bulunduğu ilk sunucu
+        if (!guild) return res.json([]);
+        
+        await guild.members.fetch(); 
+        
+        // Yönetici yetkisi olanları veya rolünde admin/mod/kurucu/owner/yetkili geçenleri bulur
+        const staffMembers = guild.members.cache.filter(m => 
+            !m.user.bot && 
+            (m.permissions.has('Administrator') || 
+             m.roles.cache.some(r => r.name.toLowerCase().match(/admin|mod|kurucu|owner|yetkili/)))
+        );
+
+        const staffList = staffMembers.map(m => {
+            const highestRole = m.roles.cache.sort((a, b) => b.position - a.position).first();
+            
+            // DİSCORD'DAKİ ROL RENGİNİ ÇEKİYORUZ (Siyahsa default mavi veriyoruz)
+            let roleColor = '#5865F2'; 
+            if (highestRole && highestRole.hexColor !== '#000000') {
+                roleColor = highestRole.hexColor;
+            }
+
+            return {
+                id: m.user.id,
+                username: m.user.username,
+                avatar: m.user.displayAvatarURL({ dynamic: true, format: 'png', size: 256 }) || 'https://cdn.discordapp.com/embed/avatars/0.png',
+                role: highestRole ? highestRole.name : 'YETKİLİ',
+                color: roleColor // Rengi siteye gönderiyoruz
+            };
+        });
+
+        res.json(staffList);
+    } catch (err) {
+        console.error("Yetkili çekme hatası:", err);
+        res.status(500).json([]);
     }
 });
 
