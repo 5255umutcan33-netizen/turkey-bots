@@ -12,7 +12,7 @@ module.exports = {
         const LOG_EN = '1491105631434969218';
         const SUGGEST_LOG_TR = '1491388986923552869'; 
         const SUGGEST_LOG_EN = '1491389032524021790';
-        const VERIFY_LOG_ID = '1491473038204469308'; // Yeni Verify Log Kanalı
+        const VERIFY_LOG_ID = '1491473038204469308'; 
 
         // ==========================================
         // 1. SLASH KOMUTLARI
@@ -95,7 +95,6 @@ module.exports = {
 
                 await interaction.reply({ content: isTr ? '`✅ Doğrulandı!`' : '`✅ Verified!`', ephemeral: true });
 
-                // Log Kanalına Bildir
                 const logChannel = client.channels.cache.get(VERIFY_LOG_ID);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
@@ -225,5 +224,64 @@ module.exports = {
             let cleanCode = scriptField.value.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
             return interaction.reply({ content: `💬 **Kod:**\n${cleanCode}`, ephemeral: true });
         }
+
+        // --- G. ADMIN KEY SİSTEMİ (LİSTELEME VE SİLME BUTONLARI) ---
+        if (cid === 'cancel_delete_all' || cid === 'cancel_list_keys') {
+            return interaction.update({ content: '`❌ İşlem iptal edildi.`', embeds: [], components: [] });
+        }
+
+        if (cid === 'confirm_delete_all') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+            try {
+                await KeyModel.deleteMany({}); 
+                return interaction.update({ 
+                    content: '`✅ ONAYLANDI:` **Tüm lisans anahtarları sistemden ve veritabanından kalıcı olarak silindi!**', 
+                    components: [], 
+                    embeds: [] 
+                });
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '`❌ Veritabanı silinirken bir hata oluştu.`', ephemeral: true });
+            }
+        }
+
+        if (cid === 'confirm_list_keys') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+            try {
+                const keys = await KeyModel.find(); 
+                if (!keys || keys.length === 0) {
+                    return interaction.update({ 
+                        content: '`⚠️ Veritabanında kayıtlı hiçbir lisans anahtarı bulunamadı.`', 
+                        embeds: [], 
+                        components: [] 
+                    });
+                }
+
+                let desc = keys.map(k => {
+                    let hwidStatus = k.hwid ? `[DOLU: \`${k.hwid}\`]` : '[BOŞ]';
+                    return `🔑 \`${k.key}\` - ${hwidStatus}`;
+                }).join('\n');
+
+                if (desc.length > 4000) {
+                    desc = desc.substring(0, 4000) + '\n... *(Çok fazla kayıt var, devamı kesildi)*';
+                }
+
+                const listEmbed = new EmbedBuilder()
+                    .setTitle('RYPHERA | AKTİF LİSANSLAR')
+                    .setColor('#00FF00')
+                    .setDescription(desc)
+                    .setTimestamp();
+
+                return interaction.update({ 
+                    content: '`✅ Veritabanı başarıyla çekildi.`', 
+                    embeds: [listEmbed], 
+                    components: [] 
+                });
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '`❌ Veritabanı okunduğunda bir hata oluştu.`', ephemeral: true });
+            }
+        }
+
     }
 };
