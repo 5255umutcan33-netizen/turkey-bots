@@ -7,11 +7,19 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        
+        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM BİLET EKRANI
         const embed = new EmbedBuilder()
-            .setTitle('💬 RYPHERA OS | DESTEK SİSTEMİ')
+            .setTitle('💬 Ryphera OS | Destek Sistemi')
             .setColor('#2B2D31')
-            .setDescription('>>> 👋 **Merhaba!**\n\nLütfen iletişime geçmek istediğiniz departmanı aşağıdaki butonlardan seçin.\nEkibimiz en kısa sürede size dönüş yapacaktır.')
-            .setFooter({ text: 'Ryphera Scripting Solutions' });
+            .setDescription(
+                `👋 **Yardıma mı ihtiyacınız var?**\n\n` +
+                `📌 **Durum -->** \`Destek Aktif\`\n` +
+                `🏢 **Departmanlar -->** \`Destek, İş Birliği, Key İşlemleri\`\n` +
+                `📝 **İşlem -->** \`Bilet oluşturmak için aşağıdaki departmanlardan birini seçin.\`\n\n` +
+                `⚠️ **Dikkat!! AYNI KONU İÇİN BİRDEN FAZLA BİLET AÇMAYIN**`
+            )
+            .setFooter({ text: 'Ryphera OS System' });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('ticket_tr_support').setLabel('Destek').setEmoji('📩').setStyle(ButtonStyle.Secondary),
@@ -20,6 +28,19 @@ module.exports = {
         );
 
         await interaction.channel.send({ embeds: [embed], components: [row] });
-        await interaction.reply({ content: '`Ticket sistemi başarıyla bu kanala kuruldu.`', ephemeral: true });
+
+        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        const successEmbed = new EmbedBuilder()
+            .setTitle('✅ Kurulum Başarılı')
+            .setColor('#57F287')
+            .setDescription(
+                `⚙️ **İşlem -->** \`Türkçe Ticket Menüsü Kurulumu\`\n` +
+                `✅ **Durum -->** \`Başarıyla Oluşturuldu\`\n` +
+                `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
+                `👮 **İşlemi Yapan -->** <@${interaction.user.id}>`
+            )
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [successEmbed], ephemeral: true });
     },
 };
