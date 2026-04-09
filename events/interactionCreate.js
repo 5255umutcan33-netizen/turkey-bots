@@ -93,7 +93,7 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // --- A. DOĞRULAMA (VERIFY) SİSTEMİ (FIXED) ---
+        // --- A. DOĞRULAMA (VERIFY) SİSTEMİ (FIXED + KANAL GİZLEME EKLENDİ) ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             const ENTRY_ROLE = '1491450686637080737'; // Kayıtsız Rolü
@@ -108,9 +108,45 @@ module.exports = {
                 await interaction.member.roles.add(VERIFIED_ROLE);
                 await interaction.member.roles.add(isTr ? TR_ROLE : GB_ROLE);
                 
-                // 💎 FIX: KAYITSIZ ROLÜNÜ BURADA SİLİYORUZ
+                // Kayıtsız rolünü siliyoruz
                 await interaction.member.roles.remove(ENTRY_ROLE).catch(() => {});
                 
+                // KANAL GİZLEME İŞLEMLERİ BAŞLANGICI
+                const member = interaction.member;
+
+                if (isTr) {
+                    // TR seçenlerin GÖREMEYECEĞİ kanallar (İngilizce Kanalları)
+                    const trIcinGizlenecekKanallar = [
+                        '1491474439865368677', 
+                        '1491457214974656552'
+                    ];
+
+                    for (const kanalId of trIcinGizlenecekKanallar) {
+                        const channel = interaction.guild.channels.cache.get(kanalId);
+                        if (channel) {
+                            await channel.permissionOverwrites.edit(member.id, {
+                                ViewChannel: false
+                            }).catch(console.error);
+                        }
+                    }
+                } else {
+                    // ENG seçenlerin GÖREMEYECEĞİ kanallar (Türkçe Kanalları)
+                    const engIcinGizlenecekKanallar = [
+                        '1491460319002755152', 
+                        '1491474379354148934'
+                    ];
+
+                    for (const kanalId of engIcinGizlenecekKanallar) {
+                        const channel = interaction.guild.channels.cache.get(kanalId);
+                        if (channel) {
+                            await channel.permissionOverwrites.edit(member.id, {
+                                ViewChannel: false
+                            }).catch(console.error);
+                        }
+                    }
+                }
+                // KANAL GİZLEME İŞLEMLERİ BİTİŞİ
+
                 const logChan = client.channels.cache.get(VERIFY_LOG_ID);
                 if (logChan) {
                     const vLog = new EmbedBuilder()
@@ -121,8 +157,8 @@ module.exports = {
                     logChan.send({ embeds: [vLog] });
                 }
 
-                return interaction.reply({ content: isTr ? '✅ **Doğrulama başarılı! Hoş geldin.**' : '✅ **Verification successful! Welcome.**', ephemeral: true });
-            } catch (e) { return interaction.reply({ content: '❌ Role error!', ephemeral: true }); }
+                return interaction.reply({ content: isTr ? '✅ **Doğrulama başarılı! Dil seçimine göre kanallar düzenlendi.**' : '✅ **Verification successful! Channels updated based on your language.**', ephemeral: true });
+            } catch (e) { return interaction.reply({ content: '❌ Role or Channel permission error!', ephemeral: true }); }
         }
 
         // --- B. 💎 KEY ÜRETME SİSTEMİ (PREMIUM) ---
