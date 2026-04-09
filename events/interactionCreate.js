@@ -93,7 +93,58 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // --- A. DOĞRULAMA (VERIFY) SİSTEMİ (FIXED + KANAL GİZLEME EKLENDİ) ---
+        // --- YETKİLİ BAŞVURU FORMLARINI AÇMA ---
+        if (cid === 'apply_tr') {
+            const modal = new ModalBuilder()
+                .setCustomId('modal_tr') 
+                .setTitle('Yetkili Başvurusu');
+
+            const nameInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('name').setLabel('İsim ve Soyisminiz?').setStyle(TextInputStyle.Short).setRequired(true)
+            );
+            const ageInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('age').setLabel('Yaşınız?').setStyle(TextInputStyle.Short).setRequired(true)
+            );
+            const activeInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('active').setLabel('Günlük Aktifliğiniz?').setStyle(TextInputStyle.Short).setRequired(true)
+            );
+            const cmdInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('cmd').setLabel('Bot/Komut Bilginiz?').setStyle(TextInputStyle.Paragraph).setRequired(true)
+            );
+            const whyInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('why').setLabel('Ek Açıklama / Neden Biz?').setStyle(TextInputStyle.Paragraph).setRequired(true)
+            );
+
+            modal.addComponents(nameInput, ageInput, activeInput, cmdInput, whyInput);
+            return await interaction.showModal(modal);
+        }
+
+        if (cid === 'apply_en') {
+            const modal = new ModalBuilder()
+                .setCustomId('modal_en') 
+                .setTitle('Staff Application');
+
+            const nameInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('name').setLabel('Full Name?').setStyle(TextInputStyle.Short).setRequired(true)
+            );
+            const ageInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('age').setLabel('Age?').setStyle(TextInputStyle.Short).setRequired(true)
+            );
+            const activeInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('active').setLabel('Daily Activity?').setStyle(TextInputStyle.Short).setRequired(true)
+            );
+            const cmdInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('cmd').setLabel('Bot/Command Knowledge?').setStyle(TextInputStyle.Paragraph).setRequired(true)
+            );
+            const whyInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('why').setLabel('Additional Info / Why Us?').setStyle(TextInputStyle.Paragraph).setRequired(true)
+            );
+
+            modal.addComponents(nameInput, ageInput, activeInput, cmdInput, whyInput);
+            return await interaction.showModal(modal);
+        }
+
+        // --- A. DOĞRULAMA (VERIFY) SİSTEMİ ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             const ENTRY_ROLE = '1491450686637080737'; // Kayıtsız Rolü
@@ -111,41 +162,26 @@ module.exports = {
                 // Kayıtsız rolünü siliyoruz
                 await interaction.member.roles.remove(ENTRY_ROLE).catch(() => {});
                 
-                // KANAL GİZLEME İŞLEMLERİ BAŞLANGICI
+                // KANAL GİZLEME İŞLEMLERİ
                 const member = interaction.member;
 
                 if (isTr) {
-                    // TR seçenlerin GÖREMEYECEĞİ kanallar (İngilizce Kanalları)
-                    const trIcinGizlenecekKanallar = [
-                        '1491474439865368677', 
-                        '1491457214974656552'
-                    ];
-
+                    const trIcinGizlenecekKanallar = ['1491474439865368677', '1491457214974656552'];
                     for (const kanalId of trIcinGizlenecekKanallar) {
                         const channel = interaction.guild.channels.cache.get(kanalId);
                         if (channel) {
-                            await channel.permissionOverwrites.edit(member.id, {
-                                ViewChannel: false
-                            }).catch(console.error);
+                            await channel.permissionOverwrites.edit(member.id, { ViewChannel: false }).catch(console.error);
                         }
                     }
                 } else {
-                    // ENG seçenlerin GÖREMEYECEĞİ kanallar (Türkçe Kanalları)
-                    const engIcinGizlenecekKanallar = [
-                        '1491460319002755152', 
-                        '1491474379354148934'
-                    ];
-
+                    const engIcinGizlenecekKanallar = ['1491460319002755152', '1491474379354148934'];
                     for (const kanalId of engIcinGizlenecekKanallar) {
                         const channel = interaction.guild.channels.cache.get(kanalId);
                         if (channel) {
-                            await channel.permissionOverwrites.edit(member.id, {
-                                ViewChannel: false
-                            }).catch(console.error);
+                            await channel.permissionOverwrites.edit(member.id, { ViewChannel: false }).catch(console.error);
                         }
                     }
                 }
-                // KANAL GİZLEME İŞLEMLERİ BİTİŞİ
 
                 const logChan = client.channels.cache.get(VERIFY_LOG_ID);
                 if (logChan) {
@@ -271,8 +307,7 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
-        // --- E. ADMIN LİSTELEME / SIFIRLAMA ---
-        // --- F. KRİTİK İŞLEM: TÜM KEYLERİ SİLME ONAYI ---
+        // --- E. KRİTİK İŞLEM: TÜM KEYLERİ SİLME ONAYI ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Bu işlemi sadece kurucu yapabilir!**', ephemeral: true });
             
