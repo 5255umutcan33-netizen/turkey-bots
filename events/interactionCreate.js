@@ -236,6 +236,30 @@ module.exports = {
         }
 
         // --- E. ADMIN LİSTELEME / SIFIRLAMA ---
+        // --- F. KRİTİK İŞLEM: TÜM KEYLERİ SİLME ONAYI ---
+        if (cid === 'confirm_delete_all') {
+            if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Bu işlemi sadece kurucu yapabilir!**', ephemeral: true });
+            
+            try {
+                await KeyModel.deleteMany({}); // Veritabanındaki tüm keyleri yok eder
+                
+                const wipeEmbed = new EmbedBuilder()
+                    .setTitle('💥 Ryphera OS | SİSTEM SIFIRLANDI')
+                    .setColor('#ED4245')
+                    .setDescription(
+                        `⚙️ **İşlem -->** \`Tüm Veritabanını Temizleme (WIPE)\`\n` +
+                        `✅ **Durum -->** \`Başarıyla Gerçekleşti\`\n` +
+                        `🛑 **Sonuç -->** \`Sistemdeki TÜM lisans anahtarları kalıcı olarak silindi.\`\n` +
+                        `👮 **Yetkili -->** <@${interaction.user.id}>`
+                    )
+                    .setFooter({ text: 'Ryphera OS Core Security' })
+                    .setTimestamp();
+
+                return interaction.update({ embeds: [wipeEmbed], components: [], content: null });
+            } catch (err) { 
+                return interaction.reply({ content: '❌ **Sistem sıfırlanırken bir hata oluştu!**', ephemeral: true }); 
+            }
+        }
         if (cid === 'confirm_list_keys') {
             const keys = await KeyModel.find();
             if (keys.length === 0) return interaction.update({ content: '`⚠️ Veritabanı boş!`', embeds: [], components: [] });
