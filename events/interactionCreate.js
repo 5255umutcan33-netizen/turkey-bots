@@ -1,31 +1,32 @@
-const trRole = "1500268780037807544"; // Senin verdiğin TR Rol ID
-const enRole = "1500268646545756392"; // Senin verdiğin EN Rol ID
-const logChannelId = "1500269916304052364"; // Log Kanalı ID
+const trRole = "1500268780037607544"; // Doğru TR ID
+const enRole = "1500268646545756392"; // Doğru EN ID
+const logChannelId = "1500269916304052364"; // Log Kanalı
 
 if (interaction.isButton()) {
     const logChannel = interaction.guild.channels.cache.get(logChannelId);
 
-    if (interaction.customId === 'verify_tr') {
-        try {
+    try {
+        if (interaction.customId === 'verify_tr') {
             await interaction.member.roles.add(trRole);
             if (interaction.member.roles.cache.has(enRole)) await interaction.member.roles.remove(enRole);
             
-            if (logChannel) logChannel.send({ content: `✅ **${interaction.user.tag}** Türkçe dilini seçerek doğrulandı. 🇹🇷` });
-            return interaction.reply({ content: 'Doğrulandınız! Türkçe kanallar açıldı.', ephemeral: true });
-        } catch (e) {
-            return interaction.reply({ content: '❌ Yetki Hatası: Bot rolünü hiyerarşide en üste çekin!', ephemeral: true });
+            if (logChannel) logChannel.send(`✅ **${interaction.user.tag}** Türkçe doğrulandı. 🇹🇷`);
+            return interaction.reply({ content: 'Başarıyla doğrulandın!', ephemeral: true });
         }
-    }
 
-    if (interaction.customId === 'verify_en') {
-        try {
+        if (interaction.customId === 'verify_en') {
             await interaction.member.roles.add(enRole);
             if (interaction.member.roles.cache.has(trRole)) await interaction.member.roles.remove(trRole);
             
-            if (logChannel) logChannel.send({ content: `✅ **${interaction.user.tag}** verified with English. 🇬🇧` });
-            return interaction.reply({ content: 'Verified! English channels are now visible.', ephemeral: true });
-        } catch (e) {
-            return interaction.reply({ content: '❌ Permission Error: Move the Bot Role to the top!', ephemeral: true });
+            if (logChannel) logChannel.send(`✅ **${interaction.user.tag}** English verified. 🇬🇧`);
+            return interaction.reply({ content: 'Successfully verified!', ephemeral: true });
         }
+    } catch (error) {
+        // Hatanın tam sebebini burası söyleyecek:
+        console.error(error);
+        return interaction.reply({ 
+            content: `❌ **Hata Oluştu:** \`${error.message}\` \n(Not: Bot rolü en üstte olmalı ve 'Yönetici' yetkisi açık olmalıdır.)`, 
+            ephemeral: true 
+        });
     }
 }
