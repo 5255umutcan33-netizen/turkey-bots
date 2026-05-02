@@ -9,8 +9,8 @@ module.exports = {
     async execute(interaction) {
         // --- AYARLAR ---
         const verifyChannelId = "1500266130495897722";
-        const trRoleId = "BURAYA_TURKISH_ROL_ID_YAZ"; // Discord'dan Turkish rolünün ID'sini al
-        const enRoleId = "BURAYA_ENGLISH_ROL_ID_YAZ"; // Discord'dan English rolünün ID'sini al
+        const trRoleId = "1500268780037607544"; // Discord'dan Turkish rolünün ID'sini al
+        const enRoleId = "1500268646545756392"; // Discord'dan English rolünün ID'sini al
 
         const embed = new EmbedBuilder()
             .setTitle("LUAWARE | VERIFICATION")
