@@ -1,172 +1,95 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
-const { createWorker } = require('tesseract.js');
-const fs = require('fs');
-const path = require('path');
-const AboneChannel = require('../models/aboneChannel');
-
-// OCR İşçisini Başlat
-let worker = null;
-(async () => { 
-    worker = await createWorker('eng'); 
-    console.log("🤖 [SİSTEM] OCR Motoru ateşlendi.");
-})();
-
-const spamTracker = new Map();
-const dbPath = path.join(__dirname, '../spam-db.json');
+const AboneChannel = require('../models/aboneChannel'); // Kendi veritabanı modelinin yolunu kontrol et
+const Tesseract = require('tesseract.js'); // Yapay zeka modülü
 
 module.exports = {
     name: Events.MessageCreate,
-    async execute(message, client) {
-        
-        // ---------------------------------------------------------
-        // 1. WEBHOOK BAŞVURU YAKALAMA OPERASYONU
-        // ---------------------------------------------------------
-        if (message.webhookId) {
-            const embed = message.embeds[0];
-            if (embed && embed.footer && embed.footer.text && embed.footer.text.includes('User ID:')) {
-                const userId = embed.footer.text.replace('User ID: ', '').trim();
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`app_onay_${userId}`).setLabel('Onayla ✅').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId(`app_red_${userId}`).setLabel('Reddet ❌').setStyle(ButtonStyle.Danger)
-                );
-                await message.channel.send({ embeds: [embed], components: [row] });
-                return message.delete().catch(() => {}); 
-            }
-            return; 
-        }
-
+    async execute(message) {
+        // 1. Botların mesajlarını yoksay
         if (message.author.bot) return;
 
-        // ---------------------------------------------------------
-        // 2. RYPHERA GUARD: SPAM VE FLOOD KORUMASI
-        // ---------------------------------------------------------
-        if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify([]));
-        const protectedChannels = JSON.parse(fs.readFileSync(dbPath));
+        // 2. Bu kanal bizim abone onay kanalımız mı? Veritabanından bakıyoruz
+        const channelData = await AboneChannel.findOne({ channelId: message.channel.id });
+        if (!channelData) return; // Abone kanalı değilse bot normal çalışmaya devam eder
 
-        if (protectedChannels.includes(message.channel.id)) {
-            const userId = message.author.id;
-            const userData = spamTracker.get(userId) || { msgCount: 0, timer: null };
-            userData.msgCount++;
-
-            if (userData.msgCount >= 5) {
-                try {
-                    await message.member.timeout(120000, "Ryphera Guard: Spam Protection");
-                    const reply = await message.reply(`🚨 <@${userId}>, stop spamming! 2 min mute. / Çok hızlısın, 2 dakika susturuldun.`);
-                    setTimeout(() => reply.delete().catch(()=>null), 5000); 
-                    await message.channel.bulkDelete(5).catch(()=>null); 
-                } catch (err) {
-                    console.error("Mute hatası:", err);
-                }
-                spamTracker.delete(userId); 
-                return; 
-            } else {
-                if (userData.timer) clearTimeout(userData.timer);
-                userData.timer = setTimeout(() => spamTracker.delete(userId), 5000);
-                spamTracker.set(userId, userData);
-            }
+        // 3. KURAL: Resim Yoksa Acımadan Sil (Sadece resim atılabilir)
+        if (message.attachments.size === 0) {
+            await message.delete().catch(() => {});
+            const warn = await message.channel.send(`❌ <@${message.author.id}>, bu kanala sadece resim atabilirsiniz! Yazı yazmak yasaktır.`);
+            setTimeout(() => warn.delete().catch(() => {}), 5000); // Uyarıyı 5 saniye sonra sil
+            return;
         }
-
-        // ---------------------------------------------------------
-        // 3. BASİT KOMUTLAR (r!yardım)
-        // ---------------------------------------------------------
-        if (message.content.toLowerCase() === 'r!yardım') {
-            const help = new EmbedBuilder()
-                .setTitle('💬 RYPHERA OS | YARDIM')
-                .setColor('#2B2D31')
-                .setDescription(`>>> 👋 **Merhaba <@${message.author.id}>!**\n\n• \`/format\` : Script Tanıtımı\n• \`/trticketkur\` : Türkçe Bilet Sistemi\n• \`r!yardım\` : Bu Menü`)
-                .setFooter({ text: 'Ryphera Solutions' });
-            return message.reply({ embeds: [help] });
-        }
-
-        // ---------------------------------------------------------
-        // 4. SS OKUMA SİSTEMİ (GELİŞMİŞ EŞLEŞTİRME VE LOGLAMA)
-        // ---------------------------------------------------------
-        const channelData = await AboneChannel.findOne({ channelId: message.channelId }).catch(() => null);
-        if (!channelData) return;
 
         const attachment = message.attachments.first();
-        if (!attachment || !attachment.contentType.startsWith('image')) return;
+        
+        // Atılan şeyin harbi resim olup olmadığını kontrol et
+        if (!attachment.contentType || !attachment.contentType.startsWith('image/')) {
+            await message.delete().catch(() => {});
+            const warn = await message.channel.send(`❌ <@${message.author.id}>, lütfen sadece geçerli bir resim formatı (PNG, JPG vb.) yükleyin.`);
+            setTimeout(() => warn.delete().catch(() => {}), 5000);
+            return;
+        }
 
-        // --- SABİT ID AYARLARI ---
-        const ROLE_ID = '1490996828974612530'; // Abone Rolü
-        const LOG_ID = '1491104204763304166';  // Log Kanalı 
-        const GIZLE_KANALLAR = [
-            '1491457136159621301', 
-            '1491457214974656552', 
-            '1491460319002755152' // Son eklediğimiz kaçak kanal
-        ]; 
-
+        // 4. KURAL: YAPAY ZEKA (OCR) İLE GÖRSEL TARAMASI
+        const loadingMsg = await message.channel.send(`⏳ <@${message.author.id}>, görseliniz Yapay Zeka ile inceleniyor... Lütfen bekleyin.`);
+        
         try {
-            console.log(`📸 [OCR] Yeni tarama başladı: ${message.author.tag}`);
-            const { data: { text } } = await worker.recognize(attachment.url);
+            // Tesseract ile resimdeki metni okuyoruz
+            const { data: { text } } = await Tesseract.recognize(attachment.url, 'eng');
             
-            // Regex'i daha akıllı yaptık (Boşlukları korur, daha iyi okur)
-            const cleanText = text.toLowerCase().trim();
-            console.log(`📝 [HAM METİN]: "${cleanText}"`); 
+            // Hatalı okumaları engellemek için tüm boşlukları silip yazıyı küçük harfe çeviriyoruz
+            const cleanText = text.replace(/\s+/g, '').toLowerCase();
 
-            // DAHA ESNEK KONTROL: Bu kelimelerden BİRİ bile geçse onaylar!
-            const keywords = ['ryphera', 'script', 'scr1pt'];
-            const isMatch = keywords.some(word => cleanText.includes(word));
-
-            if (isMatch) {
-                console.log(`🎯 [ONAY] Anahtar kelime yakalandı. Rol verme deneniyor: ${ROLE_ID}`);
+            // Eğer "luawaresctp" yazısı görselde YOKSA (Reddet):
+            if (!cleanText.includes('luawaresctp')) {
+                // Orijinal mesajı ve "inceleniyor" mesajını sil
+                await message.delete().catch(() => {});
+                await loadingMsg.delete().catch(() => {});
                 
-                // 1. Abone Rolünü Ver (HATAYI LOGA YAZDIRIR)
-                await message.member.roles.add(ROLE_ID)
-                    .then(() => console.log("✅ [BAŞARI] Rol verildi!"))
-                    .catch(err => console.log(`❌ [DİSCORD YETKİ HATASI] Rol verilemedi: ${err.message}`));
-                
-                // 2. Kanalları Kullanıcıdan Gizle
-                for (const channelId of GIZLE_KANALLAR) {
-                    const hideChannel = message.guild.channels.cache.get(channelId);
-                    if (hideChannel) {
-                        await hideChannel.permissionOverwrites.edit(message.author.id, {
-                            ViewChannel: false 
-                        }).catch(() => {});
-                    }
-                }
-
-                // 3. Kullanıcıya DM Gönder (Çift Dilli)
-                const dmSuccess = new EmbedBuilder()
-                    .setTitle('✅ Ryphera OS | Approved')
-                    .setDescription('**Your screenshot has been approved!**\nSubscriber role granted and access to verification channels has been hidden.\n\n**Ekran görüntünüz onaylandı!**\nAbone rolünüz verildi ve doğrulama kanalları erişiminize kapatıldı.')
-                    .setColor('#57F287')
-                    .setTimestamp();
-                await message.author.send({ embeds: [dmSuccess] }).catch(() => {});
-
-                // 4. Log Kanalına Kanıt Bildir
-                const logChan = client.channels.cache.get(LOG_ID);
-                if (logChan) {
-                    const log = new EmbedBuilder()
-                        .setTitle('📸 SUCCESSFUL VERIFICATION')
-                        .setColor('#57F287')
-                        .addFields(
-                            { name: 'User / Kullanıcı', value: `<@${message.author.id}> (${message.author.tag})`, inline: true },
-                            { name: 'Status / Durum', value: '✅ Approved (Onaylandı)', inline: true }
-                        )
-                        .setImage(attachment.url)
-                        .setTimestamp();
-                    logChan.send({ embeds: [log] });
-                }
-
-                const okMsg = await message.reply('`✅ APPROVED: Role given & verification channels hidden.`');
-                setTimeout(() => { message.delete().catch(()=>{}); okMsg.delete().catch(()=>{}); }, 4000);
-
-            } else {
-                console.log("❌ [RED] Resimde hiçbir anahtar kelime okunamadı.");
-                
-                // 5. REDDEDİLDİ DURUMU (DM ve Mesaj)
-                const dmFail = new EmbedBuilder()
-                    .setTitle('❌ Ryphera OS | Rejected')
-                    .setDescription('**Verification Failed!**\nRyphera Script text was not found in your screenshot. Please send a valid screenshot.\n\n**Onay Başarısız!**\nEkran görüntüsünde Ryphera Script ibaresi bulunamadı. Lütfen daha net bir resim atın.')
-                    .setColor('#ED4245');
-                await message.author.send({ embeds: [dmFail] }).catch(() => {});
-
-                const failMsg = await message.reply('`❌ REJECTED: Ryphera Script text not found. / RED: Ryphera Script ibaresi bulunamadı.`');
-                setTimeout(() => { message.delete().catch(()=>{}); failMsg.delete().catch(()=>{}); }, 5000);
+                // Kullanıcıya DM'den ret sebebini bildir (Çift Dilli)
+                await message.author.send(`❌ **TR:** SS Onaylanmadı! Attığınız görselde \`LuaWareSctp\` yazısı YZ tarafından tespit edilemedi. Lütfen yazının net bir şekilde göründüğünden emin olup tekrar deneyin.\n\n❌ **EN:** SS Rejected! The text \`LuaWareSctp\` was not detected by AI in your image. Please ensure it is clearly visible and try again.`).catch(() => {});
+                return;
             }
-        } catch (e) { 
-            console.error("🚨 [KRİTİK HATA] SS Okunurken çöktü:", e); 
+
+            // Eğer "luawaresctp" yazısı VARSA (Başarılı):
+            await loadingMsg.edit(`✅ YZ Doğrulaması başarılı! Görseliniz yetkililere iletildi.`);
+            setTimeout(() => loadingMsg.delete().catch(() => {}), 4000);
+
+            // LOG KANALI (Yetkililerin onaylayıp/reddedeceği kanal)
+            const LOG_KANALI_ID = '1500587963338326228';
+            const logChannel = message.client.channels.cache.get(LOG_KANALI_ID);
+            
+            if (logChannel) {
+                const adminEmbed = new EmbedBuilder()
+                    .setTitle('📸 LUAWARE | YZ Onaylı Yeni SS')
+                    .setColor('#FEE75C')
+                    .setDescription(`👤 **Kullanıcı:** <@${message.author.id}>\n🤖 **YZ Kontrolü:** \`LuaWareSctp\` **bulundu** ✅\n📝 Lütfen aşağıdan manuel onay veya red verin.`)
+                    .setImage(attachment.url)
+                    .setFooter({ text: 'LUAWARE AI System' })
+                    .setTimestamp();
+
+                // Butonların customId'si içine silme işlemi için her şeyi kaydediyoruz:
+                // Format: abone_yes/no_kullanıcıID_orijinalMesajID_kanalID
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`abone_yes_${message.author.id}_${message.id}_${message.channel.id}`)
+                        .setLabel('Onayla')
+                        .setEmoji('✅')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`abone_no_${message.author.id}_${message.id}_${message.channel.id}`)
+                        .setLabel('Reddet')
+                        .setEmoji('❌')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+                await logChannel.send({ embeds: [adminEmbed], components: [row] });
+            }
+
+        } catch (error) {
+            console.error('Yapay Zeka Okuma Hatası:', error);
+            await loadingMsg.edit("❌ Görüntü işlenirken bir hata oluştu. Resim çok bulanık olabilir. Lütfen daha net bir resim atın.");
+            setTimeout(() => loadingMsg.delete().catch(() => {}), 5000);
         }
     }
 };

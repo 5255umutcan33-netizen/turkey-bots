@@ -292,7 +292,61 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
-        // --- E. VERİTABANI YÖNETİMİ (WIPE & LIST) ---
+        // --- E. YENİ EKLENEN YAPAY ZEKA ABONE (SUBSCRIBER) ONAY/RED SİSTEMİ ---
+        if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
+            // Yalnızca Yöneticiler basabilir
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
+            }
+
+            const parts = cid.split('_');
+            const action = parts[1]; // yes veya no
+            const userId = parts[2];
+            const msgId = parts[3];
+            const channelId = parts[4];
+
+            // 1. Orijinal resmi kullanıcının attığı kanaldan bulup SİLİYORUZ
+            const originalChannel = interaction.guild.channels.cache.get(channelId);
+            if (originalChannel) {
+                const originalMsg = await originalChannel.messages.fetch(msgId).catch(() => null);
+                if (originalMsg) await originalMsg.delete().catch(() => null);
+            }
+
+            const targetMember = await interaction.guild.members.fetch(userId).catch(() => null);
+
+            // ✅ ONAYLANDIYSA
+            if (action === 'yes') {
+                if (targetMember) {
+                    await targetMember.roles.add('1500587633649127445').catch(() => {}); // Abone Rolünü Ver
+                    await targetMember.roles.remove('1500249403443908711').catch(() => {}); // Eski Rolü Al
+                    
+                    // Kullanıcıya DM Gönder
+                    await targetMember.send(`🎉 **TR:** Tebrikler! Abone kanıtınız ONAYLANDI ve rolünüz verildi. Artık ilgili kanalları görebilirsiniz.\n\n🎉 **EN:** Congratulations! Your sub proof is APPROVED and your role has been given.`).catch(() => {});
+                }
+                
+                // Log kanalındaki mesajı güncelle (Butonları sil, Rengi Yeşil yap)
+                const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setColor('#1aff00') // LUAWARE Neon Yeşili
+                    .addFields({ name: 'Durum', value: `✅ Onaylandı (İşlemi Yapan: <@${interaction.user.id}>)` });
+                return interaction.update({ embeds: [updatedEmbed], components: [] });
+                
+            } 
+            // ❌ REDDEDİLDİYSE
+            else if (action === 'no') {
+                if (targetMember) {
+                    // Kullanıcıya DM Gönder
+                    await targetMember.send(`❌ **TR:** Abone kanıtınız yetkililer tarafından REDDEDİLDİ. Lütfen uygun bir görsel ile tekrar deneyin.\n\n❌ **EN:** Your sub proof was REJECTED by staff. Please try again with a valid image.`).catch(() => {});
+                }
+                
+                // Log kanalındaki mesajı güncelle (Butonları sil, Rengi Kırmızı yap)
+                const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setColor('#ED4245')
+                    .addFields({ name: 'Durum', value: `❌ Reddedildi (İşlemi Yapan: <@${interaction.user.id}>)` });
+                return interaction.update({ embeds: [updatedEmbed], components: [] });
+            }
+        }
+
+        // --- F. VERİTABANI YÖNETİMİ (WIPE & LIST) ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             

@@ -1,10 +1,10 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const AboneChannel = require('../models/aboneChannel');
+const AboneChannel = require('../models/aboneChannel'); // Yolunu kontrol et
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('trabonekur')
-        .setDescription('📸 Kanalı Türkçe abone kontrol kanalına çevirir.')
+        .setDescription('📸 Kanalı YZ destekli Abone Onay kanalına çevirir.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(interaction) {
@@ -14,18 +14,24 @@ module.exports = {
             { upsert: true }
         );
 
-        // 💎 PREMİUM ONAY RAPORU
+        // KANAL İZİNLERİNİ OTOMATİK AYARLA (Abone rolü olanlar kanalı göremez)
+        const ABONE_ROLU = '1500587633649127445';
+        await interaction.channel.permissionOverwrites.edit(ABONE_ROLU, {
+            ViewChannel: false // Abone olanlar burayı artık göremez
+        }).catch(() => {});
+
+        // 💎 LUAWARE ONAY RAPORU
         const embed = new EmbedBuilder()
-            .setTitle('🛡️ Ryphera OS | SS Sistemi Aktif (TR)')
-            .setColor('#57F287')
+            .setTitle('🛡️ LUAWARE OS | Yapay Zeka Destekli SS Sistemi')
+            .setColor('#1aff00')
             .setDescription(
-                `⚙️ **İşlem -->** \`Türkçe Abone Onay Kanalı Kurulumu\`\n` +
-                `✅ **Durum -->** \`Başarıyla Ayarlandı\`\n` +
+                `⚙️ **İşlem -->** \`Abone Onay Kanalı Kurulumu\`\n` +
+                `✅ **Durum -->** \`Başarıyla Ayarlandı & YZ Aktif\`\n` +
                 `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
                 `👮 **İşlemi Yapan -->** <@${interaction.user.id}>\n` +
                 `📅 **İşlem Zamanı -->** <t:${Math.floor(Date.now() / 1000)}:f>`
             )
-            .setFooter({ text: 'Ryphera OS System' })
+            .setFooter({ text: 'Luaware System' })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
