@@ -24,6 +24,7 @@ module.exports = {
         const SUGGEST_LOG_TR = '1491388986923552869'; 
         const SUGGEST_LOG_EN = '1491389032524021790';
         const VERIFY_LOG_ID = '1500269916304052364';
+        const ABONE_LOG_ID = '1500587963338326228'; // Abone SS Log Kanalı
 
         // --- LUAWARE ROL VE KANAL AYARLARI ---
         const TR_ROLE = '1500268780037607544';
@@ -49,7 +50,6 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
-            // A. YETKİLİ BAŞVURU FORMU GÖNDERİMİ
             if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
                 const isEn = interaction.customId === 'modal_en';
                 
@@ -83,7 +83,6 @@ module.exports = {
                 });
             }
 
-            // B. SCRİPT ÖNERİ FORMU GÖNDERİMİ
             if (interaction.customId === 'modal_suggest_tr' || interaction.customId === 'modal_suggest_en') {
                 const isEn = interaction.customId === 'modal_suggest_en';
                 
@@ -115,7 +114,6 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // --- YETKİLİ BAŞVURU FORMLARINI AÇMA ---
         if (cid === 'apply_tr') {
             const modal = new ModalBuilder().setCustomId('modal_tr').setTitle('Yetkili Başvurusu');
             
@@ -142,12 +140,10 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // --- A. LUAWARE DOĞRULAMA (VERIFY) SİSTEMİ ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             
             try {
-                // Rol İşlemleri
                 if (isTr) {
                     await interaction.member.roles.add(TR_ROLE);
                     if (interaction.member.roles.cache.has(EN_ROLE)) await interaction.member.roles.remove(EN_ROLE);
@@ -156,7 +152,6 @@ module.exports = {
                     if (interaction.member.roles.cache.has(TR_ROLE)) await interaction.member.roles.remove(TR_ROLE);
                 }
                 
-                // VERIFY KANALINI KİŞİYE ÖZEL GİZLEME
                 const vChannel = interaction.guild.channels.cache.get(VERIFY_CHANNEL_ID);
                 if (vChannel) {
                     await vChannel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
@@ -182,7 +177,6 @@ module.exports = {
             }
         }
 
-        // --- B. 💎 LUAWARE PREMIUM KEY ÜRETME SİSTEMİ ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             await interaction.deferReply({ ephemeral: true }); 
@@ -222,7 +216,6 @@ module.exports = {
             return interaction.editReply({ content: isTR ? '✅ **Keyin oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key created and sent to your DM!**' });
         }
 
-        // --- C. BAŞVURU ONAY/RED ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             const action = cid.startsWith('app_onay_') ? 'onay' : 'red';
@@ -244,7 +237,6 @@ module.exports = {
             });
         }
 
-        // --- D. LUAWARE TİCKET SİSTEMİ ---
         const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (tIds.includes(cid)) {
             await interaction.deferReply({ ephemeral: true });
@@ -294,21 +286,17 @@ module.exports = {
 
         // --- E. YAPAY ZEKA ABONE (SUBSCRIBER) ONAY/RED SİSTEMİ ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
-            // Sadece yöneticiler onay/red verebilir
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
             }
 
-            // CustomID'yi parçalayıp gerekli bilgileri alıyoruz
-            // Format: abone_yes/no_kullanıcıID_orijinalMesajID_kanalID_langCode(tr/en)
             const parts = cid.split('_');
-            const action = parts[1]; // yes veya no
+            const action = parts[1]; 
             const userId = parts[2];
             const msgId = parts[3];
             const channelId = parts[4];
-            const lang = parts[5]; // tr veya en
+            const lang = parts[5]; 
 
-            // 1. Orijinal resmi kullanıcının attığı kanaldan bulup SİLİYORUZ
             const originalChannel = interaction.guild.channels.cache.get(channelId);
             if (originalChannel) {
                 const originalMsg = await originalChannel.messages.fetch(msgId).catch(() => null);
@@ -316,44 +304,55 @@ module.exports = {
             }
 
             const targetMember = await interaction.guild.members.fetch(userId).catch(() => null);
+            const logChannelObj = interaction.client.channels.cache.get(ABONE_LOG_ID);
 
             // ✅ ONAYLANDIYSA
             if (action === 'yes') {
                 if (targetMember) {
-                    await targetMember.roles.add('1500587633649127445').catch(() => {}); // Abone Rolünü Ver
-                    await targetMember.roles.remove('1500249403443908711').catch(() => {}); // Eski Rolü Al
+                    await targetMember.roles.add('1500587633649127445').catch(() => {}); 
+                    await targetMember.roles.remove('1500249403443908711').catch(() => {}); 
                     
-                    // Kanala özel dilde DM at
+                    // 🔒 ONAYLANAN KİŞİYE KANALI GİZLE
+                    if (originalChannel) {
+                        await originalChannel.permissionOverwrites.edit(targetMember.id, { ViewChannel: false }).catch(() => {});
+                    }
+
                     const dmMsg = lang === 'tr' 
-                        ? `🎉 **Tebrikler!** Abone kanıtınız ONAYLANDI ve rolünüz verildi. İlgili kanalları artık görebilirsiniz.`
-                        : `🎉 **Congratulations!** Your sub proof is APPROVED and your role has been given. You can now view the relevant channels.`;
+                        ? `🎉 **Tebrikler!** Abone kanıtınız ONAYLANDI ve rolünüz verildi.\n🔒 *Doğrulama kanalına erişiminiz kapatıldı.*`
+                        : `🎉 **Congratulations!** Your sub proof is APPROVED and your role has been given.\n🔒 *Access to the verification channel is now hidden.*`;
                     
                     await targetMember.send(dmMsg).catch(() => {});
                 }
                 
-                // Log kanalındaki mesajı güncelle (Butonları sil, Rengi Yeşil yap)
-                const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                    .setColor('#1aff00') // LUAWARE Neon Yeşili
-                    .addFields({ name: 'Durum / Status', value: `✅ Onaylandı / Approved (Yetkili: <@${interaction.user.id}>)` });
-                return interaction.update({ embeds: [updatedEmbed], components: [] });
+                try {
+                    const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                        .setColor('#1aff00') 
+                        .addFields({ name: 'Durum / Status', value: `✅ Onaylandı / Approved (Yetkili: <@${interaction.user.id}>)` });
+                    await interaction.update({ embeds: [updatedEmbed], components: [] });
+                } catch (e) { console.error("Update error:", e); }
                 
             } 
             // ❌ REDDEDİLDİYSE
             else if (action === 'no') {
                 if (targetMember) {
-                    // Kanala özel dilde DM at
                     const dmMsg = lang === 'tr' 
-                        ? `❌ **Reddedildi:** Abone kanıtınız yetkililer tarafından reddedildi. Lütfen doğru görseli tekrar gönderin.`
-                        : `❌ **Rejected:** Your sub proof was rejected by staff. Please submit the correct image again.`;
+                        ? `❌ **Reddedildi:** Abone kanıtınız reddedildi. Lütfen doğru görseli tekrar gönderin.`
+                        : `❌ **Rejected:** Your sub proof was rejected. Please submit the correct image again.`;
                     
                     await targetMember.send(dmMsg).catch(() => {});
                 }
                 
-                // Log kanalındaki mesajı güncelle (Butonları sil, Rengi Kırmızı yap)
-                const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                    .setColor('#ED4245')
-                    .addFields({ name: 'Durum / Status', value: `❌ Reddedildi / Rejected (Yetkili: <@${interaction.user.id}>)` });
-                return interaction.update({ embeds: [updatedEmbed], components: [] });
+                try {
+                    const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                        .setColor('#ED4245')
+                        .addFields({ name: 'Durum / Status', value: `❌ Reddedildi / Rejected (Yetkili: <@${interaction.user.id}>)` });
+                    await interaction.update({ embeds: [updatedEmbed], components: [] });
+                    
+                    // KULLANICI İSTEDİĞİ İÇİN EKSTRA YENİ LOG MESAJI
+                    if (logChannelObj) {
+                        await logChannelObj.send(`❌ <@${userId}> adlı kullanıcının SS gönderimi <@${interaction.user.id}> tarafından **reddedildi.**`);
+                    }
+                } catch (e) { console.error("Update error:", e); }
             }
         }
 
