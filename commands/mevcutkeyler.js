@@ -1,36 +1,35 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ComponentType } = require('discord.js');
-const KeyModel = require('../models/key'); // Bulduğumuz kesin yol
+const KeyModel = require('../models/key'); // Veritabanı yolun
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('mevcutkeyler')
-        .setDescription('Sistemdeki tüm Luaware lisanslarını listeler.')
+        .setDescription('Tüm Luaware lisanslarını sayfalı bir kitap şeklinde listeler.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(interaction) {
         
-        //  İLK ONAY EKRANI
+        // 💎 İLK ONAY EKRANI
         const confirmEmbed = new EmbedBuilder()
             .setTitle('🔍 LUAWARE | Veritabanı Sorgusu')
-            .setColor('#1aff00') // Neon Yeşil
+            .setColor('#1aff00')
             .setDescription(
-                `⚙️ **İşlem:** \`Aktif Lisansları Listeleme\`\n` +
-                `⚠️ **Uyarı:** \`Veritabanındaki tüm veriler sayfalar halinde çekilecektir.\`\n` +
-                `📝 **Durum:** \`Devam etmek için aşağıdaki butondan onay verin.\``
+                `⚙️ **İşlem:** \`Lisans Arşivini Görüntüleme\`\n` +
+                `📖 **Format:** \`Sayfalı Kitap Düzeni\`\n` +
+                `📝 **Durum:** \`Devam etmek için onay verin.\``
             )
-            .setFooter({ text: 'Luaware OS Database Security' })
+            .setFooter({ text: 'Luaware Arşiv Güvenliği' })
             .setTimestamp();
 
         const confirmRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('confirm_list')
-                .setLabel('Onaylıyorum')
-                .setEmoji('✅')
+                .setLabel('Arşivi Aç')
+                .setEmoji('📖')
                 .setStyle(ButtonStyle.Success),
             new ButtonBuilder()
                 .setCustomId('cancel_list')
-                .setLabel('İptal')
-                .setEmoji('❌')
+                .setLabel('İptal Et')
                 .setStyle(ButtonStyle.Danger)
         );
 
@@ -43,47 +42,56 @@ module.exports = {
             }
 
             if (i.customId === 'confirm_list') {
-                
-                // MongoDB'den gerçek verileri çekiyoruz
                 const dbKeys = await KeyModel.find({});
 
                 if (!dbKeys || dbKeys.length === 0) {
-                    return i.update({ content: '⚠️ Veritabanında kayıtlı lisans bulunamadı.', embeds: [], components: [] });
+                    return i.update({ content: '⚠️ Arşivde hiç lisans bulunamadı.', embeds: [], components: [] });
                 }
 
-                // 📄 SAYFALAMA SİSTEMİ
+                // 📄 SAYFALAMA AYARLARI
                 let currentPage = 0;
                 const itemsPerPage = 5; 
                 const totalPages = Math.ceil(dbKeys.length / itemsPerPage);
 
+                // Embed Oluşturucu
                 const generateEmbed = (page) => {
                     const start = page * itemsPerPage;
                     const currentItems = dbKeys.slice(start, start + itemsPerPage);
 
                     const descriptionData = currentItems.map(item => {
                         const gosterilenID = item.licenseId ? `#${item.licenseId}` : 'ID Yok';
-                        const sahip = item.owner ? `<@${item.owner}>` : '\`Sahipsiz\`';
-                        return `🆔 **ID:** \`${gosterilenID}\`\n👤 **Sahip:** ${sahip}\n🔑 **Key:** \`${item.key}\`\n⌛ **Süre:** \`${item.expiry}\`\n───────────────`;
+                        // Kullanıcıyı ID üzerinden etiketliyoruz
+                        const sahipEtiket = item.owner ? `<@${item.owner}>` : '\`Sahipsiz\`';
+                        
+                        return `🆔 **ID:** \`${gosterilenID}\`\n👤 **Sahip:** ${sahipEtiket}\n🔑 **Key:** \`${item.key}\`\n⌛ **Bitiş:** \`${item.expiry}\`\n───────────────`;
                     }).join('\n');
 
                     return new EmbedBuilder()
-                        .setTitle('🔑 LUAWARE | Lisans Havuzu')
+                        .setTitle('📖 LUAWARE | Lisans Arşivi')
                         .setColor('#1aff00')
-                        .setDescription(`📊 **Toplam Key Sayısı:** \`${dbKeys.length}\`\n\n${descriptionData}`)
-                        .setFooter({ text: `Sayfa: ${page + 1} / ${totalPages} | Luaware Security` })
+                        .setDescription(`📊 **Toplam Kayıt:** \`${dbKeys.length}\`\n\n${descriptionData}`)
+                        .setFooter({ text: `Sayfa ${page + 1} / ${totalPages} | Luaware Security` })
                         .setTimestamp();
                 };
 
+                // Buton Oluşturucu (📖 1, 📖 2 düzeni)
                 const generateButtons = (page) => {
                     return new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setCustomId('prev_page')
-                            .setLabel('◀')
+                            .setLabel(`${page > 0 ? page : 'Son'}`)
+                            .setEmoji('📖')
                             .setStyle(ButtonStyle.Primary)
                             .setDisabled(page === 0),
                         new ButtonBuilder()
+                            .setCustomId('current_page_num')
+                            .setLabel(`Sayfa: ${page + 1}`)
+                            .setStyle(ButtonStyle.Secondary)
+                            .setDisabled(true),
+                        new ButtonBuilder()
                             .setCustomId('next_page')
-                            .setLabel('▶')
+                            .setLabel(`${page + 2 <= totalPages ? page + 2 : 'Bitti'}`)
+                            .setEmoji('📖')
                             .setStyle(ButtonStyle.Primary)
                             .setDisabled(page === totalPages - 1)
                     );
@@ -101,6 +109,10 @@ module.exports = {
                         embeds: [generateEmbed(currentPage)], 
                         components: [generateButtons(currentPage)] 
                     });
+                });
+
+                pageCollector.on('end', () => {
+                    response.edit({ components: [] }).catch(() => {});
                 });
             }
         });
