@@ -3,15 +3,15 @@ const AboneChannel = require('../models/aboneChannel');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('trabonekur')
-        .setDescription('📸 Kanalı YZ destekli TÜRKÇE Abone Onay kanalına çevirir.')
+        .setName('enabonekur')
+        .setDescription('📸 Sets the channel as the AI-supported ENGLISH Subscriber Verification channel.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(interaction) {
-        // Veritabanına bu kanalı "tr" olarak kaydediyoruz
+        // Veritabanına bu kanalı "en" olarak kaydediyoruz
         await AboneChannel.findOneAndUpdate(
             { channelId: interaction.channelId }, 
-            { lang: 'tr' }, 
+            { lang: 'en' }, 
             { upsert: true }
         );
 
@@ -19,9 +19,9 @@ module.exports = {
         await interaction.channel.permissionOverwrites.edit(ABONE_ROLU, { ViewChannel: false }).catch(() => {});
 
         const embed = new EmbedBuilder()
-            .setTitle('🛡️ LUAWARE OS | Türkçe SS Sistemi Aktif')
+            .setTitle('🛡️ LUAWARE OS | English SS System Active')
             .setColor('#1aff00')
-            .setDescription(`⚙️ **İşlem -->** \`TR Abone Kanalı Kurulumu\`\n✅ **Durum -->** \`Başarıyla Ayarlandı\`\n📍 **Kanal -->** <#${interaction.channelId}>`)
+            .setDescription(`⚙️ **Action -->** \`EN Subscriber Channel Setup\`\n✅ **Status -->** \`Successfully Set\`\n📍 **Channel -->** <#${interaction.channelId}>`)
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });

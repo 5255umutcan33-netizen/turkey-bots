@@ -156,7 +156,7 @@ module.exports = {
                     if (interaction.member.roles.cache.has(TR_ROLE)) await interaction.member.roles.remove(TR_ROLE);
                 }
                 
-                // VERIFY KANALINI KİŞİYE ÖZEL GİZLEME (Discord Permission Overwrite)
+                // VERIFY KANALINI KİŞİYE ÖZEL GİZLEME
                 const vChannel = interaction.guild.channels.cache.get(VERIFY_CHANNEL_ID);
                 if (vChannel) {
                     await vChannel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
@@ -292,18 +292,21 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
-        // --- E. YENİ EKLENEN YAPAY ZEKA ABONE (SUBSCRIBER) ONAY/RED SİSTEMİ ---
+        // --- E. YAPAY ZEKA ABONE (SUBSCRIBER) ONAY/RED SİSTEMİ ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
-            // Yalnızca Yöneticiler basabilir
+            // Sadece yöneticiler onay/red verebilir
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
             }
 
+            // CustomID'yi parçalayıp gerekli bilgileri alıyoruz
+            // Format: abone_yes/no_kullanıcıID_orijinalMesajID_kanalID_langCode(tr/en)
             const parts = cid.split('_');
             const action = parts[1]; // yes veya no
             const userId = parts[2];
             const msgId = parts[3];
             const channelId = parts[4];
+            const lang = parts[5]; // tr veya en
 
             // 1. Orijinal resmi kullanıcının attığı kanaldan bulup SİLİYORUZ
             const originalChannel = interaction.guild.channels.cache.get(channelId);
@@ -320,28 +323,36 @@ module.exports = {
                     await targetMember.roles.add('1500587633649127445').catch(() => {}); // Abone Rolünü Ver
                     await targetMember.roles.remove('1500249403443908711').catch(() => {}); // Eski Rolü Al
                     
-                    // Kullanıcıya DM Gönder
-                    await targetMember.send(`🎉 **TR:** Tebrikler! Abone kanıtınız ONAYLANDI ve rolünüz verildi. Artık ilgili kanalları görebilirsiniz.\n\n🎉 **EN:** Congratulations! Your sub proof is APPROVED and your role has been given.`).catch(() => {});
+                    // Kanala özel dilde DM at
+                    const dmMsg = lang === 'tr' 
+                        ? `🎉 **Tebrikler!** Abone kanıtınız ONAYLANDI ve rolünüz verildi. İlgili kanalları artık görebilirsiniz.`
+                        : `🎉 **Congratulations!** Your sub proof is APPROVED and your role has been given. You can now view the relevant channels.`;
+                    
+                    await targetMember.send(dmMsg).catch(() => {});
                 }
                 
                 // Log kanalındaki mesajı güncelle (Butonları sil, Rengi Yeşil yap)
                 const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
                     .setColor('#1aff00') // LUAWARE Neon Yeşili
-                    .addFields({ name: 'Durum', value: `✅ Onaylandı (İşlemi Yapan: <@${interaction.user.id}>)` });
+                    .addFields({ name: 'Durum / Status', value: `✅ Onaylandı / Approved (Yetkili: <@${interaction.user.id}>)` });
                 return interaction.update({ embeds: [updatedEmbed], components: [] });
                 
             } 
             // ❌ REDDEDİLDİYSE
             else if (action === 'no') {
                 if (targetMember) {
-                    // Kullanıcıya DM Gönder
-                    await targetMember.send(`❌ **TR:** Abone kanıtınız yetkililer tarafından REDDEDİLDİ. Lütfen uygun bir görsel ile tekrar deneyin.\n\n❌ **EN:** Your sub proof was REJECTED by staff. Please try again with a valid image.`).catch(() => {});
+                    // Kanala özel dilde DM at
+                    const dmMsg = lang === 'tr' 
+                        ? `❌ **Reddedildi:** Abone kanıtınız yetkililer tarafından reddedildi. Lütfen doğru görseli tekrar gönderin.`
+                        : `❌ **Rejected:** Your sub proof was rejected by staff. Please submit the correct image again.`;
+                    
+                    await targetMember.send(dmMsg).catch(() => {});
                 }
                 
                 // Log kanalındaki mesajı güncelle (Butonları sil, Rengi Kırmızı yap)
                 const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
                     .setColor('#ED4245')
-                    .addFields({ name: 'Durum', value: `❌ Reddedildi (İşlemi Yapan: <@${interaction.user.id}>)` });
+                    .addFields({ name: 'Durum / Status', value: `❌ Reddedildi / Rejected (Yetkili: <@${interaction.user.id}>)` });
                 return interaction.update({ embeds: [updatedEmbed], components: [] });
             }
         }
