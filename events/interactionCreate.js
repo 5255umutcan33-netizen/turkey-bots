@@ -156,14 +156,12 @@ module.exports = {
                     await interaction.member.roles.add(TR_ROLE);
                     if (interaction.member.roles.cache.has(EN_ROLE)) await interaction.member.roles.remove(EN_ROLE);
                     
-                    // DİL KANALLARINI GİZLEME/AÇMA (TR SEÇEN EN'Yİ GÖREMEZ)
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {}); 
                 } else {
                     await interaction.member.roles.add(EN_ROLE);
                     if (interaction.member.roles.cache.has(TR_ROLE)) await interaction.member.roles.remove(TR_ROLE);
 
-                    // DİL KANALLARINI GİZLEME/AÇMA (EN SEÇEN TR'Yİ GÖREMEZ)
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {});
                 }
@@ -183,7 +181,7 @@ module.exports = {
                     logChan.send({ embeds: [vLog] });
                 }
 
-                // YÖNLENDİRİCİ REHBER MESAJI (TAM EKRAN UYARILI)
+                // 🚨 KANALLARI ETİKETLEYEN (MENTION) GÜNCEL REHBER MESAJI
                 const guideEmbed = new EmbedBuilder()
                     .setTitle(isTr ? '✅ LUAWARE\'e Hoş Geldin!' : '✅ Welcome to LUAWARE!')
                     .setColor('#57F287')
@@ -192,7 +190,7 @@ module.exports = {
                         ? "Rollerin verildi! Ancak hileyi kullanabilmek için bir **Key** alman gerekiyor.\n\n" +
                           "🔑 **ADIM ADIM KEY NASIL ALINIR?**\n" +
                           "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
-                          "**2.** İçinde \`@Luawarescrpt\` yazısı olan Abone kanıtı ekran görüntünü (SS) **Abone SS** kanalına gönder.\n" +
+                          "**2.** İçinde \`@Luawarescrpt\` yazısı olan Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
                           "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın veya kesmeyin! Sayfanın **tamamını** SS alıp gönderin, aksi takdirde Yapay Zeka okuyamaz ve reddeder.)*\n" +
                           "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
                           "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
@@ -200,7 +198,7 @@ module.exports = {
                         : "Your roles have been granted! But you need a **Key** to use the script.\n\n" +
                           "🔑 **HOW TO GET A KEY STEP BY STEP?**\n" +
                           "**1.** [Click Here to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
-                          "**2.** Send a screenshot (SS) containing the text \`@Luawarescrpt\` to the **Subscriber SS** channel.\n" +
+                          "**2.** Send a screenshot (SS) containing the text \`@Luawarescrpt\` to the <#1500588822994358282> channel.\n" +
                           "⚠️ *(IMPORTANT: Please do not crop or cut the image! Take a screenshot of the **entire page/screen**, otherwise the AI will not be able to read it and will reject it.)*\n" +
                           "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
                           "**4.** After getting the role, go to the **Key Generation** channel to get your key!\n\n" +
@@ -222,7 +220,6 @@ module.exports = {
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             
-            // ABONE OLMAYAN KİŞİ KEY ALAMAZ KORUMASI 
             const ABONE_ROLU = '1500587633649127445';
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ 
