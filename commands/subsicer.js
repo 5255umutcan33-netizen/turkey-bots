@@ -11,7 +11,7 @@ module.exports = {
             .setDescription(
                 "🇹🇷 **ADIM ADIM KEY NASIL ALINIR?**\n" +
                 "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
-                "**2.** İçinde `@Luawarescrpt` yazısı olan Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
+                "**2.** İçinde <@Luawarescrpt> yazısı olan Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
                 "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın! Sayfanın **tamamını** SS alıp gönderin.)*\n" +
                 "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
                 "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
@@ -26,7 +26,7 @@ module.exports = {
             .setFooter({ text: 'LUAWARE Auto-Guide' })
             .setTimestamp();
 
-        // ephemeral: true yaparsan sadece komutu yazan kişi görür. Herkes görsün dersen silebilirsin.
-        await interaction.reply({ embeds: [guideEmbed], ephemeral: true });
+        // Gizlilik (ephemeral) kaldırıldı. Artık kanaldaki herkes görecek!
+        await interaction.reply({ embeds: [guideEmbed] });
     }
 };
