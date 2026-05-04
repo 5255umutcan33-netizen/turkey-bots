@@ -24,7 +24,7 @@ module.exports = {
         const SUGGEST_LOG_TR = '1491388986923552869'; 
         const SUGGEST_LOG_EN = '1491389032524021790';
         const VERIFY_LOG_ID = '1500269916304052364';
-        const ABONE_LOG_ID = '1500587963338326228'; 
+        const ABONE_LOG_ID = '1500587963338326228'; // Abone SS Log Kanalı
 
         // --- LUAWARE ROL VE KANAL AYARLARI ---
         const TR_ROLE = '1500268780037607544';
@@ -182,8 +182,31 @@ module.exports = {
                     logChan.send({ embeds: [vLog] });
                 }
 
+                // 🚨 YENİ EKLENEN: YÖNLENDİRİCİ REHBER MESAJI VE YOUTUBE LİNKİ
+                const guideEmbed = new EmbedBuilder()
+                    .setTitle(isTr ? '✅ LUAWARE\'e Hoş Geldin!' : '✅ Welcome to LUAWARE!')
+                    .setColor('#57F287')
+                    .setDescription(
+                        isTr 
+                        ? "Rollerin verildi! Ancak hileyi kullanabilmek için bir **Key** alman gerekiyor.\n\n" +
+                          "🔑 **ADIM ADIM KEY NASIL ALINIR?**\n" +
+                          "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
+                          "**2.** İçinde \`@Luawarescrpt\` yazısı olan Abone kanıtı ekran görüntünü (SS) **Abone SS** kanalına gönder.\n" +
+                          "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
+                          "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
+                          "*(Lütfen bu adımları yapmadan boş yere ticket açmayın!)*"
+                        : "Your roles have been granted! But you need a **Key** to use the script.\n\n" +
+                          "🔑 **HOW TO GET A KEY STEP BY STEP?**\n" +
+                          "**1.** [Click Here to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
+                          "**2.** Send a screenshot (SS) containing the text \`@Luawarescrpt\` to the **Subscriber SS** channel.\n" +
+                          "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
+                          "**4.** After getting the role, go to the **Key Generation** channel to get your key!\n\n" +
+                          "*(Please follow these steps before opening a ticket!)*"
+                    )
+                    .setFooter({ text: 'LUAWARE Auto-Guide' });
+
                 return interaction.reply({ 
-                    content: isTr ? '✅ **Doğrulama başarılı! Hoş geldin.**' : '✅ **Verification successful! Welcome to LUAWARE.**', 
+                    embeds: [guideEmbed], 
                     ephemeral: true 
                 });
             } catch (e) { 
