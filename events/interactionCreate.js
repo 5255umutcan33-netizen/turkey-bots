@@ -24,12 +24,16 @@ module.exports = {
         const SUGGEST_LOG_TR = '1491388986923552869'; 
         const SUGGEST_LOG_EN = '1491389032524021790';
         const VERIFY_LOG_ID = '1500269916304052364';
-        const ABONE_LOG_ID = '1500587963338326228'; // Abone SS Log Kanalı
+        const ABONE_LOG_ID = '1500587963338326228'; 
 
         // --- LUAWARE ROL VE KANAL AYARLARI ---
         const TR_ROLE = '1500268780037607544';
         const EN_ROLE = '1500268646545756392';
         const VERIFY_CHANNEL_ID = '1500266130495897722';
+        
+        // 🚨 YENİ EKLENEN TR VE EN KEY KANALLARI
+        const TR_KEY_CHANNEL_ID = '1500249077000966404';
+        const EN_KEY_CHANNEL_ID = '1500249098219946155';
 
         // ==========================================
         // 1. SLASH KOMUTLARI MOTORU
@@ -144,12 +148,23 @@ module.exports = {
             const isTr = cid === 'verify_tr';
             
             try {
+                const trKeyChan = interaction.guild.channels.cache.get(TR_KEY_CHANNEL_ID);
+                const enKeyChan = interaction.guild.channels.cache.get(EN_KEY_CHANNEL_ID);
+
                 if (isTr) {
                     await interaction.member.roles.add(TR_ROLE);
                     if (interaction.member.roles.cache.has(EN_ROLE)) await interaction.member.roles.remove(EN_ROLE);
+                    
+                    // 🚨 DİL KANALLARINI GİZLEME/AÇMA (TR SEÇEN EN'Yİ GÖREMEZ)
+                    if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
+                    if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {}); 
                 } else {
                     await interaction.member.roles.add(EN_ROLE);
                     if (interaction.member.roles.cache.has(TR_ROLE)) await interaction.member.roles.remove(TR_ROLE);
+
+                    // 🚨 DİL KANALLARINI GİZLEME/AÇMA (EN SEÇEN TR'Yİ GÖREMEZ)
+                    if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
+                    if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {});
                 }
                 
                 const vChannel = interaction.guild.channels.cache.get(VERIFY_CHANNEL_ID);
@@ -179,6 +194,18 @@ module.exports = {
 
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
+            
+            // 🚨 ABONE OLMAYAN KİŞİ KEY ALAMAZ KORUMASI 
+            const ABONE_ROLU = '1500587633649127445';
+            if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
+                return interaction.reply({ 
+                    content: isTR 
+                        ? '❌ **Key üretebilmek için Abone rolüne sahip olmalısın! Lütfen Abone SS kanalına kanıt gönder.**' 
+                        : '❌ **You must have the Subscriber role to generate a key! Please submit your sub proof.**', 
+                    ephemeral: true 
+                });
+            }
+
             await interaction.deferReply({ ephemeral: true }); 
             
             let userKey = await KeyModel.findOne({ owner: interaction.user.id });
@@ -284,7 +311,7 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
-        // --- E. YAPAY ZEKA ABONE (SUBSCRIBER) ONAY/RED SİSTEMİ ---
+        // --- E. YAPAY ZEKA ABONE (SUBSCRIBER) ONAY/RED SİSTEMİ (BUTONLU YEDEK) ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
@@ -306,13 +333,11 @@ module.exports = {
             const targetMember = await interaction.guild.members.fetch(userId).catch(() => null);
             const logChannelObj = interaction.client.channels.cache.get(ABONE_LOG_ID);
 
-            // ✅ ONAYLANDIYSA
             if (action === 'yes') {
                 if (targetMember) {
                     await targetMember.roles.add('1500587633649127445').catch(() => {}); 
                     await targetMember.roles.remove('1500249403443908711').catch(() => {}); 
                     
-                    // 🔒 ONAYLANAN KİŞİYE KANALI GİZLE
                     if (originalChannel) {
                         await originalChannel.permissionOverwrites.edit(targetMember.id, { ViewChannel: false }).catch(() => {});
                     }
@@ -332,7 +357,6 @@ module.exports = {
                 } catch (e) { console.error("Update error:", e); }
                 
             } 
-            // ❌ REDDEDİLDİYSE
             else if (action === 'no') {
                 if (targetMember) {
                     const dmMsg = lang === 'tr' 
@@ -348,7 +372,6 @@ module.exports = {
                         .addFields({ name: 'Durum / Status', value: `❌ Reddedildi / Rejected (Yetkili: <@${interaction.user.id}>)` });
                     await interaction.update({ embeds: [updatedEmbed], components: [] });
                     
-                    // KULLANICI İSTEDİĞİ İÇİN EKSTRA YENİ LOG MESAJI
                     if (logChannelObj) {
                         await logChannelObj.send(`❌ <@${userId}> adlı kullanıcının SS gönderimi <@${interaction.user.id}> tarafından **reddedildi.**`);
                     }
