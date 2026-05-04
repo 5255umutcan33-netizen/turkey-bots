@@ -24,14 +24,14 @@ module.exports = {
         const SUGGEST_LOG_TR = '1491388986923552869'; 
         const SUGGEST_LOG_EN = '1491389032524021790';
         const VERIFY_LOG_ID = '1500269916304052364';
-        const ABONE_LOG_ID = '1500587963338326228'; // Abone SS Log Kanalı
+        const ABONE_LOG_ID = '1500587963338326228'; 
 
         // --- LUAWARE ROL VE KANAL AYARLARI ---
         const TR_ROLE = '1500268780037607544';
         const EN_ROLE = '1500268646545756392';
         const VERIFY_CHANNEL_ID = '1500266130495897722';
         
-        // 🚨 YENİ EKLENEN TR VE EN KEY KANALLARI
+        // --- TR VE EN KEY KANALLARI ---
         const TR_KEY_CHANNEL_ID = '1500249077000966404';
         const EN_KEY_CHANNEL_ID = '1500249098219946155';
 
@@ -144,6 +144,7 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
+        // --- DOĞRULAMA (VERIFY) SİSTEMİ ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             
@@ -155,14 +156,14 @@ module.exports = {
                     await interaction.member.roles.add(TR_ROLE);
                     if (interaction.member.roles.cache.has(EN_ROLE)) await interaction.member.roles.remove(EN_ROLE);
                     
-                    // 🚨 DİL KANALLARINI GİZLEME/AÇMA (TR SEÇEN EN'Yİ GÖREMEZ)
+                    // DİL KANALLARINI GİZLEME/AÇMA (TR SEÇEN EN'Yİ GÖREMEZ)
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {}); 
                 } else {
                     await interaction.member.roles.add(EN_ROLE);
                     if (interaction.member.roles.cache.has(TR_ROLE)) await interaction.member.roles.remove(TR_ROLE);
 
-                    // 🚨 DİL KANALLARINI GİZLEME/AÇMA (EN SEÇEN TR'Yİ GÖREMEZ)
+                    // DİL KANALLARINI GİZLEME/AÇMA (EN SEÇEN TR'Yİ GÖREMEZ)
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {});
                 }
@@ -182,7 +183,7 @@ module.exports = {
                     logChan.send({ embeds: [vLog] });
                 }
 
-                // 🚨 YENİ EKLENEN: YÖNLENDİRİCİ REHBER MESAJI VE YOUTUBE LİNKİ
+                // YÖNLENDİRİCİ REHBER MESAJI (TAM EKRAN UYARILI)
                 const guideEmbed = new EmbedBuilder()
                     .setTitle(isTr ? '✅ LUAWARE\'e Hoş Geldin!' : '✅ Welcome to LUAWARE!')
                     .setColor('#57F287')
@@ -192,6 +193,7 @@ module.exports = {
                           "🔑 **ADIM ADIM KEY NASIL ALINIR?**\n" +
                           "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
                           "**2.** İçinde \`@Luawarescrpt\` yazısı olan Abone kanıtı ekran görüntünü (SS) **Abone SS** kanalına gönder.\n" +
+                          "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın veya kesmeyin! Sayfanın **tamamını** SS alıp gönderin, aksi takdirde Yapay Zeka okuyamaz ve reddeder.)*\n" +
                           "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
                           "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
                           "*(Lütfen bu adımları yapmadan boş yere ticket açmayın!)*"
@@ -199,6 +201,7 @@ module.exports = {
                           "🔑 **HOW TO GET A KEY STEP BY STEP?**\n" +
                           "**1.** [Click Here to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
                           "**2.** Send a screenshot (SS) containing the text \`@Luawarescrpt\` to the **Subscriber SS** channel.\n" +
+                          "⚠️ *(IMPORTANT: Please do not crop or cut the image! Take a screenshot of the **entire page/screen**, otherwise the AI will not be able to read it and will reject it.)*\n" +
                           "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
                           "**4.** After getting the role, go to the **Key Generation** channel to get your key!\n\n" +
                           "*(Please follow these steps before opening a ticket!)*"
@@ -215,10 +218,11 @@ module.exports = {
             }
         }
 
+        // --- KEY OLUŞTURMA SİSTEMİ ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             
-            // 🚨 ABONE OLMAYAN KİŞİ KEY ALAMAZ KORUMASI 
+            // ABONE OLMAYAN KİŞİ KEY ALAMAZ KORUMASI 
             const ABONE_ROLU = '1500587633649127445';
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ 
@@ -266,6 +270,7 @@ module.exports = {
             return interaction.editReply({ content: isTR ? '✅ **Keyin oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key created and sent to your DM!**' });
         }
 
+        // --- BAŞVURU ONAY / RED SİSTEMİ ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             const action = cid.startsWith('app_onay_') ? 'onay' : 'red';
@@ -287,6 +292,7 @@ module.exports = {
             });
         }
 
+        // --- DESTEK TİCKET SİSTEMİ ---
         const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (tIds.includes(cid)) {
             await interaction.deferReply({ ephemeral: true });
@@ -334,7 +340,7 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
-        // --- E. YAPAY ZEKA ABONE (SUBSCRIBER) ONAY/RED SİSTEMİ (BUTONLU YEDEK) ---
+        // --- YEDEK MANUEL (BUTONLU) SS ONAY/RED SİSTEMİ ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
@@ -402,7 +408,7 @@ module.exports = {
             }
         }
 
-        // --- F. VERİTABANI YÖNETİMİ (WIPE & LIST) ---
+        // --- VERİTABANI YÖNETİMİ (WIPE & LIST) ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             
