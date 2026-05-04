@@ -181,7 +181,7 @@ module.exports = {
                     logChan.send({ embeds: [vLog] });
                 }
 
-                // 🚨 KANALLARI ETİKETLEYEN (MENTION) GÜNCEL REHBER MESAJI
+                // 🚨 ETİKETLERİN KUSURSUZ ÇALIŞTIĞI REHBER MESAJI
                 const guideEmbed = new EmbedBuilder()
                     .setTitle(isTr ? '✅ LUAWARE\'e Hoş Geldin!' : '✅ Welcome to LUAWARE!')
                     .setColor('#57F287')
@@ -190,7 +190,7 @@ module.exports = {
                         ? "Rollerin verildi! Ancak hileyi kullanabilmek için bir **Key** alman gerekiyor.\n\n" +
                           "🔑 **ADIM ADIM KEY NASIL ALINIR?**\n" +
                           "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
-                          "**2.** İçinde \`@Luawarescrpt\` yazısı olan Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
+                          "**2.** İçinde `@Luawarescrpt` yazısı olan Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
                           "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın veya kesmeyin! Sayfanın **tamamını** SS alıp gönderin, aksi takdirde Yapay Zeka okuyamaz ve reddeder.)*\n" +
                           "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
                           "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
@@ -198,7 +198,7 @@ module.exports = {
                         : "Your roles have been granted! But you need a **Key** to use the script.\n\n" +
                           "🔑 **HOW TO GET A KEY STEP BY STEP?**\n" +
                           "**1.** [Click Here to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
-                          "**2.** Send a screenshot (SS) containing the text \`@Luawarescrpt\` to the <#1500588822994358282> channel.\n" +
+                          "**2.** Send a screenshot (SS) containing the text `@Luawarescrpt` to the <#1500588822994358282> channel.\n" +
                           "⚠️ *(IMPORTANT: Please do not crop or cut the image! Take a screenshot of the **entire page/screen**, otherwise the AI will not be able to read it and will reject it.)*\n" +
                           "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
                           "**4.** After getting the role, go to the **Key Generation** channel to get your key!\n\n" +
