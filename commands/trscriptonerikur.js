@@ -8,30 +8,30 @@ module.exports = {
         
     async execute(interaction) {
         
-        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM ÖNERİ EKRANI
+        // --- KULLANICILARIN GÖRECEĞİ LUAWARE ÖNERİ EKRANI ---
         const embed = new EmbedBuilder()
-            .setTitle('💡 Ryphera OS | Script Önerisi')
-            .setColor('#2B2D31')
+            .setTitle('💡 LUAWARE | Script & Oyun Önerisi')
+            .setColor('#00D4FF') 
             .setDescription(
                 `👋 **Harika bir fikrin mi var?**\n\n` +
                 `📌 **Durum -->** \`Öneriler Açık\`\n` +
-                `🎮 **Konu -->** \`Script & Oyun Özellikleri\`\n` +
+                `🎮 **Konu -->** \`Yeni Script & Özellik Fikirleri\`\n` +
                 `📝 **İşlem -->** \`Fikrini belirtmek için aşağıdaki butona tıkla.\`\n\n` +
-                `⚠️ **Dikkat!! ÖNERİLERİNİZ GELECEK GÜNCELLEMELERİMİZİ ŞEKİLLENDİRİR**`
+                `⚠️ *Önerileriniz, gelecekteki LUAWARE güncellemelerini şekillendirecektir!*`
             )
-            .setFooter({ text: 'Ryphera OS System' });
+            .setFooter({ text: 'LuaWare Support System' });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('suggest_script_tr')
+                .setCustomId('btn_suggest_tr')
                 .setLabel('Script Öner')
                 .setStyle(ButtonStyle.Primary)
-                .setEmoji('💡')
+                .setEmoji('📝')
         );
 
         await interaction.channel.send({ embeds: [embed], components: [row] });
 
-        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        // --- SADECE SANA GÖRÜNECEK ONAY MESAJI ---
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Kurulum Başarılı')
             .setColor('#57F287')

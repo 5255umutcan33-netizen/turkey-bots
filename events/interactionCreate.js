@@ -21,7 +21,7 @@ module.exports = {
         // --- LOG KANALLARI ---
         const LOG_TR = '1491105445564387359';
         const LOG_EN = '1491105631434969218';
-        const SUGGEST_LOG_TR = '1491388986923552869'; 
+        const SUGGEST_LOG_TR = '1501260343727620309'; // GÜNCELLENEN LOG KANALI
         const SUGGEST_LOG_EN = '1491389032524021790';
         const VERIFY_LOG_ID = '1500269916304052364';
         const ABONE_LOG_ID = '1500587963338326228'; 
@@ -92,14 +92,14 @@ module.exports = {
                 
                 const suggestEmbed = new EmbedBuilder()
                     .setTitle(isEn ? '💡 New Script Suggestion' : '💡 Yeni Script Önerisi')
-                    .setColor('#FEE75C') 
+                    .setColor('#00D4FF') 
                     .setDescription(
                         `👤 **${isEn ? 'Sender' : 'Gönderen'} -->** <@${interaction.user.id}>\n` +
                         `🎮 **${isEn ? 'Game/Script' : 'Oyun/Script'} -->** \`${interaction.fields.getTextInputValue('suggest_name')}\`\n` +
                         `📝 **${isEn ? 'Features' : 'Özellikler'} -->**\n\`\`\`\n${interaction.fields.getTextInputValue('suggest_features')}\n\`\`\``
                     )
                     .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
-                    .setFooter({ text: 'LUAWARE OS Suggestions' })
+                    .setFooter({ text: 'LUAWARE Suggestions' })
                     .setTimestamp();
 
                 const logChannel = client.channels.cache.get(isEn ? SUGGEST_LOG_EN : SUGGEST_LOG_TR);
@@ -118,10 +118,38 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
+        // --- SCRIPT ÖNERİ MODAL'INI AÇMA ---
+        if (cid === 'btn_suggest_tr') {
+            const modal = new ModalBuilder().setCustomId('modal_suggest_tr').setTitle('LUAWARE Script Önerisi');
+            
+            const gameInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('suggest_name')
+                    .setLabel('Hangi Oyun veya Script?')
+                    .setPlaceholder('Örn: Rivals, Arsenal, Blox Fruits...')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+            );
+            
+            const featureInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('suggest_features')
+                    .setLabel('Özellikler / Fikriniz Nedir?')
+                    .setPlaceholder('Eklenmesini istediğiniz özellikleri detaylıca yazın...')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true)
+            );
+
+            modal.addComponents(gameInput, featureInput);
+            return await interaction.showModal(modal);
+        }
+
+        // --- YETKİLİ BAŞVURUSU EKRANLARI ---
         if (cid === 'apply_tr') {
             const modal = new ModalBuilder().setCustomId('modal_tr').setTitle('Yetkili Başvurusu');
             
-            const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('İsim ve Soyisminiz?').setStyle(TextInputStyle.Short).setRequired(true));
+            // SOYİSİM KALDIRILDI
+            const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('İsminiz?').setStyle(TextInputStyle.Short).setRequired(true));
             const ageInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('age').setLabel('Yaşınız?').setStyle(TextInputStyle.Short).setRequired(true));
             const activeInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('active').setLabel('Günlük Aktifliğiniz?').setStyle(TextInputStyle.Short).setRequired(true));
             const cmdInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cmd').setLabel('Bot/Komut Bilginiz?').setStyle(TextInputStyle.Paragraph).setRequired(true));
@@ -134,7 +162,8 @@ module.exports = {
         if (cid === 'apply_en') {
             const modal = new ModalBuilder().setCustomId('modal_en').setTitle('Staff Application');
 
-            const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('Full Name?').setStyle(TextInputStyle.Short).setRequired(true));
+            // SURNAME REMOVED
+            const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('Name?').setStyle(TextInputStyle.Short).setRequired(true));
             const ageInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('age').setLabel('Age?').setStyle(TextInputStyle.Short).setRequired(true));
             const activeInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('active').setLabel('Daily Activity?').setStyle(TextInputStyle.Short).setRequired(true));
             const cmdInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cmd').setLabel('Bot/Command Knowledge?').setStyle(TextInputStyle.Paragraph).setRequired(true));
@@ -326,7 +355,7 @@ module.exports = {
         }
 
         if (cid === 'close_ticket') {
-            await interaction.reply({ content: '`Sistem: Kanal 3 saniye içinde imha ediliyor...`' });
+            await interaction.reply({ content: '`Sistem: Kanal 3 saniye içinde imhailiyor...`' });
             setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
         }
 
