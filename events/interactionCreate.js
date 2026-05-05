@@ -22,7 +22,7 @@ module.exports = {
         const LOG_TR = '1491105445564387359';
         const LOG_EN = '1491105631434969218';
         const SUGGEST_LOG_TR = '1501260343727620309'; 
-        const SUGGEST_LOG_EN = '1501263655180828792'; // YENİ İNGİLİZCE ÖNERİ LOG KANALI
+        const SUGGEST_LOG_EN = '1501263655180828792'; 
         const VERIFY_LOG_ID = '1500269916304052364';
         const ABONE_LOG_ID = '1500587963338326228'; 
 
@@ -34,6 +34,10 @@ module.exports = {
         // --- TR VE EN KEY KANALLARI ---
         const TR_KEY_CHANNEL_ID = '1500249077000966404';
         const EN_KEY_CHANNEL_ID = '1500249098219946155';
+
+        // --- ÖNERİ KANALLARI (GİZLENECEK OLANLAR) ---
+        const TR_SUGGEST_CHANNEL = '1501262738800902334'; // EN Rolü Göremez
+        const EN_SUGGEST_CHANNEL = '1501266602891415835'; // TR Rolü Göremez
 
         // ==========================================
         // 1. SLASH KOMUTLARI MOTORU
@@ -104,7 +108,6 @@ module.exports = {
                     .setFooter({ text: 'LUAWARE Suggestions' })
                     .setTimestamp();
 
-                // 🚨 ÖNERİLER İÇİN ONAY VE RED BUTONU EKLENDİ 🚨
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId(`sug_onay_${interaction.user.id}`).setLabel(isEn ? 'Approve' : 'Onayla').setStyle(ButtonStyle.Success).setEmoji('✅'),
                     new ButtonBuilder().setCustomId(`sug_red_${interaction.user.id}`).setLabel(isEn ? 'Reject' : 'Reddet').setStyle(ButtonStyle.Danger).setEmoji('❌')
@@ -153,7 +156,7 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // 🚨 YENİ: ÖNERİ ONAY / RED SİSTEMİ (DİL KONTROLLÜ) 🚨
+        // --- ÖNERİ ONAY / RED SİSTEMİ (DİL KONTROLLÜ) ---
         if (cid.startsWith('sug_onay_') || cid.startsWith('sug_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok! / No permission!**', ephemeral: true });
@@ -165,7 +168,6 @@ module.exports = {
             const targetUser = await client.users.fetch(targetId).catch(() => null);
             const guildMember = await interaction.guild.members.fetch(targetId).catch(() => null);
 
-            // Adamın rolünü kontrol et. TR rolü varsa TR, yoksa (veya EN rolü varsa) EN dili seçilir.
             let isTurkish = true; 
             if (guildMember) {
                 if (guildMember.roles.cache.has(EN_ROLE) && !guildMember.roles.cache.has(TR_ROLE)) {
@@ -220,26 +222,34 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // --- DOĞRULAMA (VERIFY) SİSTEMİ ---
+        // 🚨 DOĞRULAMA (VERIFY) SİSTEMİ & KANAL GİZLEME 🚨
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             
             try {
                 const trKeyChan = interaction.guild.channels.cache.get(TR_KEY_CHANNEL_ID);
                 const enKeyChan = interaction.guild.channels.cache.get(EN_KEY_CHANNEL_ID);
+                const trSugChan = interaction.guild.channels.cache.get(TR_SUGGEST_CHANNEL);
+                const enSugChan = interaction.guild.channels.cache.get(EN_SUGGEST_CHANNEL);
 
                 if (isTr) {
                     await interaction.member.roles.add(TR_ROLE);
                     if (interaction.member.roles.cache.has(EN_ROLE)) await interaction.member.roles.remove(EN_ROLE);
                     
+                    // Kanalları Gizle/Aç
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {}); 
+                    if (enSugChan) await enSugChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
+                    if (trSugChan) await trSugChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {});
                 } else {
                     await interaction.member.roles.add(EN_ROLE);
                     if (interaction.member.roles.cache.has(TR_ROLE)) await interaction.member.roles.remove(TR_ROLE);
 
+                    // Kanalları Gizle/Aç
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {});
+                    if (trSugChan) await trSugChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
+                    if (enSugChan) await enSugChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {});
                 }
                 
                 const vChannel = interaction.guild.channels.cache.get(VERIFY_CHANNEL_ID);
