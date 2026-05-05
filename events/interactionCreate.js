@@ -21,8 +21,8 @@ module.exports = {
         // --- LOG KANALLARI ---
         const LOG_TR = '1491105445564387359';
         const LOG_EN = '1491105631434969218';
-        const SUGGEST_LOG_TR = '1501260343727620309'; // GÜNCELLENEN LOG KANALI
-        const SUGGEST_LOG_EN = '1491389032524021790';
+        const SUGGEST_LOG_TR = '1501260343727620309'; 
+        const SUGGEST_LOG_EN = '1501263655180828792'; // YENİ İNGİLİZCE ÖNERİ LOG KANALI
         const VERIFY_LOG_ID = '1500269916304052364';
         const ABONE_LOG_ID = '1500587963338326228'; 
 
@@ -54,6 +54,7 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
+            // --- YETKİLİ BAŞVURUSU ---
             if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
                 const isEn = interaction.customId === 'modal_en';
                 
@@ -87,6 +88,7 @@ module.exports = {
                 });
             }
 
+            // --- SCRIPT ÖNERİSİ ---
             if (interaction.customId === 'modal_suggest_tr' || interaction.customId === 'modal_suggest_en') {
                 const isEn = interaction.customId === 'modal_suggest_en';
                 
@@ -102,8 +104,14 @@ module.exports = {
                     .setFooter({ text: 'LUAWARE Suggestions' })
                     .setTimestamp();
 
+                // 🚨 ÖNERİLER İÇİN ONAY VE RED BUTONU EKLENDİ 🚨
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`sug_onay_${interaction.user.id}`).setLabel(isEn ? 'Approve' : 'Onayla').setStyle(ButtonStyle.Success).setEmoji('✅'),
+                    new ButtonBuilder().setCustomId(`sug_red_${interaction.user.id}`).setLabel(isEn ? 'Reject' : 'Reddet').setStyle(ButtonStyle.Danger).setEmoji('❌')
+                );
+
                 const logChannel = client.channels.cache.get(isEn ? SUGGEST_LOG_EN : SUGGEST_LOG_TR);
-                if (logChannel) await logChannel.send({ embeds: [suggestEmbed] });
+                if (logChannel) await logChannel.send({ embeds: [suggestEmbed], components: [row] });
 
                 return interaction.reply({ 
                     embeds: [new EmbedBuilder().setColor('#57F287').setDescription(isEn ? '✅ **Suggestion sent!**' : '✅ **Öneriniz iletildi, teşekkür ederiz.**')], 
@@ -118,15 +126,16 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // --- SCRIPT ÖNERİ MODAL'INI AÇMA ---
-        if (cid === 'btn_suggest_tr') {
-            const modal = new ModalBuilder().setCustomId('modal_suggest_tr').setTitle('LUAWARE Script Önerisi');
+        // --- SCRIPT ÖNERİ MODAL'LARINI AÇMA ---
+        if (cid === 'btn_suggest_tr' || cid === 'btn_suggest_en') {
+            const isEn = cid === 'btn_suggest_en';
+            const modal = new ModalBuilder().setCustomId(isEn ? 'modal_suggest_en' : 'modal_suggest_tr').setTitle(isEn ? 'LUAWARE Script Suggestion' : 'LUAWARE Script Önerisi');
             
             const gameInput = new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('suggest_name')
-                    .setLabel('Hangi Oyun veya Script?')
-                    .setPlaceholder('Örn: Rivals, Arsenal, Blox Fruits...')
+                    .setLabel(isEn ? 'Which Game or Script?' : 'Hangi Oyun veya Script?')
+                    .setPlaceholder(isEn ? 'Ex: Rivals, Arsenal, Blox Fruits...' : 'Örn: Rivals, Arsenal, Blox Fruits...')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true)
             );
@@ -134,8 +143,8 @@ module.exports = {
             const featureInput = new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('suggest_features')
-                    .setLabel('Özellikler / Fikriniz Nedir?')
-                    .setPlaceholder('Eklenmesini istediğiniz özellikleri detaylıca yazın...')
+                    .setLabel(isEn ? 'Features / What is your idea?' : 'Özellikler / Fikriniz Nedir?')
+                    .setPlaceholder(isEn ? 'Write the features you want added in detail...' : 'Eklenmesini istediğiniz özellikleri detaylıca yazın...')
                     .setStyle(TextInputStyle.Paragraph)
                     .setRequired(true)
             );
@@ -144,11 +153,50 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
+        // 🚨 YENİ: ÖNERİ ONAY / RED SİSTEMİ (DİL KONTROLLÜ) 🚨
+        if (cid.startsWith('sug_onay_') || cid.startsWith('sug_red_')) {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
+                return interaction.reply({ content: '⚠️ **Yetkin yok! / No permission!**', ephemeral: true });
+            }
+
+            const action = cid.startsWith('sug_onay_') ? 'onay' : 'red';
+            const targetId = cid.split('_')[2]; 
+            
+            const targetUser = await client.users.fetch(targetId).catch(() => null);
+            const guildMember = await interaction.guild.members.fetch(targetId).catch(() => null);
+
+            // Adamın rolünü kontrol et. TR rolü varsa TR, yoksa (veya EN rolü varsa) EN dili seçilir.
+            let isTurkish = true; 
+            if (guildMember) {
+                if (guildMember.roles.cache.has(EN_ROLE) && !guildMember.roles.cache.has(TR_ROLE)) {
+                    isTurkish = false;
+                }
+            }
+
+            if (targetUser) {
+                const resEmbed = new EmbedBuilder()
+                    .setTitle(isTurkish ? '💡 LUAWARE | Öneri Sonucu' : '💡 LUAWARE | Suggestion Result')
+                    .setColor(action === 'onay' ? '#57F287' : '#ED4245')
+                    .setDescription(
+                        action === 'onay' 
+                        ? (isTurkish ? '🎉 **Tebrikler! Gönderdiğiniz script/oyun önerisi ekibimiz tarafından onaylandı ve dikkate alındı. Fikriniz için teşekkür ederiz!**' : '🎉 **Congratulations! Your script/game suggestion has been approved by our team. Thank you for your idea!**')
+                        : (isTurkish ? '❌ **Maalesef gönderdiğiniz script/oyun önerisi uygun bulunmadı veya halihazırda mevcut olduğu için reddedildi.**' : '❌ **Unfortunately, your script/game suggestion was not deemed suitable or was rejected because it already exists.**')
+                    )
+                    .setTimestamp();
+                await targetUser.send({ embeds: [resEmbed] }).catch(() => {});
+            }
+
+            const logEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                .setColor(action === 'onay' ? '#57F287' : '#ED4245')
+                .addFields({ name: 'Durum / Status', value: action === 'onay' ? `✅ Onaylandı / Approved (Yetkili: <@${interaction.user.id}>)` : `❌ Reddedildi / Rejected (Yetkili: <@${interaction.user.id}>)` });
+
+            return interaction.update({ embeds: [logEmbed], components: [] });
+        }
+
         // --- YETKİLİ BAŞVURUSU EKRANLARI ---
         if (cid === 'apply_tr') {
             const modal = new ModalBuilder().setCustomId('modal_tr').setTitle('Yetkili Başvurusu');
             
-            // SOYİSİM KALDIRILDI
             const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('İsminiz?').setStyle(TextInputStyle.Short).setRequired(true));
             const ageInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('age').setLabel('Yaşınız?').setStyle(TextInputStyle.Short).setRequired(true));
             const activeInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('active').setLabel('Günlük Aktifliğiniz?').setStyle(TextInputStyle.Short).setRequired(true));
@@ -162,7 +210,6 @@ module.exports = {
         if (cid === 'apply_en') {
             const modal = new ModalBuilder().setCustomId('modal_en').setTitle('Staff Application');
 
-            // SURNAME REMOVED
             const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('Name?').setStyle(TextInputStyle.Short).setRequired(true));
             const ageInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('age').setLabel('Age?').setStyle(TextInputStyle.Short).setRequired(true));
             const activeInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('active').setLabel('Daily Activity?').setStyle(TextInputStyle.Short).setRequired(true));
@@ -210,7 +257,6 @@ module.exports = {
                     logChan.send({ embeds: [vLog] });
                 }
 
-                // 🚨 ETİKETLERİN KUSURSUZ ÇALIŞTIĞI REHBER MESAJI
                 const guideEmbed = new EmbedBuilder()
                     .setTitle(isTr ? '✅ LUAWARE\'e Hoş Geldin!' : '✅ Welcome to LUAWARE!')
                     .setColor('#57F287')
@@ -355,7 +401,7 @@ module.exports = {
         }
 
         if (cid === 'close_ticket') {
-            await interaction.reply({ content: '`Sistem: Kanal 3 saniye içinde imhailiyor...`' });
+            await interaction.reply({ content: '`Sistem: Kanal 3 saniye içinde imha ediliyor...`' });
             setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
         }
 

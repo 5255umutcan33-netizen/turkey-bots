@@ -2,44 +2,44 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('authorizedapplicationsystem')
-        .setDescription('Sets up the English staff application menu.')
+        .setName('enscriptsuggestsetup')
+        .setDescription('Sets up the English script suggestion menu.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
         
-        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM BAŞVURU EKRANI
+        // --- KULLANICILARIN GÖRECEĞİ LUAWARE İNGİLİZCE ÖNERİ EKRANI ---
         const embed = new EmbedBuilder()
-            .setTitle('📩 Ryphera OS | Staff Application')
-            .setColor('#2B2D31')
+            .setTitle('💡 LUAWARE | Script & Game Suggestion')
+            .setColor('#00D4FF') // LUAWARE Mavi Teması
             .setDescription(
-                `👋 **Want to join our team?**\n\n` +
-                `📌 **Status -->** \`Applications Open\`\n` +
-                `👥 **Position -->** \`Server Staff\`\n` +
-                `📝 **Action -->** \`Click the button below to fill out the form.\`\n\n` +
-                `⚠️ **Note!! PLEASE ANSWER ALL QUESTIONS HONESTLY**`
+                `👋 **Do you have a great idea?**\n\n` +
+                `📌 **Status -->** \`Suggestions Open\`\n` +
+                `🎮 **Topic -->** \`New Script & Feature Ideas\`\n` +
+                `📝 **Action -->** \`Click the button below to submit your idea.\`\n\n` +
+                `⚠️ *Your suggestions will shape future LUAWARE updates!*`
             )
-            .setFooter({ text: 'Ryphera OS System' });
+            .setFooter({ text: 'LuaWare Support System' });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('apply_en')
-                .setLabel('Apply Now')
+                .setCustomId('btn_suggest_en')
+                .setLabel('Suggest Script')
+                .setStyle(ButtonStyle.Primary)
                 .setEmoji('📝')
-                .setStyle(ButtonStyle.Secondary)
         );
 
         await interaction.channel.send({ embeds: [embed], components: [row] });
 
-        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        // --- SADECE SANA GÖRÜNECEK ONAY MESAJI ---
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Setup Complete')
             .setColor('#57F287')
             .setDescription(
-                `⚙️ **İşlem -->** \`İngilizce Başvuru Menüsü Kurulumu\`\n` +
-                `✅ **Durum -->** \`Başarıyla Oluşturuldu\`\n` +
-                `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
-                `👮 **İşlemi Yapan -->** <@${interaction.user.id}>`
+                `⚙️ **Process -->** \`English Script Suggestion Menu Setup\`\n` +
+                `✅ **Status -->** \`Successfully Created\`\n` +
+                `📍 **Channel -->** <#${interaction.channelId}>\n` +
+                `👮 **Admin -->** <@${interaction.user.id}>`
             )
             .setTimestamp();
 
