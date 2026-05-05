@@ -36,8 +36,8 @@ module.exports = {
         const EN_KEY_CHANNEL_ID = '1500249098219946155';
 
         // --- ÖNERİ KANALLARI (GİZLENECEK OLANLAR) ---
-        const TR_SUGGEST_CHANNEL = '1501262738800902334'; // EN Rolü Göremez
-        const EN_SUGGEST_CHANNEL = '1501266602891415835'; // TR Rolü Göremez
+        const TR_SUGGEST_CHANNEL = '1501262738800902334'; 
+        const EN_SUGGEST_CHANNEL = '1501266602891415835'; 
 
         // ==========================================
         // 1. SLASH KOMUTLARI MOTORU
@@ -58,7 +58,6 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
-            // --- YETKİLİ BAŞVURUSU ---
             if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
                 const isEn = interaction.customId === 'modal_en';
                 
@@ -92,7 +91,6 @@ module.exports = {
                 });
             }
 
-            // --- SCRIPT ÖNERİSİ ---
             if (interaction.customId === 'modal_suggest_tr' || interaction.customId === 'modal_suggest_en') {
                 const isEn = interaction.customId === 'modal_suggest_en';
                 
@@ -129,7 +127,6 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // --- SCRIPT ÖNERİ MODAL'LARINI AÇMA ---
         if (cid === 'btn_suggest_tr' || cid === 'btn_suggest_en') {
             const isEn = cid === 'btn_suggest_en';
             const modal = new ModalBuilder().setCustomId(isEn ? 'modal_suggest_en' : 'modal_suggest_tr').setTitle(isEn ? 'LUAWARE Script Suggestion' : 'LUAWARE Script Önerisi');
@@ -156,7 +153,6 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // --- ÖNERİ ONAY / RED SİSTEMİ (DİL KONTROLLÜ) ---
         if (cid.startsWith('sug_onay_') || cid.startsWith('sug_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok! / No permission!**', ephemeral: true });
@@ -195,10 +191,8 @@ module.exports = {
             return interaction.update({ embeds: [logEmbed], components: [] });
         }
 
-        // --- YETKİLİ BAŞVURUSU EKRANLARI ---
         if (cid === 'apply_tr') {
             const modal = new ModalBuilder().setCustomId('modal_tr').setTitle('Yetkili Başvurusu');
-            
             const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('İsminiz?').setStyle(TextInputStyle.Short).setRequired(true));
             const ageInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('age').setLabel('Yaşınız?').setStyle(TextInputStyle.Short).setRequired(true));
             const activeInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('active').setLabel('Günlük Aktifliğiniz?').setStyle(TextInputStyle.Short).setRequired(true));
@@ -211,7 +205,6 @@ module.exports = {
 
         if (cid === 'apply_en') {
             const modal = new ModalBuilder().setCustomId('modal_en').setTitle('Staff Application');
-
             const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('Name?').setStyle(TextInputStyle.Short).setRequired(true));
             const ageInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('age').setLabel('Age?').setStyle(TextInputStyle.Short).setRequired(true));
             const activeInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('active').setLabel('Daily Activity?').setStyle(TextInputStyle.Short).setRequired(true));
@@ -222,7 +215,6 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // 🚨 DOĞRULAMA (VERIFY) SİSTEMİ & KANAL GİZLEME 🚨
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             
@@ -236,7 +228,6 @@ module.exports = {
                     await interaction.member.roles.add(TR_ROLE);
                     if (interaction.member.roles.cache.has(EN_ROLE)) await interaction.member.roles.remove(EN_ROLE);
                     
-                    // Kanalları Gizle/Aç
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {}); 
                     if (enSugChan) await enSugChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
@@ -245,7 +236,6 @@ module.exports = {
                     await interaction.member.roles.add(EN_ROLE);
                     if (interaction.member.roles.cache.has(TR_ROLE)) await interaction.member.roles.remove(TR_ROLE);
 
-                    // Kanalları Gizle/Aç
                     if (trKeyChan) await trKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
                     if (enKeyChan) await enKeyChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null }).catch(() => {});
                     if (trSugChan) await trSugChan.permissionOverwrites.edit(interaction.user.id, { ViewChannel: false }).catch(() => {});
@@ -301,10 +291,8 @@ module.exports = {
             }
         }
 
-        // --- KEY OLUŞTURMA SİSTEMİ ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
-            
             const ABONE_ROLU = '1500587633649127445';
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ 
@@ -316,7 +304,6 @@ module.exports = {
             }
 
             await interaction.deferReply({ ephemeral: true }); 
-            
             let userKey = await KeyModel.findOne({ owner: interaction.user.id });
             if (userKey) {
                 return interaction.editReply({ 
@@ -352,7 +339,6 @@ module.exports = {
             return interaction.editReply({ content: isTR ? '✅ **Keyin oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key created and sent to your DM!**' });
         }
 
-        // --- BAŞVURU ONAY / RED SİSTEMİ ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
@@ -376,16 +362,27 @@ module.exports = {
             });
         }
 
-        // --- DESTEK TİCKET SİSTEMİ ---
+        // 🚨 YENİ DESTEK TİCKET SİSTEMİ (LİMİT, DM VE OTOMATİK MESAJ) 🚨
         const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (tIds.includes(cid)) {
-            await interaction.deferReply({ ephemeral: true });
             const isEn = cid.startsWith('ticket_en_');
+
+            // KULLANICI LİMİT KONTROLÜ (Açık Ticketi Var Mı?)
+            const existingTicket = interaction.guild.channels.cache.find(c => c.name.startsWith('🎫-') && c.topic === interaction.user.id);
+            if (existingTicket) {
+                return interaction.reply({ 
+                    content: isEn ? `❌ **You already have an open ticket:** <#${existingTicket.id}>` : `❌ **Zaten açık bir biletiniz var:** <#${existingTicket.id}>`, 
+                    ephemeral: true 
+                });
+            }
+
+            await interaction.deferReply({ ephemeral: true });
             
             let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
             const channel = await interaction.guild.channels.create({
                 name: `🎫-${interaction.user.username}-${counter.seq}`,
                 type: ChannelType.GuildText,
+                topic: interaction.user.id, // Kullanıcı ID'sini Kanalın Topic kısmına gizliyoruz ki limiti kontrol edebilelim
                 permissionOverwrites: [
                     { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
@@ -393,14 +390,21 @@ module.exports = {
                 ]
             });
 
+            // KANAL İÇİ OTOMATİK KARŞILAMA VE BİLGİLENDİRME MESAJI (DİLE GÖRE)
             const tEmbed = new EmbedBuilder()
-                .setTitle('💬 LUAWARE | Destek')
+                .setTitle(isEn ? '💬 LUAWARE | Support' : '💬 LUAWARE | Destek')
                 .setColor('#00D4FF')
                 .setDescription(
-                    `👋 **Merhaba** <@${interaction.user.id}>,\n` +
+                    isEn ? 
+                    `👋 **Welcome** <@${interaction.user.id}>,\n\n` +
+                    `📝 **Topic -->** \`${cid.split('_')[2].toUpperCase()}\`\n` +
+                    `🔒 **Status -->** \`Waiting for staff...\`\n\n` +
+                    `**Please describe your issue in detail.**\nOur support team has been notified and will assist you as soon as possible.`
+                    :
+                    `👋 **Merhaba** <@${interaction.user.id}>,\n\n` +
                     `📝 **Konu -->** \`${cid.split('_')[2].toUpperCase()}\`\n` +
                     `🔒 **Durum -->** \`Yetkililer bekleniyor...\`\n\n` +
-                    `Destek ekibimiz en kısa sürede burada olacaktır.`
+                    `**Lütfen sorununuzu detaylı bir şekilde açıklayınız.**\nDestek ekibimize bildirim gönderildi, en kısa sürede sizinle ilgileneceklerdir.`
                 );
 
             const tRow = new ActionRowBuilder().addComponents(
@@ -408,7 +412,19 @@ module.exports = {
                 new ButtonBuilder().setCustomId('claim_ticket').setLabel(isEn ? 'Claim' : 'Sahiplen').setStyle(ButtonStyle.Success).setEmoji('✋')
             );
 
-            await channel.send({ content: `<@${interaction.user.id}> | <@${OWNER_ID}>`, embeds: [tEmbed], components: [tRow] });
+            await channel.send({ content: `<@${interaction.user.id}>`, embeds: [tEmbed], components: [tRow] });
+            
+            // YÖNETİCİYE DM GÖNDERME
+            const ownerUser = await client.users.fetch(OWNER_ID).catch(() => null);
+            if (ownerUser) {
+                const adminDmEmbed = new EmbedBuilder()
+                    .setTitle('🚨 Yeni Ticket Açıldı! / New Ticket!')
+                    .setColor('#FEE75C')
+                    .setDescription(`👤 **Kullanıcı / User:** <@${interaction.user.id}>\n🎫 **Kanal / Channel:** <#${channel.id}>\n📌 **Konu / Topic:** \`${cid.split('_')[2].toUpperCase()}\``)
+                    .setTimestamp();
+                await ownerUser.send({ embeds: [adminDmEmbed] }).catch(() => {});
+            }
+
             return interaction.editReply({ content: isEn ? `✅ Ticket created: <#${channel.id}>` : `✅ Bilet oluşturuldu: <#${channel.id}>` });
         }
 
@@ -418,7 +434,6 @@ module.exports = {
         }
 
         if (cid === 'claim_ticket') {
-            // SADECE YÖNETİCİLERİN SAHİPLENMESİ İÇİN KONTROL
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Bu bileti sahiplenmek için Yetkili olmanız gerekmektedir! / You must be Staff to claim this ticket!**', ephemeral: true });
             }
@@ -430,7 +445,6 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
-        // --- YEDEK MANUEL (BUTONLU) SS ONAY/RED SİSTEMİ ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
@@ -498,7 +512,6 @@ module.exports = {
             }
         }
 
-        // --- VERİTABANI YÖNETİMİ (WIPE & LIST) ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             
