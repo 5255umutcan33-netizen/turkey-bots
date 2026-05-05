@@ -8,18 +8,18 @@ module.exports = {
 
     async execute(interaction) {
         
-        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM BİLET EKRANI
+        // --- KULLANICILARIN GÖRECEĞİ LUAWARE BİLET EKRANI ---
         const embed = new EmbedBuilder()
-            .setTitle('💬 Ryphera OS | Destek Sistemi')
-            .setColor('#2B2D31')
+            .setTitle('💬 LUAWARE | Destek Sistemi')
+            .setColor('#00D4FF') // LUAWARE Teması
             .setDescription(
                 `👋 **Yardıma mı ihtiyacınız var?**\n\n` +
                 `📌 **Durum -->** \`Destek Aktif\`\n` +
                 `🏢 **Departmanlar -->** \`Destek, İş Birliği, Key İşlemleri\`\n` +
                 `📝 **İşlem -->** \`Bilet oluşturmak için aşağıdaki departmanlardan birini seçin.\`\n\n` +
-                `⚠️ **Dikkat!! AYNI KONU İÇİN BİRDEN FAZLA BİLET AÇMAYIN**`
+                `⚠️ *Aynı konu için lütfen birden fazla bilet açmayınız!*`
             )
-            .setFooter({ text: 'Ryphera OS System' });
+            .setFooter({ text: 'LUAWARE Support System' });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('ticket_tr_support').setLabel('Destek').setEmoji('📩').setStyle(ButtonStyle.Secondary),
@@ -29,7 +29,7 @@ module.exports = {
 
         await interaction.channel.send({ embeds: [embed], components: [row] });
 
-        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        // --- SADECE SANA GÖRÜNECEK ONAY MESAJI ---
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Kurulum Başarılı')
             .setColor('#57F287')

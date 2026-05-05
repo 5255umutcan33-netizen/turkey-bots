@@ -354,7 +354,9 @@ module.exports = {
 
         // --- BAŞVURU ONAY / RED SİSTEMİ ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
-            if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
+                return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
+            }
             const action = cid.startsWith('app_onay_') ? 'onay' : 'red';
             const targetId = cid.split('_')[2]; 
             
@@ -416,9 +418,15 @@ module.exports = {
         }
 
         if (cid === 'claim_ticket') {
+            // SADECE YÖNETİCİLERİN SAHİPLENMESİ İÇİN KONTROL
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
+                return interaction.reply({ content: '⚠️ **Bu bileti sahiplenmek için Yetkili olmanız gerekmektedir! / You must be Staff to claim this ticket!**', ephemeral: true });
+            }
+
             await interaction.reply({ content: `✅ **Bu bilet <@${interaction.user.id}> tarafından sahiplenildi.**` });
+            
             const disabledRow = ActionRowBuilder.from(interaction.message.components[0]);
-            disabledRow.components[1].setDisabled(true).setLabel('Sahiplenildi');
+            disabledRow.components[1].setDisabled(true).setLabel('Sahiplenildi (Claimed)').setStyle(ButtonStyle.Secondary);
             await interaction.message.edit({ components: [disabledRow] });
         }
 

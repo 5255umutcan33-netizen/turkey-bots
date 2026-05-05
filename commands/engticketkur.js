@@ -8,18 +8,18 @@ module.exports = {
 
     async execute(interaction) {
         
-        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM BİLET EKRANI
+        // --- KULLANICILARIN GÖRECEĞİ LUAWARE BİLET EKRANI ---
         const embed = new EmbedBuilder()
-            .setTitle('💬 Ryphera OS | Support System')
-            .setColor('#2B2D31')
+            .setTitle('💬 LUAWARE | Support System')
+            .setColor('#00D4FF') // LUAWARE Teması
             .setDescription(
                 `👋 **Need Assistance?**\n\n` +
                 `📌 **Status -->** \`Support Active\`\n` +
                 `🏢 **Departments -->** \`Support, Partnership, Key Operations\`\n` +
                 `📝 **Action -->** \`Select a department below to open a ticket.\`\n\n` +
-                `⚠️ **Note!! DO NOT OPEN MULTIPLE TICKETS FOR THE SAME ISSUE**`
+                `⚠️ *Please do not open multiple tickets for the same issue!*`
             )
-            .setFooter({ text: 'Ryphera OS System' });
+            .setFooter({ text: 'LUAWARE Support System' });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('ticket_en_support').setLabel('Support').setEmoji('📩').setStyle(ButtonStyle.Secondary),
@@ -29,15 +29,15 @@ module.exports = {
 
         await interaction.channel.send({ embeds: [embed], components: [row] });
 
-        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        // --- SADECE SANA GÖRÜNECEK ONAY MESAJI ---
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Setup Complete')
             .setColor('#57F287')
             .setDescription(
-                `⚙️ **İşlem -->** \`İngilizce Ticket Menüsü Kurulumu\`\n` +
-                `✅ **Durum -->** \`Başarıyla Oluşturuldu\`\n` +
-                `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
-                `👮 **İşlemi Yapan -->** <@${interaction.user.id}>`
+                `⚙️ **Process -->** \`English Ticket Menu Setup\`\n` +
+                `✅ **Status -->** \`Successfully Created\`\n` +
+                `📍 **Channel -->** <#${interaction.channelId}>\n` +
+                `👮 **Admin -->** <@${interaction.user.id}>`
             )
             .setTimestamp();
 
