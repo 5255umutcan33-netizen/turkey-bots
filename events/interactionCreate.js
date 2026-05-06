@@ -10,8 +10,10 @@ const {
     TextInputStyle, 
     Events 
 } = require('discord.js');
+const discordTranscripts = require('discord-html-transcripts'); // TICKET LOG MODÜLÜ
 const KeyModel = require('../models/key');
 const Counter = require('../models/counter'); 
+const StaffStat = require('../models/staffStat'); // YETKİLİ İSTATİSTİK MODÜLÜ
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -19,16 +21,18 @@ module.exports = {
         const OWNER_ID = '345821033414262794'; 
         
         // --- LOG KANALLARI ---
-        const LOG_TR = '1501635353470308533'; // Yeni TR Başvuru Logu
-        const LOG_EN = '1501635464824623297'; // Yeni EN Başvuru Logu
+        const LOG_TR = '1501635353470308533'; 
+        const LOG_EN = '1501635464824623297'; 
         const SUGGEST_LOG_TR = '1501260343727620309'; 
         const SUGGEST_LOG_EN = '1501263655180828792'; 
         const VERIFY_LOG_ID = '1500269916304052364';
         const ABONE_LOG_ID = '1500587963338326228'; 
+        const TICKET_LOG_CHANNEL = '1501639133628469268'; // TICKET LOG KANALI
 
         // --- LUAWARE ROL VE KANAL AYARLARI ---
         const TR_ROLE = '1500268780037607544';
         const EN_ROLE = '1500268646545756392';
+        const STAFF_ROLE = '1501638556026802287'; // YETKİLİ ROLÜ
         const VERIFY_CHANNEL_ID = '1500266130495897722';
         
         // --- TR VE EN KEY KANALLARI ---
@@ -346,7 +350,7 @@ module.exports = {
             return interaction.editReply({ content: isTR ? '✅ **Keyin oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key created and sent to your DM!**' });
         }
 
-        // --- YETKİLİ BAŞVURU ONAY / RED SİSTEMİ ---
+        // 🚨 YETKİLİ BAŞVURU ONAY / RED & OTO ROL SİSTEMİ 🚨
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
@@ -354,28 +358,32 @@ module.exports = {
             const action = cid.startsWith('app_onay_') ? 'onay' : 'red';
             const targetId = cid.split('_')[2]; 
             
-            const targetUser = await client.users.fetch(targetId).catch(() => null);
-            if (targetUser) {
+            const targetMember = await interaction.guild.members.fetch(targetId).catch(() => null);
+            
+            if (targetMember) {
+                if (action === 'onay') {
+                    await targetMember.roles.add(STAFF_ROLE).catch(() => {});
+                }
+
                 const resEmbed = new EmbedBuilder()
                     .setTitle('📩 LUAWARE | Başvuru Sonucu')
                     .setColor(action === 'onay' ? '#57F287' : '#ED4245')
-                    .setDescription(action === 'onay' ? '🎉 **Tebrikler! Yetkili başvurunuz kabul edildi.**' : '❌ **Maalesef yetkili başvurunuz reddedildi.**')
+                    .setDescription(action === 'onay' ? '🎉 **Tebrikler! Yetkili başvurunuz kabul edildi.**\nYetkili rolünüz başarıyla verildi!' : '❌ **Maalesef yetkili başvurunuz reddedildi.**')
                     .setTimestamp();
-                await targetUser.send({ embeds: [resEmbed] }).catch(() => {});
+                await targetMember.send({ embeds: [resEmbed] }).catch(() => {});
             }
 
             return interaction.update({ 
-                content: `> **KARAR:** ${action === 'onay' ? '✅ Onaylandı' : '❌ Reddedildi'}\n> **Yetkili:** <@${interaction.user.id}>`, 
+                content: `> **KARAR:** ${action === 'onay' ? '✅ Onaylandı (Rol Verildi)' : '❌ Reddedildi'}\n> **Yetkili:** <@${interaction.user.id}>`, 
                 components: [] 
             });
         }
 
-        // --- DESTEK TİCKET SİSTEMİ (LİMİT, OTOMATİK MESAJ VE DM) ---
+        // 🚨 TICKET AÇMA (YETKİLİ ROLÜNÜN GÖREBİLMESİ İÇİN GÜNCELLENDİ) 🚨
         const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (tIds.includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
 
-            // Kullanıcının açık ticketi var mı kontrolü
             const existingTicket = interaction.guild.channels.cache.find(c => c.name.startsWith('🎫-') && c.topic === interaction.user.id);
             if (existingTicket) {
                 return interaction.reply({ 
@@ -394,11 +402,11 @@ module.exports = {
                 permissionOverwrites: [
                     { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                    { id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+                    { id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                    { id: STAFF_ROLE, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } // YETKİLİ ROLÜ EKLENDİ
                 ]
             });
 
-            // Kanal içi mesaj
             const tEmbed = new EmbedBuilder()
                 .setTitle(isEn ? '💬 LUAWARE | Support' : '💬 LUAWARE | Destek')
                 .setColor('#00D4FF')
@@ -422,7 +430,6 @@ module.exports = {
 
             await channel.send({ content: `<@${interaction.user.id}>`, embeds: [tEmbed], components: [tRow] });
             
-            // Kurucuya DM
             const ownerUser = await client.users.fetch(OWNER_ID).catch(() => null);
             if (ownerUser) {
                 const adminDmEmbed = new EmbedBuilder()
@@ -436,15 +443,46 @@ module.exports = {
             return interaction.editReply({ content: isEn ? `✅ Ticket created: <#${channel.id}>` : `✅ Bilet oluşturuldu: <#${channel.id}>` });
         }
 
+        // 🚨 TICKET KAPATMA VE HTML LOG SİSTEMİ 🚨
         if (cid === 'close_ticket') {
-            await interaction.reply({ content: '`Sistem: Kanal 3 saniye içinde imha ediliyor...`' });
-            setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID && !interaction.member.roles.cache.has(STAFF_ROLE)) {
+                return interaction.reply({ content: '⚠️ **Bu bileti kapatmak için Yetkili olmanız gerekmektedir!**', ephemeral: true });
+            }
+
+            await interaction.reply({ content: '`Sistem: Ticket loglanıyor ve 5 saniye içinde kapatılacak...`' });
+            
+            try {
+                const attachment = await discordTranscripts.createTranscript(interaction.channel, {
+                    limit: -1, 
+                    returnType: 'attachment', 
+                    filename: `${interaction.channel.name}-log.html`, 
+                    saveImages: true,
+                    poweredBy: false
+                });
+
+                const logChannel = interaction.guild.channels.cache.get(TICKET_LOG_CHANNEL);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setTitle('🎫 Ticket Kapatıldı (Log)')
+                        .setColor('#ED4245')
+                        .setDescription(`**Kapatılan Kanal:** \`${interaction.channel.name}\`\n**Kapatan Yetkili:** <@${interaction.user.id}>`)
+                        .setTimestamp();
+                    await logChannel.send({ embeds: [logEmbed], files: [attachment] });
+                }
+            } catch (err) {
+                console.error("Transcript Error: ", err);
+            }
+
+            setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
         }
 
+        // 🚨 TICKET SAHİPLENME VE İSTATİSTİK SİSTEMİ 🚨
         if (cid === 'claim_ticket') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID && !interaction.member.roles.cache.has(STAFF_ROLE)) {
                 return interaction.reply({ content: '⚠️ **Bu bileti sahiplenmek için Yetkili olmanız gerekmektedir! / You must be Staff to claim this ticket!**', ephemeral: true });
             }
+
+            await StaffStat.findOneAndUpdate({ userId: interaction.user.id }, { $inc: { claims: 1 } }, { upsert: true, new: true });
 
             await interaction.reply({ content: `✅ **Bu bilet <@${interaction.user.id}> tarafından sahiplenildi.**` });
             
