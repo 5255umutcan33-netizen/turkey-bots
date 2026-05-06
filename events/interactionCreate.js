@@ -19,8 +19,8 @@ module.exports = {
         const OWNER_ID = '345821033414262794'; 
         
         // --- LOG KANALLARI ---
-        const LOG_TR = '1491105445564387359';
-        const LOG_EN = '1491105631434969218';
+        const LOG_TR = '1501635353470308533'; // Yeni TR Başvuru Logu
+        const LOG_EN = '1501635464824623297'; // Yeni EN Başvuru Logu
         const SUGGEST_LOG_TR = '1501260343727620309'; 
         const SUGGEST_LOG_EN = '1501263655180828792'; 
         const VERIFY_LOG_ID = '1500269916304052364';
@@ -58,6 +58,7 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
+            // --- YETKİLİ BAŞVURUSU FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
                 const isEn = interaction.customId === 'modal_en';
                 
@@ -74,7 +75,7 @@ module.exports = {
                         `⚙️ **${isEn ? 'Knowledge' : 'Bilgi'} -->** \`${interaction.fields.getTextInputValue('cmd')}\`\n` +
                         `📝 **${isEn ? 'Note' : 'Açıklama'} -->** \`${interaction.fields.getTextInputValue('why')}\``
                     )
-                    .setFooter({ text: 'LUAWARE OS Staff System' })
+                    .setFooter({ text: 'LUAWARE Staff System' })
                     .setTimestamp();
 
                 const row = new ActionRowBuilder().addComponents(
@@ -91,6 +92,7 @@ module.exports = {
                 });
             }
 
+            // --- SCRIPT ÖNERİSİ FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId === 'modal_suggest_tr' || interaction.customId === 'modal_suggest_en') {
                 const isEn = interaction.customId === 'modal_suggest_en';
                 
@@ -127,6 +129,7 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
+        // --- SCRIPT ÖNERİ MODAL'INI AÇMA ---
         if (cid === 'btn_suggest_tr' || cid === 'btn_suggest_en') {
             const isEn = cid === 'btn_suggest_en';
             const modal = new ModalBuilder().setCustomId(isEn ? 'modal_suggest_en' : 'modal_suggest_tr').setTitle(isEn ? 'LUAWARE Script Suggestion' : 'LUAWARE Script Önerisi');
@@ -153,6 +156,7 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
+        // --- ÖNERİ ONAY / RED SİSTEMİ ---
         if (cid.startsWith('sug_onay_') || cid.startsWith('sug_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok! / No permission!**', ephemeral: true });
@@ -191,6 +195,7 @@ module.exports = {
             return interaction.update({ embeds: [logEmbed], components: [] });
         }
 
+        // --- YETKİLİ BAŞVURUSU MODAL'INI AÇMA ---
         if (cid === 'apply_tr') {
             const modal = new ModalBuilder().setCustomId('modal_tr').setTitle('Yetkili Başvurusu');
             const nameInput = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('İsminiz?').setStyle(TextInputStyle.Short).setRequired(true));
@@ -215,6 +220,7 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
+        // --- DOĞRULAMA (VERIFY) VE KANAL GİZLEME ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             const isTr = cid === 'verify_tr';
             
@@ -291,6 +297,7 @@ module.exports = {
             }
         }
 
+        // --- KEY OLUŞTURMA SİSTEMİ ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             const ABONE_ROLU = '1500587633649127445';
@@ -339,6 +346,7 @@ module.exports = {
             return interaction.editReply({ content: isTR ? '✅ **Keyin oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key created and sent to your DM!**' });
         }
 
+        // --- YETKİLİ BAŞVURU ONAY / RED SİSTEMİ ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
@@ -362,12 +370,12 @@ module.exports = {
             });
         }
 
-        // 🚨 YENİ DESTEK TİCKET SİSTEMİ (LİMİT, DM VE OTOMATİK MESAJ) 🚨
+        // --- DESTEK TİCKET SİSTEMİ (LİMİT, OTOMATİK MESAJ VE DM) ---
         const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (tIds.includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
 
-            // KULLANICI LİMİT KONTROLÜ (Açık Ticketi Var Mı?)
+            // Kullanıcının açık ticketi var mı kontrolü
             const existingTicket = interaction.guild.channels.cache.find(c => c.name.startsWith('🎫-') && c.topic === interaction.user.id);
             if (existingTicket) {
                 return interaction.reply({ 
@@ -382,7 +390,7 @@ module.exports = {
             const channel = await interaction.guild.channels.create({
                 name: `🎫-${interaction.user.username}-${counter.seq}`,
                 type: ChannelType.GuildText,
-                topic: interaction.user.id, // Kullanıcı ID'sini Kanalın Topic kısmına gizliyoruz ki limiti kontrol edebilelim
+                topic: interaction.user.id, 
                 permissionOverwrites: [
                     { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
@@ -390,7 +398,7 @@ module.exports = {
                 ]
             });
 
-            // KANAL İÇİ OTOMATİK KARŞILAMA VE BİLGİLENDİRME MESAJI (DİLE GÖRE)
+            // Kanal içi mesaj
             const tEmbed = new EmbedBuilder()
                 .setTitle(isEn ? '💬 LUAWARE | Support' : '💬 LUAWARE | Destek')
                 .setColor('#00D4FF')
@@ -414,7 +422,7 @@ module.exports = {
 
             await channel.send({ content: `<@${interaction.user.id}>`, embeds: [tEmbed], components: [tRow] });
             
-            // YÖNETİCİYE DM GÖNDERME
+            // Kurucuya DM
             const ownerUser = await client.users.fetch(OWNER_ID).catch(() => null);
             if (ownerUser) {
                 const adminDmEmbed = new EmbedBuilder()
@@ -445,6 +453,7 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
+        // --- YEDEK MANUEL (BUTONLU) SS ONAY/RED SİSTEMİ ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
@@ -512,6 +521,7 @@ module.exports = {
             }
         }
 
+        // --- VERİTABANI YÖNETİMİ (WIPE & LIST) ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             
