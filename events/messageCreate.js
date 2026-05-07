@@ -1,8 +1,8 @@
 const { Events } = require('discord.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// KANKA DİKKAT: BURAYA KENDİ API ANAHTARINI GİRMEYİ UNUTMA!
-const genAI = new GoogleGenerativeAI('BURAYA_API_ANAHTARINI_YAPISTIR');
+// ANAHTARIN KODA DİREKT GÖMÜLDÜ KANKA, DOKUNMA BURAYA
+const genAI = new GoogleGenerativeAI('AIzaSyCwt6L0otY_MXPEXr3VK0f4gZwHT8zNodY');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -15,7 +15,6 @@ module.exports = {
         const ABONE_KANALLARI = ['1500594950839075088', '1500588822994358282']; 
         
         if (ABONE_KANALLARI.includes(message.channel.id)) {
-            // Eğer adam fotoğraf eklemeden sadece düz yazı yazdıysa:
             if (message.attachments.size === 0) {
                 await message.delete().catch(() => {});
                 
@@ -27,7 +26,6 @@ module.exports = {
                 const warnMsg = await message.channel.send(warnTxt);
                 setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
             }
-            // Fotoğraf attıysa hiçbir şeye karışmıyor, eski sistemine devrediyor.
             return; 
         }
 
