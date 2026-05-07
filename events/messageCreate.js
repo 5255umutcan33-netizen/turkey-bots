@@ -1,10 +1,10 @@
 const { Events, EmbedBuilder } = require('discord.js');
-const Tesseract = require('tesseract.js'); // Kendi lokal görsel okuma kütüphanemiz
+const Tesseract = require('tesseract.js');
 
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
-        if (message.author.bot) return;
+        if (message.author.bot || !message.guild) return;
 
         const TR_CHANNEL = '1500594950839075088';
         const EN_CHANNEL = '1500588822994358282';
@@ -14,40 +14,36 @@ module.exports = {
         const isEN = message.channel.id === EN_CHANNEL;
 
         if (isTR || isEN) {
-            // 1. SADECE FOTOĞRAF KONTROLÜ
+            // SADECE FOTOĞRAF KURALI
             if (message.attachments.size === 0) {
                 await message.delete().catch(() => {});
-                const warnMsg = isTR ? "⚠️ Lütfen sadece abone olduğunuzu kanıtlayan bir fotoğraf gönderin!" : "⚠️ Please only send a photo proving your subscription!";
+                const warnMsg = isTR ? "⚠️ Sadece fotoğraf gönderilebilir!" : "⚠️ Only photos allowed!";
                 const warn = await message.channel.send(`<@${message.author.id}> ${warnMsg}`);
-                return setTimeout(() => warn.delete().catch(() => {}), 4000);
+                return setTimeout(() => warn.delete().catch(() => {}), 3000);
             }
 
             const attachment = message.attachments.first();
             if (!attachment.contentType?.startsWith('image/')) return;
 
-            const waitMsg = isTR ? "🔄 Görsel taranıyor (Lokal AI)..." : "🔄 Scanning image (Local AI)...";
-            const statusMsg = await message.channel.send(`<@${message.author.id}> ${waitMsg}`);
+            // HIZLI BİLGİ MESAJI
+            const statusMsg = await message.channel.send(isTR ? "🔄 İnceleniyor..." : "🔄 Reviewing...");
 
             try {
-                // KENDİ SİSTEMİMİZ: Resmi indirip içindeki yazıları ayıklıyoruz
+                // LOKAL OCR TARAMA (HIZLANDIRILMIŞ)
                 const { data: { text } } = await Tesseract.recognize(
                     attachment.url,
-                    'eng', // İngilizce karakter setiyle tara (Logolar ve kullanıcı adları için en temizi)
-                    { logger: () => {} } // Konsolu kirletmesin diye boş geçtik
+                    'eng',
+                    { logger: () => {} } 
                 );
 
-                const cleanedText = text.toLowerCase();
-                const targetText = "luawarescrpt"; // Aradığımız anahtar kelime
-
-                // Asıl kanaldaki mesajı ve bekleme yazısını hemen siliyoruz (Temizlik)
-                await message.delete().catch(() => {});
-                await statusMsg.delete().catch(() => {});
+                const cleanedText = text.toLowerCase().replace(/\s+/g, '');
+                const target = "luawarescrpt"; 
 
                 const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
 
-                // KONTROL: Görselde yazımız geçiyor mu?
-                if (cleanedText.includes(targetText)) {
-                    // ✅ ONAY: ROLÜ VER
+                // SONUÇLARI KONTROL ET
+                if (cleanedText.includes(target)) {
+                    // ✅ ONAY
                     const ROL_ABONE = '1500587633649127445';
                     const ROL_UNVERIFIED = '1500249403443908711';
 
@@ -55,59 +51,69 @@ module.exports = {
                     await member.roles.add(ROL_ABONE).catch(() => {});
                     await member.roles.remove(ROL_UNVERIFIED).catch(() => {});
 
-                    const successMsg = isTR ? "✅ Abone rolün başarıyla verildi!" : "✅ Subscriber role successfully granted!";
-                    const ok = await message.channel.send(`<@${message.author.id}> ${successMsg}`);
-                    setTimeout(() => ok.delete().catch(() => {}), 5000);
+                    const ok = await message.channel.send(isTR ? `✅ <@${message.author.id}> Abone rolün verildi!` : `✅ <@${message.author.id}> Role granted!`);
+                    
+                    // DM GÖNDER
+                    await message.author.send(isTR ? "🎉 Onaylandınız, rolünüz verildi!" : "🎉 Approved, role granted!").catch(() => {});
 
-                    // DM Gönder
-                    await message.author.send(isTR ? "🎉 **LUAWARE OS:** SS onaylandı ve rolün verildi!" : "🎉 **LUAWARE OS:** SS approved and role granted!").catch(() => {});
-
-                    // Log Kanalına SS ile Gönder
+                    // LOG KANALINA AT (ASLA SİLİNMEZ)
                     if (logChannel) {
                         const embed = new EmbedBuilder()
-                            .setTitle('✅ LOKAL AI | ONAYLANDI')
-                            .setColor('Green')
+                            .setTitle('✅ SİSTEM ONAYI')
+                            .setColor('#00FF00')
                             .addFields(
-                                { name: 'Kullanıcı', value: `${message.author.tag} (${message.author.id})` },
-                                { name: 'Kanal', value: isTR ? 'Türkçe SS' : 'English SS' }
+                                { name: 'Kullanıcı', value: `${message.author.tag}`, inline: true },
+                                { name: 'ID', value: `${message.author.id}`, inline: true }
                             )
                             .setImage(attachment.url)
                             .setTimestamp();
                         logChannel.send({ embeds: [embed] });
                     }
+
+                    // KANALI TEMİZLE
+                    setTimeout(async () => {
+                        await message.delete().catch(() => {});
+                        await statusMsg.delete().catch(() => {});
+                        await ok.delete().catch(() => {});
+                    }, 2000);
+
                 } else {
-                    // ❌ RED: YAZI BULUNAMADI
-                    const failMsg = isTR ? "❌ Reddedildi! Görselde @LuawareScrpt bulunamadı." : "❌ Rejected! @LuawareScrpt not found in image.";
-                    const no = await message.channel.send(`<@${message.author.id}> ${failMsg}`);
-                    setTimeout(() => no.delete().catch(() => {}), 5000);
+                    // ❌ RED
+                    const no = await message.channel.send(isTR ? `❌ <@${message.author.id}> Geçersiz ekran görüntüsü!` : `❌ <@${message.author.id}> Invalid screenshot!`);
+                    
+                    await message.author.send(isTR ? "❌ Gönderdiğiniz ekran görüntüsü kriterlere uymuyor." : "❌ Your screenshot does not meet the criteria.").catch(() => {});
 
-                    // DM Gönder
-                    await message.author.send(isTR ? "❌ **LUAWARE OS:** SS reddedildi, gerekli kanal ismi bulunamadı." : "❌ **LUAWARE OS:** SS rejected, channel name not found.").catch(() => {});
-
-                    // Log Kanalına Reddedilen SS ile Gönder
+                    // LOG KANALINA AT (REDDEDİLENLER DE BURADA DURUR)
                     if (logChannel) {
                         const embed = new EmbedBuilder()
-                            .setTitle('❌ LOKAL AI | REDDEDİLDİ')
-                            .setColor('Red')
+                            .setTitle('❌ SİSTEM REDDİ')
+                            .setColor('#FF0000')
                             .addFields(
-                                { name: 'Kullanıcı', value: `${message.author.tag} (${message.author.id})` },
-                                { name: 'Sebep', value: 'Görselde LuawareScrpt yazısı tespit edilemedi.' }
+                                { name: 'Kullanıcı', value: `${message.author.tag}`, inline: true },
+                                { name: 'Durum', value: 'Geçersiz Görsel', inline: true }
                             )
                             .setImage(attachment.url)
                             .setTimestamp();
                         logChannel.send({ embeds: [embed] });
                     }
+
+                    // KANALI TEMİZLE
+                    setTimeout(async () => {
+                        await message.delete().catch(() => {});
+                        await statusMsg.delete().catch(() => {});
+                        await no.delete().catch(() => {});
+                    }, 2000);
                 }
 
             } catch (err) {
-                console.error("Lokal Okuma Hatası:", err);
+                console.error("Tarama Hatası:", err);
                 await message.delete().catch(() => {});
                 await statusMsg.delete().catch(() => {});
             }
             return;
         }
 
-        // PREFİX KOMUTLARIN (!yardım vs.)
+        // DİĞER KOMUTLAR
         const prefix = '!';
         if (!message.content.startsWith(prefix)) return;
         const args = message.content.slice(prefix.length).trim().split(/ +/);
