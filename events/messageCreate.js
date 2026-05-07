@@ -1,8 +1,4 @@
 const { Events, EmbedBuilder } = require('discord.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const axios = require('axios'); // Eğer yüklü değilse: npm install axios
-
-const genAI = new GoogleGenerativeAI('AIzaSyCwt6L0otY_MXPEXr3VK0f4gZwHT8zNodY');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -17,78 +13,64 @@ module.exports = {
         const isEN = message.channel.id === EN_CHANNEL;
 
         if (isTR || isEN) {
+            // 1. DURUM: SADECE YAZI YAZDIYSA SİL VE UYAR
             if (message.attachments.size === 0) {
                 await message.delete().catch(() => {});
-                const warnMsg = isTR ? "⚠️ Sadece fotoğraf gönderebilirsin!" : "⚠️ You can only send photos!";
+                const warnMsg = isTR ? "⚠️ Lütfen sadece abone olduğunuzu kanıtlayan bir fotoğraf gönderin!" : "⚠️ Please only send a photo proving your subscription!";
                 const warn = await message.channel.send(`<@${message.author.id}> ${warnMsg}`);
-                return setTimeout(() => warn.delete().catch(() => {}), 4000);
+                return setTimeout(() => warn.delete().catch(() => {}), 5000);
             }
 
+            // 2. DURUM: FOTOĞRAF ATILDI (ONAYLA)
             const attachment = message.attachments.first();
-            const waitMsg = isTR ? "🔄 Görsel inceleniyor..." : "🔄 Image being reviewed...";
-            const statusMsg = await message.channel.send(`<@${message.author.id}> ${waitMsg}`);
+            if (!attachment.contentType?.startsWith('image/')) return;
 
             try {
-                // Görseli indiriyoruz
-                const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
-                const base64 = Buffer.from(response.data, 'binary').toString('base64');
+                const ROL_ABONE = '1500587633649127445';
+                const ROL_UNVERIFIED = '1500249403443908711';
 
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                const prompt = "Görselde '@LuawareScrpt' veya 'LuawareScrpt' yazısı geçiyor mu? Sadece 'EVET' veya 'HAYIR' olarak cevap ver.";
+                const member = await message.guild.members.fetch(message.author.id);
+                
+                // Rolleri güncelle
+                await member.roles.add(ROL_ABONE).catch(() => {});
+                await member.roles.remove(ROL_UNVERIFIED).catch(() => {});
 
-                const imagePart = { inlineData: { data: base64, mimeType: attachment.contentType || 'image/png' } };
-                const result = await model.generateContent([prompt, imagePart]);
-                const decision = result.response.text().toUpperCase();
+                // Kullanıcıya Onay Mesajı
+                const successMsg = isTR ? "✅ Abone rolün verildi! Teşekkürler." : "✅ Subscriber role granted! Thank you.";
+                const ok = await message.channel.send(`<@${message.author.id}> ${successMsg}`);
 
-                // Kanaldaki kalabalığı temizle
-                await message.delete().catch(() => {});
-                await statusMsg.delete().catch(() => {});
+                // --- TEMİZLİK: SS'i ve mesajı 3 saniye sonra siler (Kanal hep boş kalır) ---
+                setTimeout(async () => {
+                    await message.delete().catch(() => {});
+                    await ok.delete().catch(() => {});
+                }, 3000);
 
+                // LOG KANALINA BİLGİ GÖNDER
                 const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
-
-                // Kontrol: Cevap "EVET" içeriyor mu?
-                if (decision.includes("EVET") || decision.includes("YES")) {
-                    const ROL_ABONE = '1500587633649127445';
-                    const ROL_UNVERIFIED = '1500249403443908711';
-                    
-                    const member = await message.guild.members.fetch(message.author.id);
-                    await member.roles.add(ROL_ABONE).catch(console.error);
-                    await member.roles.remove(ROL_UNVERIFIED).catch(console.error);
-
-                    const successMsg = isTR ? "✅ Onaylandı! Rolün verildi." : "✅ Approved! Role granted.";
-                    const ok = await message.channel.send(`<@${message.author.id}> ${successMsg}`);
-                    setTimeout(() => ok.delete().catch(() => {}), 5000);
-
-                    await message.author.send(isTR ? "🎉 Abone rolün verildi!" : "🎉 Subscriber role granted!").catch(() => {});
-
-                    if (logChannel) {
-                        const embed = new EmbedBuilder()
-                            .setTitle('✅ Onaylandı')
-                            .setColor('Green')
-                            .setDescription(`${message.author.tag} kullanıcısının SS'i başarıyla onaylandı.`);
-                        logChannel.send({ embeds: [embed] });
-                    }
-                } else {
-                    // REDDEDİLME DURUMU
-                    const failMsg = isTR ? "❌ Reddedildi! @LuawareScrpt yazısı yok." : "❌ Rejected! @LuawareScrpt text missing.";
-                    const no = await message.channel.send(`<@${message.author.id}> ${failMsg}`);
-                    setTimeout(() => no.delete().catch(() => {}), 5000);
-
-                    await message.author.send(isTR ? "❌ SS reddedildi, yazı bulunamadı." : "❌ SS rejected, text not found.").catch(() => {});
-
-                    if (logChannel) {
-                        const embed = new EmbedBuilder()
-                            .setTitle('❌ Reddedildi')
-                            .setColor('Red')
-                            .setDescription(`${message.author.tag} kullanıcısının SS'i geçersiz sayıldı.`);
-                        logChannel.send({ embeds: [embed] });
-                    }
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setTitle(isTR ? '📥 Yeni Abone Onaylandı' : '📥 New Subscriber Approved')
+                        .setColor('#57F287')
+                        .addFields(
+                            { name: 'Kullanıcı / User', value: `${message.author.tag} (${message.author.id})` },
+                            { name: 'Kanal / Channel', value: isTR ? 'Türkçe SS' : 'English SS' }
+                        )
+                        .setTimestamp();
+                    logChannel.send({ embeds: [logEmbed] });
                 }
+
             } catch (err) {
-                console.error("HATA:", err);
-                await statusMsg.edit("⚠️ Sistem hatası oluştu.").then(m => setTimeout(() => m.delete(), 3000));
+                console.error("Hata:", err);
             }
             return;
         }
+
+        // PREFİX KOMUTLARIN (!yardım vs.)
+        const prefix = '!';
+        if (!message.content.startsWith(prefix)) return;
+        const args = message.content.slice(prefix.length).trim().split(/ +/);
+        const commandName = args.shift().toLowerCase();
+        const command = client.commands?.get(commandName);
+        if (command) command.execute(message, args, client);
     }
 };
