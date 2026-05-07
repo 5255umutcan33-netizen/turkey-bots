@@ -1,7 +1,7 @@
 const { Events } = require('discord.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// KANKA DİKKAT: BURAYA YENİ ALDIĞIN API ANAHTARINI GİRMEYİ UNUTMA!
+// KANKA DİKKAT: BURAYA KENDİ API ANAHTARINI GİRMEYİ UNUTMA!
 const genAI = new GoogleGenerativeAI('AIzaSyCwt6L0otY_MXPEXr3VK0f4gZwHT8zNodY');
 
 module.exports = {
@@ -12,11 +12,9 @@ module.exports = {
         // =========================================================================
         // 1. YAPAY ZEKA GÖRSEL OKUYUCU (OTO ABONE ONAY SİSTEMİ)
         // =========================================================================
-        // TR ve EN Abone SS kanalları
         const ABONE_KANALLARI = ['1500594950839075088', '1500588822994358282']; 
         
         if (ABONE_KANALLARI.includes(message.channel.id)) {
-            // Hangi kanalda olduğumuza göre (TR mi EN mi) uyarı dili seçelim
             const isTR = message.channel.id === '1500594950839075088';
 
             // Adam yazı yazdıysa sil ve uyar
@@ -33,19 +31,18 @@ module.exports = {
             const attachment = message.attachments.first();
             if (!attachment.contentType.startsWith('image/')) return;
 
-            const waitTxt = isTR ? `🔄 <@${message.author.id}> Görseliniz yapay zeka tarafından inceleniyor, lütfen bekleyin...` : `🔄 <@${message.author.id}> Your image is being reviewed by AI, please wait...`;
+            const waitTxt = isTR ? `🔄 <@${message.author.id}> Görseliniz yapay zeka tarafından inceleniyor...` : `🔄 <@${message.author.id}> Your image is being reviewed by AI...`;
             const msgToEdit = await message.channel.send(waitTxt);
             
             try {
-                // Görseli indirip base64 formatına çeviriyoruz
                 const response = await fetch(attachment.url);
                 const arrayBuffer = await response.arrayBuffer();
                 const base64 = Buffer.from(arrayBuffer).toString('base64');
 
-                // Güncel Gemini 3 modelini çağırıyoruz
-                const model = genAI.getGenerativeModel({ model: "gemini-3-flash" }); 
+                // İŞTE DÜZELTTİĞİMİZ YER! MODEL ADI 1.5 OLMAK ZORUNDA:
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
                 
-                const prompt = "Bu görseldeki yazıları oku. İçinde 'LuawareScrpt' veya '@LuawareScrpt' kelimesi geçiyor mu? SADECE 'EVET' veya 'HAYIR' olarak cevap ver.";
+                const prompt = "Bu görseldeki yazıları oku. İçinde 'LuawareScrpt' veya '@LuawareScrpt' veya 'LuaWare' kelimesi geçiyor mu? SADECE 'EVET' veya 'HAYIR' olarak cevap ver.";
                 
                 const imagePart = {
                     inlineData: {
@@ -57,25 +54,37 @@ module.exports = {
                 const result = await model.generateContent([prompt, imagePart]);
                 const text = result.response.text().trim().toUpperCase();
 
+                // HESAPLAMA BİTTİ, ADAMIN ATTIĞI FOTOĞRAFI VE BEKLEME MESAJINI SİL
                 await message.delete().catch(() => {}); 
                 await msgToEdit.delete().catch(() => {}); 
 
-                // Eğer fotoğrafta yazıyı bulduysa:
+                // EVET BULDUYSA (ONAY)
                 if (text.includes("EVET")) {
                     const ABONE_ROLU = '1500587633649127445';
                     const UNVERIFIED_ROLU = '1500249403443908711';
                     
                     await message.member.roles.add(ABONE_ROLU).catch(() => {});
                     await message.member.roles.remove(UNVERIFIED_ROLU).catch(() => {});
-                    
                     await message.channel.permissionOverwrites.edit(message.author.id, { ViewChannel: false }).catch(() => {});
 
+                    // Kanala onaylandığını yazıp 5 saniye sonra siler
+                    const succChan = await message.channel.send(isTR ? `✅ <@${message.author.id}> SS Onaylandı! Abone rolün verildi.` : `✅ <@${message.author.id}> SS Approved! Role given.`);
+                    setTimeout(() => succChan.delete().catch(() => {}), 5000);
+
+                    // Adama DM atar
                     const succTxt = isTR 
                         ? "🎉 **Tebrikler!** Yapay zeka Abone SS'inizi onayladı. Abone rolünüz verildi ve Key alma kanalına erişiminiz açıldı!"
-                        : "🎉 **Congratulations!** The AI approved your Sub SS. Your Subscriber role has been given and you now have access to the Key channel!";
+                        : "🎉 **Congratulations!** The AI approved your Sub SS. Your Subscriber role has been given!";
                     await message.author.send(succTxt).catch(() => {});
+                    
                 } else {
-                    // Bulamadıysa:
+                    // HAYIR BULDUYSA (RET)
+                    
+                    // Kanala reddedildiğini yazıp 7 saniye sonra siler
+                    const failChan = await message.channel.send(isTR ? `❌ <@${message.author.id}> SS Reddedildi! Lütfen DM kutunu kontrol et.` : `❌ <@${message.author.id}> SS Rejected! Check your DMs.`);
+                    setTimeout(() => failChan.delete().catch(() => {}), 7000);
+
+                    // Adama detaylı DM atar
                     const failTxt = isTR
                         ? "❌ **SS Onaylanmadı!** Gönderdiğiniz görselde `@LuawareScrpt` yazısı bulunamadı veya kırpılmış bir fotoğraf attınız. Lütfen abone olduğunuzu gösteren tam bir ekran görüntüsü atın."
                         : "❌ **SS Not Approved!** The text `@LuawareScrpt` was not found in your image, or it was cropped. Please send a full screenshot showing your subscription.";
@@ -83,8 +92,11 @@ module.exports = {
                 }
             } catch (error) {
                 console.error("Görsel Okuma Hatası:", error);
-                const errTxt = isTR ? "⚠️ Yapay zeka görseli okurken anlık bir hata yaşadı. Lütfen SS'i tekrar gönderin." : "⚠️ The AI encountered an error while reading the image. Please send the SS again.";
+                // Hata alsa bile fotoğrafı silsin ki kanal kirlenmesin
+                await message.delete().catch(() => {}); 
+                const errTxt = isTR ? `⚠️ <@${message.author.id}> Yapay zeka görseli okurken sistem hatası yaşadı. Lütfen SS'i tekrar gönderin.` : `⚠️ <@${message.author.id}> The AI encountered a system error. Please resend the SS.`;
                 await msgToEdit.edit(errTxt).catch(() => {});
+                setTimeout(() => msgToEdit.delete().catch(() => {}), 5000);
             }
             return; 
         }
@@ -98,8 +110,8 @@ module.exports = {
             await message.channel.sendTyping();
 
             try {
-                // Güncel Gemini 3 modelini çağırıyoruz
-                const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
+                // MODEL ADI 1.5 OLARAK DÜZELTİLDİ
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
                 
                 const prompt = `
                 Sen LUAWARE OS adlı profesyonel bir Discord sunucusunun resmi yapay zeka destek asistanısın. Adın "LUAWARE AI".
@@ -123,7 +135,7 @@ module.exports = {
 
             } catch (error) {
                 console.error("🚨 TICKET YAPAY ZEKA HATASI:", error);
-                await message.reply("⚠️ *Sistemde anlık bir yoğunluk var veya API anahtarı geçersiz, yetkililerimiz en kısa sürede sizinle ilgilenecektir.*");
+                await message.reply("⚠️ *Sistemde anlık bir yoğunluk var, yetkililerimiz en kısa sürede sizinle ilgilenecektir.*");
             }
             return; 
         }
