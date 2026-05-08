@@ -3,54 +3,80 @@ const Tesseract = require('tesseract.js');
 const fs = require('fs');
 const path = require('path');
 
-// Veritabanı ve Spam Hafızası Ayarları
+// --- VERİTABANI VE HAFIZA AYARLARI ---
 const dbPath = path.join(__dirname, '../spam-db.json');
 const spamMap = new Map();
 
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
+        // Botları ve Özel Mesajları (DM) Devre Dışı Bırak
         if (message.author.bot || !message.guild) return;
 
-        // --- BÖLÜM 1: LUAWARE GUARD SİSTEMİ (ANTİ-SPAM & EVERYONE) ---
+        // --- BÖLÜM 1: LUAWARE GUARD (GÜVENLİK KALKANI) ---
         
-        // Adminleri koruma dışı bırak (Kendi kendini banlamasın)
+        // Yönetici yetkisi olanları kalkanlardan muaf tut
         if (!message.member.permissions.has('Administrator')) {
+
+            // 1. GLOBAL ANTİ-LİNK (REKLAM ENGELLEME)
+            const linkRegex = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|discordapp\.com\/invite|discord\.com\/invite)\/.+[a-z]/g;
+            if (linkRegex.test(message.content)) {
+                if (message.deletable) await message.delete().catch(() => {});
+                const warnLink = await message.channel.send(`🛡️ **LUAWARE Guard:** <@${message.author.id}>, bu sunucuda reklam yapmak kesinlikle yasaktır!`);
+                setTimeout(() => warnLink.delete().catch(() => {}), 5000);
+                return;
+            }
+
+            // 2. GLOBAL MENTİON SPAM (ETİKET KORUMASI)
+            // Bir mesajda 5'ten fazla kullanıcıyı etiketleyenleri susturur.
+            if (message.mentions.users.size > 5) {
+                if (message.deletable) await message.delete().catch(() => {});
+                await message.member.timeout(10 * 60 * 1000, 'LUAWARE: Çoklu etiket spamı.').catch(() => {});
+                return message.channel.send(`🛡️ **LUAWARE Guard:** <@${message.author.id}>, çok fazla kişiyi etiketlediğin için **10 dakika** susturuldun!`);
+            }
+
+            // 3. KANAL BAZLI KORUMALAR (SPAM & EVERYONE)
             if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify([]));
             const protectedChannels = JSON.parse(fs.readFileSync(dbPath));
 
-            // Eğer bulunulan kanal koruma altındaysa
             if (protectedChannels.includes(message.channel.id)) {
-                const timeoutDuration = 5 * 60 * 1000; // 5 Dakika
+                const timeoutDuration = 5 * 60 * 1000; // 5 Dakika (300.000 ms)
                 const now = Date.now();
 
-                // 🛑 KURAL A: @everyone veya @here atanı paketle
+                // @everyone & @here Koruması
                 if (message.mentions.everyone) {
-                    await message.delete().catch(() => {});
-                    await message.member.timeout(timeoutDuration, 'LUAWARE Guard: İzinsiz everyone/here kullanımı.').catch(() => {});
+                    if (message.deletable) await message.delete().catch(() => {});
+                    await message.member.timeout(timeoutDuration, 'LUAWARE: İzinsiz everyone kullanımı.').catch(() => {});
                     const m = await message.channel.send(`🛡️ <@${message.author.id}>, LUAWARE Guard kalkanına çarptın! \`@everyone\` yasak olduğu için **5 dakika** susturuldun.`);
-                    return setTimeout(() => m.delete().catch(() => {}), 5000);
+                    setTimeout(() => m.delete().catch(() => {}), 5000);
+                    return;
                 }
 
-                // 🛑 KURAL B: 5 Saniyede 5 Mesaj (Spam) yapanı paketle
-                if (!spamMap.has(message.author.id)) spamMap.set(message.author.id, []);
+                // Hızlı Mesaj (Spam/Flood) Koruması
+                if (!spamMap.has(message.author.id)) {
+                    spamMap.set(message.author.id, []);
+                }
+                
                 const userMessages = spamMap.get(message.author.id);
                 userMessages.push(now);
 
+                // Sadece son 5 saniyeyi kontrol et
                 const recentMessages = userMessages.filter(time => now - time < 5000);
                 spamMap.set(message.author.id, recentMessages);
 
                 if (recentMessages.length >= 5) {
-                    await message.delete().catch(() => {});
-                    await message.member.timeout(timeoutDuration, 'LUAWARE Guard: Spam/Flood yapıldı.').catch(() => {});
-                    spamMap.delete(message.author.id);
+                    if (message.deletable) await message.delete().catch(() => {});
+                    await message.member.timeout(timeoutDuration, 'LUAWARE: Spam/Flood yapıldı.').catch(() => {});
+                    spamMap.delete(message.author.id); // Susturulduğu için hafızayı temizle
+                    
                     const m = await message.channel.send(`🛡️ <@${message.author.id}>, LUAWARE Guard kalkanına çarptın! \`Spam\` yaptığın için **5 dakika** susturuldun.`);
-                    return setTimeout(() => m.delete().catch(() => {}), 5000);
+                    setTimeout(() => m.delete().catch(() => {}), 5000);
+                    return;
                 }
             }
         }
 
-        // --- BÖLÜM 2: ABONE / OCR SİSTEMİ ---
+        // --- BÖLÜM 2: LUAWARE ABONE & OCR SİSTEMİ ---
 
         const TR_CHANNEL = '1500594950839075088';
         const EN_CHANNEL = '1500588822994358282';
@@ -60,9 +86,9 @@ module.exports = {
         const isEN = message.channel.id === EN_CHANNEL;
 
         if (isTR || isEN) {
-            // SADECE FOTOĞRAF KURALI
+            // Sadece Fotoğraf Şartı
             if (message.attachments.size === 0) {
-                await message.delete().catch(() => {});
+                if (message.deletable) await message.delete().catch(() => {});
                 const warnMsg = isTR ? "⚠️ Sadece fotoğraf gönderilebilir!" : "⚠️ Only photos allowed!";
                 const warn = await message.channel.send(`<@${message.author.id}> ${warnMsg}`);
                 return setTimeout(() => warn.delete().catch(() => {}), 3000);
@@ -71,25 +97,22 @@ module.exports = {
             const attachment = message.attachments.first();
             if (!attachment.contentType?.startsWith('image/')) return;
 
-            const statusMsg = await message.channel.send(isTR ? "🔄 İnceleniyor..." : "🔄 Reviewing...");
+            const statusMsg = await message.channel.send(isTR ? "🔄 LUAWARE OS: Görsel inceleniyor..." : "🔄 LUAWARE OS: Scanning image...");
 
             try {
-                // FOTOĞRAFI ZORLA İNDİR
+                // Görseli İşle
                 const response = await fetch(attachment.url);
-                if (!response.ok) throw new Error("Resim Discord'dan çekilemedi!");
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
 
-                // LOKAL OCR TARAMA
                 const { data: { text } } = await Tesseract.recognize(buffer, 'eng', { logger: () => {} });
 
                 const cleanedText = text.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const target = "luawarescrpt"; 
-
                 const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
 
                 if (cleanedText.includes(target)) {
-                    // ✅ ONAY SÜRECİ
+                    // ✅ BAŞARILI ONAY
                     const ROL_ABONE = '1500587633649127445';
                     const ROL_UNVERIFIED = '1500249403443908711';
 
@@ -97,40 +120,45 @@ module.exports = {
                     await member.roles.add(ROL_ABONE).catch(() => {});
                     await member.roles.remove(ROL_UNVERIFIED).catch(() => {});
 
-                    const ok = await message.channel.send(isTR ? `✅ <@${message.author.id}> Abone rolün verildi!` : `✅ <@${message.author.id}> Role granted!`);
-                    await message.author.send(isTR ? "🎉 Onaylandınız, rolünüz verildi!" : "🎉 Approved, role granted!").catch(() => {});
+                    const ok = await message.channel.send(isTR ? `✅ <@${message.author.id}> LUAWARE Abone rolün başarıyla verildi!` : `✅ <@${message.author.id}> Role granted successfully!`);
+                    
+                    // Özel Mesaj (DM) Gönderimi
+                    await message.author.send(isTR ? "🎉 Tebrikler! Ekran görüntün onaylandı ve LUAWARE rolün verildi." : "🎉 Congrats! Your screenshot was approved and role granted.").catch(() => {});
 
                     if (logChannel) {
                         const embed = new EmbedBuilder()
-                            .setTitle('✅ LUAWARE SİSTEM ONAYI')
+                            .setTitle('✅ LUAWARE: SİSTEM ONAYI')
                             .setColor('#00FF00')
                             .addFields(
                                 { name: 'Kullanıcı', value: `${message.author.tag}`, inline: true },
-                                { name: 'ID', value: `${message.author.id}`, inline: true }
+                                { name: 'ID', value: `${message.author.id}`, inline: true },
+                                { name: 'Durum', value: 'Onaylandı', inline: true }
                             )
                             .setImage(attachment.url)
-                            .setTimestamp();
+                            .setTimestamp()
+                            .setFooter({ text: 'LUAWARE Log System' });
                         logChannel.send({ embeds: [embed] }).catch(() => {});
                     }
 
                     setTimeout(async () => {
-                        await message.delete().catch(() => {});
+                        if (message.deletable) await message.delete().catch(() => {});
                         await statusMsg.delete().catch(() => {});
                         await ok.delete().catch(() => {});
-                    }, 2000);
+                    }, 2500);
 
                 } else {
-                    // ❌ RED SÜRECİ
-                    const no = await message.channel.send(isTR ? `❌ <@${message.author.id}> Geçersiz ekran görüntüsü!` : `❌ <@${message.author.id}> Invalid screenshot!`);
-                    await message.author.send(isTR ? "❌ Gönderdiğiniz ekran görüntüsü kriterlere uymuyor." : "❌ Your screenshot does not meet the criteria.").catch(() => {});
+                    // ❌ GEÇERSİZ GÖRSEL
+                    const no = await message.channel.send(isTR ? `❌ <@${message.author.id}> Geçersiz görsel! "luawarescrpt" yazısı bulunamadı.` : `❌ <@${message.author.id}> Invalid image! target not found.`);
+                    
+                    await message.author.send(isTR ? "❌ Gönderdiğiniz görsel sistem kriterlerine uymuyor." : "❌ Your image does not meet the criteria.").catch(() => {});
 
                     if (logChannel) {
                         const embed = new EmbedBuilder()
-                            .setTitle('❌ LUAWARE SİSTEM REDDİ')
+                            .setTitle('❌ LUAWARE: SİSTEM REDDİ')
                             .setColor('#FF0000')
                             .addFields(
                                 { name: 'Kullanıcı', value: `${message.author.tag}`, inline: true },
-                                { name: 'Durum', value: 'Geçersiz Görsel', inline: true }
+                                { name: 'Sebep', value: 'Hatalı Yazı/Görsel', inline: true }
                             )
                             .setImage(attachment.url)
                             .setTimestamp();
@@ -138,29 +166,33 @@ module.exports = {
                     }
 
                     setTimeout(async () => {
-                        await message.delete().catch(() => {});
+                        if (message.deletable) await message.delete().catch(() => {});
                         await statusMsg.delete().catch(() => {});
                         await no.delete().catch(() => {});
-                    }, 2000);
+                    }, 2500);
                 }
 
             } catch (err) {
                 console.error("Tarama Hatası:", err);
-                await statusMsg.edit(isTR ? "❌ Tarama sırasında hata oluştu!" : "❌ Error during scanning!").catch(() => {});
-                setTimeout(async () => {
-                    await message.delete().catch(() => {});
-                    await statusMsg.delete().catch(() => {});
-                }, 4000);
+                await statusMsg.edit("⚠️ Sistemsel bir hata oluştu, lütfen tekrar deneyin.").catch(() => {});
             }
             return;
         }
 
-        // --- BÖLÜM 3: PREFIX KOMUTLARI ---
+        // --- BÖLÜM 3: PREFIX KOMUT SİSTEMİ ---
         const prefix = '!';
         if (!message.content.startsWith(prefix)) return;
+
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
+        
         const command = client.commands?.get(commandName);
-        if (command) command.execute(message, args, client);
+        if (command) {
+            try {
+                await command.execute(message, args, client);
+            } catch (error) {
+                console.error(error);
+            }
+        }
     }
 };
