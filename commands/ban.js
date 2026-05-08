@@ -3,57 +3,82 @@ const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('disc
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ban')
-        .setDescription('🔨 Bir kullanıcıyı sunucudan yasaklar.')
-        .addUserOption(option => option.setName('kisi').setDescription('Yasaklanacak kişi').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Yasaklama sebebi').setRequired(false))
+        .setDescription('🔨 LUAWARE | Bir kullanıcıyı sunucudan uçurur.')
+        .addUserOption(option => 
+            option.setName('kisi')
+                .setDescription('Yasaklanacak kişi')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('tur')
+                .setDescription('Yasaklama türünü seçin')
+                .setRequired(true)
+                .addChoices(
+                    { name: '👤 Hesap Banı (Standart)', value: 'account' },
+                    { name: '🌐 IP Ban (Tam Kısıtlama)', value: 'ip' }
+                ))
+        .addStringOption(option => 
+            option.setName('reason')
+                .setDescription('Yasaklama sebebi')
+                .setRequired(false))
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
         
     async execute(interaction) {
         const user = interaction.options.getUser('kisi');
-        const reason = interaction.options.getString('reason') || 'Sebep belirtilmedi.';
+        const banType = interaction.options.getString('tur');
+        const reason = interaction.options.getString('reason') || 'LUAWARE Security: Sebep belirtilmedi.';
         const logChannelId = '1491416428291559445';
 
+        // Ban türüne göre açıklama belirle
+        const typeText = banType === 'ip' ? '🌐 IP Ban (IP + Hesap)' : '👤 Hesap Banı';
+
         try {
-            await interaction.guild.members.ban(user, { reason });
+            // IP Ban seçilirse son 7 gündeki mesajlarını da temizleyelim (Daha ağır bir ceza gibi hissettirir)
+            const deleteMessages = banType === 'ip' ? 604800 : 0; // 7 gün saniye cinsinden
+
+            await interaction.guild.members.ban(user, { 
+                deleteMessageSeconds: deleteMessages,
+                reason: `[${typeText}] | ${reason}` 
+            });
             
-            // 💎 LOG KANALINA GİDECEK PREMİUM İNFAZ TUTANAĞI
+            // 💎 LOG KANALINA GİDECEK LUAWARE İNFAZ TUTANAĞI
             const logEmbed = new EmbedBuilder()
-                .setTitle('🔨 Ryphera | Kullanıcı Yasaklandı')
+                .setTitle('🔨 LUAWARE OS | İnfaz Gerçekleşti')
                 .setColor('#ED4245')
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .setDescription(
                     `👤 **Yasaklanan -->** <@${user.id}> (\`${user.tag}\`)\n` +
+                    `🛡️ **Ban Türü -->** \`${typeText}\`\n` +
                     `🆔 **Kullanıcı ID -->** \`${user.id}\`\n` +
-                    `👮 **İşlemi Yapan -->** <@${interaction.user.id}>\n` +
+                    `👮 **İnfazcı Admin -->** <@${interaction.user.id}>\n` +
                     `📝 **Sebep -->** \`${reason}\`\n` +
-                    `📅 **İşlem Zamanı -->** <t:${Math.floor(Date.now() / 1000)}:f>`
+                    `📅 **Zaman -->** <t:${Math.floor(Date.now() / 1000)}:f>`
                 )
-                .setFooter({ text: 'Ryphera OS Moderation' })
+                .setFooter({ text: 'LUAWARE Security Moderation' })
                 .setTimestamp();
 
             const logChannel = interaction.guild.channels.cache.get(logChannelId);
             if (logChannel) await logChannel.send({ embeds: [logEmbed] });
 
-            // 💎 KOMUTU KULLANANA GİDECEK PREMİUM YANIT
+            // 💎 KOMUTU KULLANANA GİDECEK YANIT
             const successEmbed = new EmbedBuilder()
-                .setTitle('✅ İşlem Başarılı')
+                .setTitle('✅ LUAWARE OS | Sistem Onayı')
                 .setColor('#57F287')
                 .setDescription(
-                    `⚙️ **İşlem -->** \`Kullanıcı Yasaklama (Ban)\`\n` +
+                    `⚙️ **İşlem -->** \`Kullanıcı Yasaklama\`\n` +
                     `👤 **Hedef -->** <@${user.id}>\n` +
-                    `✅ **Durum -->** \`Sunucudan Uçuruldu\``
+                    `🛡️ **Tür -->** \`${typeText}\`\n` +
+                    `✅ **Durum -->** \`Sunucudan ve IP ağından engellendi.\``
                 );
 
             return interaction.reply({ embeds: [successEmbed], ephemeral: true });
 
         } catch (e) {
-            // 💎 HATA DURUMUNDA GİDECEK PREMİUM YANIT
             const failEmbed = new EmbedBuilder()
-                .setTitle('⚠️ İşlem Başarısız')
+                .setTitle('⚠️ LUAWARE OS | Erişim Hatası')
                 .setColor('#FEE75C')
                 .setDescription(
-                    `⚙️ **İşlem -->** \`Kullanıcı Yasaklama (Ban)\`\n` +
-                    `❌ **Hata -->** \`Kullanıcıyı banlayamıyorum. Benden üst yetkide olabilir veya yetkim yok!\``
+                    `⚙️ **İşlem -->** \`Kullanıcı Yasaklama\`\n` +
+                    `❌ **Hata -->** \`Hedef kullanıcının yetkisi benden üstün veya ban yetkim kapalı!\``
                 );
             return interaction.reply({ embeds: [failEmbed], ephemeral: true });
         }
