@@ -14,7 +14,7 @@ module.exports = {
         const isEN = message.channel.id === EN_CHANNEL;
 
         if (isTR || isEN) {
-            // SADECE FOTOĞRAF KURALI
+            // 1. SADECE FOTOĞRAF KURALI
             if (message.attachments.size === 0) {
                 await message.delete().catch(() => {});
                 const warnMsg = isTR ? "⚠️ Sadece fotoğraf gönderilebilir!" : "⚠️ Only photos allowed!";
@@ -25,23 +25,30 @@ module.exports = {
             const attachment = message.attachments.first();
             if (!attachment.contentType?.startsWith('image/')) return;
 
-            // HIZLI BİLGİ MESAJI
+            // 2. HIZLI BİLGİ MESAJI
             const statusMsg = await message.channel.send(isTR ? "🔄 İnceleniyor..." : "🔄 Reviewing...");
 
             try {
-                // LOKAL OCR TARAMA (HIZLANDIRILMIŞ)
+                // 3. FOTOĞRAFI ZORLA İNDİR (TAKILMAYI ÖNLEYEN KISIM BURASI)
+                const response = await fetch(attachment.url);
+                if (!response.ok) throw new Error("Resim Discord'dan çekilemedi!");
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+
+                // 4. LOKAL OCR TARAMA (BUFFER İLE HIZLI VE KESİN TARAMA)
                 const { data: { text } } = await Tesseract.recognize(
-                    attachment.url,
+                    buffer, // URL yerine indirdiğimiz saf veriyi veriyoruz
                     'eng',
                     { logger: () => {} } 
                 );
 
-                const cleanedText = text.toLowerCase().replace(/\s+/g, '');
+                // 5. GELİŞMİŞ FİLTRELEME (Boşluk, sembol, her şeyi temizle sadece harf kalsın)
+                const cleanedText = text.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const target = "luawarescrpt"; 
 
                 const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
 
-                // SONUÇLARI KONTROL ET
+                // 6. SONUÇLARI KONTROL ET
                 if (cleanedText.includes(target)) {
                     // ✅ ONAY
                     const ROL_ABONE = '1500587633649127445';
@@ -53,10 +60,8 @@ module.exports = {
 
                     const ok = await message.channel.send(isTR ? `✅ <@${message.author.id}> Abone rolün verildi!` : `✅ <@${message.author.id}> Role granted!`);
                     
-                    // DM GÖNDER
                     await message.author.send(isTR ? "🎉 Onaylandınız, rolünüz verildi!" : "🎉 Approved, role granted!").catch(() => {});
 
-                    // LOG KANALINA AT (ASLA SİLİNMEZ)
                     if (logChannel) {
                         const embed = new EmbedBuilder()
                             .setTitle('✅ SİSTEM ONAYI')
@@ -67,10 +72,9 @@ module.exports = {
                             )
                             .setImage(attachment.url)
                             .setTimestamp();
-                        logChannel.send({ embeds: [embed] });
+                        logChannel.send({ embeds: [embed] }).catch(() => {});
                     }
 
-                    // KANALI TEMİZLE
                     setTimeout(async () => {
                         await message.delete().catch(() => {});
                         await statusMsg.delete().catch(() => {});
@@ -83,7 +87,6 @@ module.exports = {
                     
                     await message.author.send(isTR ? "❌ Gönderdiğiniz ekran görüntüsü kriterlere uymuyor." : "❌ Your screenshot does not meet the criteria.").catch(() => {});
 
-                    // LOG KANALINA AT (REDDEDİLENLER DE BURADA DURUR)
                     if (logChannel) {
                         const embed = new EmbedBuilder()
                             .setTitle('❌ SİSTEM REDDİ')
@@ -94,10 +97,9 @@ module.exports = {
                             )
                             .setImage(attachment.url)
                             .setTimestamp();
-                        logChannel.send({ embeds: [embed] });
+                        logChannel.send({ embeds: [embed] }).catch(() => {});
                     }
 
-                    // KANALI TEMİZLE
                     setTimeout(async () => {
                         await message.delete().catch(() => {});
                         await statusMsg.delete().catch(() => {});
@@ -107,8 +109,12 @@ module.exports = {
 
             } catch (err) {
                 console.error("Tarama Hatası:", err);
-                await message.delete().catch(() => {});
-                await statusMsg.delete().catch(() => {});
+                // EĞER SİSTEM YİNE DE ÇÖKERSE İNCELENİYOR MESAJI ASILI KALMASIN DİYE TEMİZLİK:
+                await statusMsg.edit(isTR ? "❌ Tarama sırasında bir hata oluştu, lütfen tekrar deneyin." : "❌ An error occurred during scanning, please try again.").catch(() => {});
+                setTimeout(async () => {
+                    await message.delete().catch(() => {});
+                    await statusMsg.delete().catch(() => {});
+                }, 4000);
             }
             return;
         }
