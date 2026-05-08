@@ -7,20 +7,19 @@ const dbPath = path.join(__dirname, '../spam-db.json');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('guard-panel')
-        .setDescription('🎛️ Ryphera Guard aktif koruma sistemlerini yönetin.')
+        .setDescription('🎛️ LUAWARE Guard aktif koruma sistemlerini yönetin.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction) {
         if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify([]));
         let protectedChannels = JSON.parse(fs.readFileSync(dbPath));
 
-        // 💎 HATA: EĞER KORUNAN KANAL YOKSA PREMİUM YANIT
         if (protectedChannels.length === 0) {
             const emptyEmbed = new EmbedBuilder()
-                .setTitle('🛡️ Ryphera OS | Guard Paneli')
+                .setTitle('🛡️ LUAWARE OS | Guard Paneli')
                 .setColor('#FEE75C')
                 .setDescription(
-                    `⚙️ **Sistem -->** \`Ryphera Anti-Spam Guard\`\n` +
+                    `⚙️ **Sistem -->** \`LUAWARE Anti-Spam Guard\`\n` +
                     `⚠️ **Durum -->** \`Aktif koruma altında olan hiçbir kanal bulunmuyor.\``
                 );
             return interaction.reply({ embeds: [emptyEmbed], ephemeral: true });
@@ -40,9 +39,8 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        // 💎 ANA KONTROL PANELİ PREMİUM FORMATI
         const embed = new EmbedBuilder()
-            .setTitle('🛡️ Ryphera OS | Guard Kontrol Paneli')
+            .setTitle('🛡️ LUAWARE OS | Guard Kontrol Paneli')
             .setColor('#2B2D31')
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
@@ -51,7 +49,7 @@ module.exports = {
                 `🛡️ **Koruma Altındaki Kanallar:**\n` +
                 protectedChannels.map(id => `> 🟢 <#${id}>`).join('\n')
             )
-            .setFooter({ text: 'Ryphera Security Systems' })
+            .setFooter({ text: 'LUAWARE Security Systems' })
             .setTimestamp();
 
         const response = await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
@@ -65,7 +63,6 @@ module.exports = {
                 protectedChannels = protectedChannels.filter(id => id !== channelIdToRemove);
                 fs.writeFileSync(dbPath, JSON.stringify(protectedChannels, null, 2));
 
-                // 💎 İŞLEM BAŞARILI PREMİUM RAPORU
                 const removedEmbed = new EmbedBuilder()
                     .setTitle('✅ Kalkan Devre Dışı Bırakıldı')
                     .setColor('#ED4245')
@@ -76,7 +73,7 @@ module.exports = {
                         `👮 **İşlemi Yapan -->** <@${i.user.id}>\n` +
                         `📅 **Zaman -->** <t:${Math.floor(Date.now() / 1000)}:f>`
                     )
-                    .setFooter({ text: 'Ryphera OS Guard' });
+                    .setFooter({ text: 'LUAWARE OS Guard' });
 
                 await i.update({ embeds: [removedEmbed], components: [] });
             }

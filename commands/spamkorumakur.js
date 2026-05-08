@@ -7,7 +7,7 @@ const dbPath = path.join(__dirname, '../spam-db.json');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('guard-spam')
-        .setDescription('🛡️ Bulunulan kanala Ryphera Anti-Spam & Flood kalkanı kurar.')
+        .setDescription('🛡️ Bulunulan kanala LUAWARE Anti-Spam & Flood kalkanı kurar.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction) {
@@ -16,14 +16,14 @@ module.exports = {
 
         const channelId = interaction.channel.id;
 
-        // 💎 HATA: KANAL ZATEN KORUNUYORSA PREMİUM YANIT
+        // 💎 HATA: KANAL ZATEN KORUNUYORSA
         if (protectedChannels.includes(channelId)) {
             const errorEmbed = new EmbedBuilder()
                 .setTitle('⚠️ İşlem Başarısız')
                 .setColor('#FEE75C')
                 .setDescription(
                     `⚙️ **İşlem -->** \`Anti-Spam Kalkanı Kurulumu\`\n` +
-                    `❌ **Hata -->** \`Bu kanal zaten Ryphera Guard koruması altında!\``
+                    `❌ **Hata -->** \`Bu kanal zaten LUAWARE Guard koruması altında!\``
                 );
             return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
@@ -31,9 +31,9 @@ module.exports = {
         protectedChannels.push(channelId);
         fs.writeFileSync(dbPath, JSON.stringify(protectedChannels, null, 2));
 
-        // 💎 BAŞARILI KURULUM PREMİUM RAPORU
+        // 💎 BAŞARILI KURULUM
         const successEmbed = new EmbedBuilder()
-            .setTitle('🛡️ Ryphera OS | Kalkan Aktif Edildi')
+            .setTitle('🛡️ LUAWARE OS | Kalkan Aktif Edildi')
             .setColor('#57F287')
             .setDescription(
                 `⚙️ **İşlem -->** \`Anti-Spam Kalkanı Kurulumu\`\n` +
@@ -41,9 +41,9 @@ module.exports = {
                 `📍 **Korunan Kanal -->** <#${channelId}>\n` +
                 `👮 **Kurulumu Yapan -->** <@${interaction.user.id}>\n` +
                 `📅 **İşlem Zamanı -->** <t:${Math.floor(Date.now() / 1000)}:f>\n\n` +
-                `⚠️ **Kural Tablosu -->** \`5 Saniyede 5 Mesaj atan otomatik olarak 2 dakika susturulur.\``
+                `⚠️ **Kural Tablosu -->** \`5 Saniyede 5 Mesaj atan veya @everyone/@here atan otomatik 5 dakika susturulur.\``
             )
-            .setFooter({ text: 'Ryphera Security Systems', iconURL: interaction.client.user.displayAvatarURL() });
+            .setFooter({ text: 'LUAWARE Security Systems', iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.reply({ embeds: [successEmbed] });
     },

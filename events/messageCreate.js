@@ -1,10 +1,56 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const Tesseract = require('tesseract.js');
+const fs = require('fs');
+const path = require('path');
+
+// Veritabanı ve Spam Hafızası Ayarları
+const dbPath = path.join(__dirname, '../spam-db.json');
+const spamMap = new Map();
 
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
         if (message.author.bot || !message.guild) return;
+
+        // --- BÖLÜM 1: LUAWARE GUARD SİSTEMİ (ANTİ-SPAM & EVERYONE) ---
+        
+        // Adminleri koruma dışı bırak (Kendi kendini banlamasın)
+        if (!message.member.permissions.has('Administrator')) {
+            if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify([]));
+            const protectedChannels = JSON.parse(fs.readFileSync(dbPath));
+
+            // Eğer bulunulan kanal koruma altındaysa
+            if (protectedChannels.includes(message.channel.id)) {
+                const timeoutDuration = 5 * 60 * 1000; // 5 Dakika
+                const now = Date.now();
+
+                // 🛑 KURAL A: @everyone veya @here atanı paketle
+                if (message.mentions.everyone) {
+                    await message.delete().catch(() => {});
+                    await message.member.timeout(timeoutDuration, 'LUAWARE Guard: İzinsiz everyone/here kullanımı.').catch(() => {});
+                    const m = await message.channel.send(`🛡️ <@${message.author.id}>, LUAWARE Guard kalkanına çarptın! \`@everyone\` yasak olduğu için **5 dakika** susturuldun.`);
+                    return setTimeout(() => m.delete().catch(() => {}), 5000);
+                }
+
+                // 🛑 KURAL B: 5 Saniyede 5 Mesaj (Spam) yapanı paketle
+                if (!spamMap.has(message.author.id)) spamMap.set(message.author.id, []);
+                const userMessages = spamMap.get(message.author.id);
+                userMessages.push(now);
+
+                const recentMessages = userMessages.filter(time => now - time < 5000);
+                spamMap.set(message.author.id, recentMessages);
+
+                if (recentMessages.length >= 5) {
+                    await message.delete().catch(() => {});
+                    await message.member.timeout(timeoutDuration, 'LUAWARE Guard: Spam/Flood yapıldı.').catch(() => {});
+                    spamMap.delete(message.author.id);
+                    const m = await message.channel.send(`🛡️ <@${message.author.id}>, LUAWARE Guard kalkanına çarptın! \`Spam\` yaptığın için **5 dakika** susturuldun.`);
+                    return setTimeout(() => m.delete().catch(() => {}), 5000);
+                }
+            }
+        }
+
+        // --- BÖLÜM 2: ABONE / OCR SİSTEMİ ---
 
         const TR_CHANNEL = '1500594950839075088';
         const EN_CHANNEL = '1500588822994358282';
@@ -14,7 +60,7 @@ module.exports = {
         const isEN = message.channel.id === EN_CHANNEL;
 
         if (isTR || isEN) {
-            // 1. SADECE FOTOĞRAF KURALI
+            // SADECE FOTOĞRAF KURALI
             if (message.attachments.size === 0) {
                 await message.delete().catch(() => {});
                 const warnMsg = isTR ? "⚠️ Sadece fotoğraf gönderilebilir!" : "⚠️ Only photos allowed!";
@@ -25,32 +71,25 @@ module.exports = {
             const attachment = message.attachments.first();
             if (!attachment.contentType?.startsWith('image/')) return;
 
-            // 2. HIZLI BİLGİ MESAJI
             const statusMsg = await message.channel.send(isTR ? "🔄 İnceleniyor..." : "🔄 Reviewing...");
 
             try {
-                // 3. FOTOĞRAFI ZORLA İNDİR (TAKILMAYI ÖNLEYEN KISIM BURASI)
+                // FOTOĞRAFI ZORLA İNDİR
                 const response = await fetch(attachment.url);
                 if (!response.ok) throw new Error("Resim Discord'dan çekilemedi!");
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
 
-                // 4. LOKAL OCR TARAMA (BUFFER İLE HIZLI VE KESİN TARAMA)
-                const { data: { text } } = await Tesseract.recognize(
-                    buffer, // URL yerine indirdiğimiz saf veriyi veriyoruz
-                    'eng',
-                    { logger: () => {} } 
-                );
+                // LOKAL OCR TARAMA
+                const { data: { text } } = await Tesseract.recognize(buffer, 'eng', { logger: () => {} });
 
-                // 5. GELİŞMİŞ FİLTRELEME (Boşluk, sembol, her şeyi temizle sadece harf kalsın)
                 const cleanedText = text.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const target = "luawarescrpt"; 
 
                 const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
 
-                // 6. SONUÇLARI KONTROL ET
                 if (cleanedText.includes(target)) {
-                    // ✅ ONAY
+                    // ✅ ONAY SÜRECİ
                     const ROL_ABONE = '1500587633649127445';
                     const ROL_UNVERIFIED = '1500249403443908711';
 
@@ -59,12 +98,11 @@ module.exports = {
                     await member.roles.remove(ROL_UNVERIFIED).catch(() => {});
 
                     const ok = await message.channel.send(isTR ? `✅ <@${message.author.id}> Abone rolün verildi!` : `✅ <@${message.author.id}> Role granted!`);
-                    
                     await message.author.send(isTR ? "🎉 Onaylandınız, rolünüz verildi!" : "🎉 Approved, role granted!").catch(() => {});
 
                     if (logChannel) {
                         const embed = new EmbedBuilder()
-                            .setTitle('✅ SİSTEM ONAYI')
+                            .setTitle('✅ LUAWARE SİSTEM ONAYI')
                             .setColor('#00FF00')
                             .addFields(
                                 { name: 'Kullanıcı', value: `${message.author.tag}`, inline: true },
@@ -82,14 +120,13 @@ module.exports = {
                     }, 2000);
 
                 } else {
-                    // ❌ RED
+                    // ❌ RED SÜRECİ
                     const no = await message.channel.send(isTR ? `❌ <@${message.author.id}> Geçersiz ekran görüntüsü!` : `❌ <@${message.author.id}> Invalid screenshot!`);
-                    
                     await message.author.send(isTR ? "❌ Gönderdiğiniz ekran görüntüsü kriterlere uymuyor." : "❌ Your screenshot does not meet the criteria.").catch(() => {});
 
                     if (logChannel) {
                         const embed = new EmbedBuilder()
-                            .setTitle('❌ SİSTEM REDDİ')
+                            .setTitle('❌ LUAWARE SİSTEM REDDİ')
                             .setColor('#FF0000')
                             .addFields(
                                 { name: 'Kullanıcı', value: `${message.author.tag}`, inline: true },
@@ -109,8 +146,7 @@ module.exports = {
 
             } catch (err) {
                 console.error("Tarama Hatası:", err);
-                // EĞER SİSTEM YİNE DE ÇÖKERSE İNCELENİYOR MESAJI ASILI KALMASIN DİYE TEMİZLİK:
-                await statusMsg.edit(isTR ? "❌ Tarama sırasında bir hata oluştu, lütfen tekrar deneyin." : "❌ An error occurred during scanning, please try again.").catch(() => {});
+                await statusMsg.edit(isTR ? "❌ Tarama sırasında hata oluştu!" : "❌ Error during scanning!").catch(() => {});
                 setTimeout(async () => {
                     await message.delete().catch(() => {});
                     await statusMsg.delete().catch(() => {});
@@ -119,7 +155,7 @@ module.exports = {
             return;
         }
 
-        // DİĞER KOMUTLAR
+        // --- BÖLÜM 3: PREFIX KOMUTLARI ---
         const prefix = '!';
         if (!message.content.startsWith(prefix)) return;
         const args = message.content.slice(prefix.length).trim().split(/ +/);
