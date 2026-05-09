@@ -9,7 +9,7 @@ const {
     TextInputBuilder, 
     TextInputStyle, 
     Events,
-    StringSelectMenuBuilder // YENİ: Feedback menüsü için eklendi
+    StringSelectMenuBuilder
 } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
 const KeyModel = require('../models/key');
@@ -29,7 +29,7 @@ module.exports = {
         const VERIFY_LOG_ID = '1500269916304052364';
         const ABONE_LOG_ID = '1500587963338326228'; 
         const TICKET_LOG_CHANNEL = '1501639133628469268'; 
-        const FEEDBACK_LOG = '1502613775499399300'; // YENİ: Feedback Log
+        const FEEDBACK_LOG = '1502613775499399300'; 
 
         // --- LUAWARE ROL VE KANAL AYARLARI ---
         const TR_ROLE = '1500268780037607544';
@@ -62,6 +62,68 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
+            // --- 🚨 YENİ: TICKET FORMU GÖNDERİLDİĞİNDE ---
+            if (interaction.customId.startsWith('modal_ticket_')) {
+                const originalCid = interaction.customId.replace('modal_', ''); 
+                const isEn = originalCid.startsWith('ticket_en_');
+                const category = originalCid.split('_')[2].toUpperCase();
+                const reason = interaction.fields.getTextInputValue('ticket_reason');
+
+                await interaction.deferReply({ ephemeral: true });
+                
+                let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
+                const channel = await interaction.guild.channels.create({
+                    name: `🎫-${interaction.user.username}-${counter.seq}`,
+                    type: ChannelType.GuildText,
+                    topic: interaction.user.id, 
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                        { id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                        { id: STAFF_ROLE, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+                    ]
+                });
+
+                const tEmbed = new EmbedBuilder()
+                    .setTitle(isEn ? '💬 LUAWARE | Support Ticket' : '💬 LUAWARE | Destek Bileti')
+                    .setColor('#00D4FF')
+                    .setDescription(
+                        isEn ? 
+                        `👋 **Welcome** <@${interaction.user.id}>,\n\n` +
+                        `📝 **Topic -->** \`${category}\`\n` +
+                        `🔒 **Status -->** \`Waiting for staff...\`\n\n` +
+                        `Our support team has been notified and will assist you as soon as possible.`
+                        :
+                        `👋 **Merhaba** <@${interaction.user.id}>,\n\n` +
+                        `📝 **Konu -->** \`${category}\`\n` +
+                        `🔒 **Durum -->** \`Yetkililer bekleniyor...\`\n\n` +
+                        `Destek ekibimize bildirim gönderildi, en kısa sürede sizinle ilgileneceklerdir.`
+                    )
+                    .addFields({ 
+                        name: isEn ? '🚨 User Issue / Reason:' : '🚨 Kullanıcının Sorunu:', 
+                        value: `\`\`\`\n${reason}\n\`\`\`` 
+                    });
+
+                const tRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('close_ticket').setLabel(isEn ? 'Close' : 'Kapat').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+                    new ButtonBuilder().setCustomId('claim_ticket').setLabel(isEn ? 'Claim' : 'Sahiplen').setStyle(ButtonStyle.Success).setEmoji('✋')
+                );
+
+                await channel.send({ content: `<@${interaction.user.id}> <@&${STAFF_ROLE}>`, embeds: [tEmbed], components: [tRow] });
+                
+                const ownerUser = await client.users.fetch(OWNER_ID).catch(() => null);
+                if (ownerUser) {
+                    const adminDmEmbed = new EmbedBuilder()
+                        .setTitle('🚨 Yeni Ticket Açıldı! / New Ticket!')
+                        .setColor('#FEE75C')
+                        .setDescription(`👤 **Kullanıcı:** <@${interaction.user.id}>\n🎫 **Kanal:** <#${channel.id}>\n📌 **Konu:** \`${category}\`\n💬 **Sorun:** \`${reason}\``)
+                        .setTimestamp();
+                    await ownerUser.send({ embeds: [adminDmEmbed] }).catch(() => {});
+                }
+
+                return interaction.editReply({ content: isEn ? `✅ Ticket created: <#${channel.id}>` : `✅ Bilet oluşturuldu: <#${channel.id}>` });
+            }
+
             // --- 🚨 YENİ: FEEDBACK (GERİ BİLDİRİM) FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId.startsWith('feedback_modal_')) {
                 const stars = interaction.customId.split('_')[2];
@@ -181,7 +243,6 @@ module.exports = {
                 modal.addComponents(textInput);
                 await interaction.showModal(modal);
                 
-                // Seçim yapıldıktan sonra yıldız menüsünü ekrandan temizle
                 return interaction.deleteReply().catch(() => {});
             }
         }
@@ -191,6 +252,37 @@ module.exports = {
         // ==========================================
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
+
+        // 🚨 YENİ: TICKET BUTONUNA BASILINCA (MODAL AÇILIR) 🚨
+        const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
+        if (tIds.includes(cid)) {
+            const isEn = cid.startsWith('ticket_en_');
+
+            const existingTicket = interaction.guild.channels.cache.find(c => c.name.startsWith('🎫-') && c.topic === interaction.user.id);
+            if (existingTicket) {
+                return interaction.reply({ 
+                    content: isEn ? `❌ **You already have an open ticket:** <#${existingTicket.id}>` : `❌ **Zaten açık bir biletiniz var:** <#${existingTicket.id}>`, 
+                    ephemeral: true 
+                });
+            }
+
+            const modal = new ModalBuilder()
+                .setCustomId(`modal_${cid}`)
+                .setTitle(isEn ? 'Ticket Details' : 'Bilet Detayları');
+
+            const reasonInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('ticket_reason')
+                    .setLabel(isEn ? 'Describe your issue in detail:' : 'Lütfen sorununuzu detaylıca anlatın:')
+                    .setPlaceholder(isEn ? 'I need help with...' : 'Şu konuda yardıma ihtiyacım var...')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true)
+                    .setMinLength(10)
+            );
+
+            modal.addComponents(reasonInput);
+            return await interaction.showModal(modal);
+        }
 
         // --- 🚨 YENİ: FEEDBACK BUTONUNA BASILINCA (YILDIZ SEÇİMİ) ---
         if (cid === 'feedback_start') {
@@ -455,70 +547,6 @@ module.exports = {
             });
         }
 
-        // 🚨 TICKET AÇMA 🚨
-        const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
-        if (tIds.includes(cid)) {
-            const isEn = cid.startsWith('ticket_en_');
-
-            const existingTicket = interaction.guild.channels.cache.find(c => c.name.startsWith('🎫-') && c.topic === interaction.user.id);
-            if (existingTicket) {
-                return interaction.reply({ 
-                    content: isEn ? `❌ **You already have an open ticket:** <#${existingTicket.id}>` : `❌ **Zaten açık bir biletiniz var:** <#${existingTicket.id}>`, 
-                    ephemeral: true 
-                });
-            }
-
-            await interaction.deferReply({ ephemeral: true });
-            
-            let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
-            const channel = await interaction.guild.channels.create({
-                name: `🎫-${interaction.user.username}-${counter.seq}`,
-                type: ChannelType.GuildText,
-                topic: interaction.user.id, 
-                permissionOverwrites: [
-                    { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                    { id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                    { id: STAFF_ROLE, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
-                ]
-            });
-
-            const tEmbed = new EmbedBuilder()
-                .setTitle(isEn ? '💬 LUAWARE | Support' : '💬 LUAWARE | Destek')
-                .setColor('#00D4FF')
-                .setDescription(
-                    isEn ? 
-                    `👋 **Welcome** <@${interaction.user.id}>,\n\n` +
-                    `📝 **Topic -->** \`${cid.split('_')[2].toUpperCase()}\`\n` +
-                    `🔒 **Status -->** \`Waiting for staff...\`\n\n` +
-                    `**Please describe your issue in detail.**\nOur support team has been notified and will assist you as soon as possible.`
-                    :
-                    `👋 **Merhaba** <@${interaction.user.id}>,\n\n` +
-                    `📝 **Konu -->** \`${cid.split('_')[2].toUpperCase()}\`\n` +
-                    `🔒 **Durum -->** \`Yetkililer bekleniyor...\`\n\n` +
-                    `**Lütfen sorununuzu detaylı bir şekilde açıklayınız.**\nDestek ekibimize bildirim gönderildi, en kısa sürede sizinle ilgileneceklerdir.`
-                );
-
-            const tRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('close_ticket').setLabel(isEn ? 'Close' : 'Kapat').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-                new ButtonBuilder().setCustomId('claim_ticket').setLabel(isEn ? 'Claim' : 'Sahiplen').setStyle(ButtonStyle.Success).setEmoji('✋')
-            );
-
-            await channel.send({ content: `<@${interaction.user.id}>`, embeds: [tEmbed], components: [tRow] });
-            
-            const ownerUser = await client.users.fetch(OWNER_ID).catch(() => null);
-            if (ownerUser) {
-                const adminDmEmbed = new EmbedBuilder()
-                    .setTitle('🚨 Yeni Ticket Açıldı! / New Ticket!')
-                    .setColor('#FEE75C')
-                    .setDescription(`👤 **Kullanıcı / User:** <@${interaction.user.id}>\n🎫 **Kanal / Channel:** <#${channel.id}>\n📌 **Konu / Topic:** \`${cid.split('_')[2].toUpperCase()}\``)
-                    .setTimestamp();
-                await ownerUser.send({ embeds: [adminDmEmbed] }).catch(() => {});
-            }
-
-            return interaction.editReply({ content: isEn ? `✅ Ticket created: <#${channel.id}>` : `✅ Bilet oluşturuldu: <#${channel.id}>` });
-        }
-
         // 🚨 TICKET KAPATMA VE HTML LOG SİSTEMİ 🚨
         if (cid === 'close_ticket') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID && !interaction.member.roles.cache.has(STAFF_ROLE)) {
@@ -567,7 +595,7 @@ module.exports = {
             await interaction.message.edit({ components: [disabledRow] });
         }
 
-        // --- YEDEK MANUEL (BUTONLU) SS ONAY/RED SİSTEMİ ---
+        // --- YEDEK MANUEL (BUTONLU) SS ONAY/RED SİSTEMİ (GERİ GETİRİLDİ) ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
@@ -635,7 +663,7 @@ module.exports = {
             }
         }
 
-        // --- VERİTABANI YÖNETİMİ (WIPE & LIST) ---
+        // --- VERİTABANI YÖNETİMİ (WIPE & LIST) (GERİ GETİRİLDİ) ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             
