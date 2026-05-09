@@ -8,12 +8,13 @@ const {
     ModalBuilder, 
     TextInputBuilder, 
     TextInputStyle, 
-    Events 
+    Events,
+    StringSelectMenuBuilder // YENİ: Feedback menüsü için eklendi
 } = require('discord.js');
-const discordTranscripts = require('discord-html-transcripts'); // TICKET LOG MODÜLÜ
+const discordTranscripts = require('discord-html-transcripts');
 const KeyModel = require('../models/key');
 const Counter = require('../models/counter'); 
-const StaffStat = require('../models/staffStat'); // YETKİLİ İSTATİSTİK MODÜLÜ
+const StaffStat = require('../models/staffStat');
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -27,19 +28,18 @@ module.exports = {
         const SUGGEST_LOG_EN = '1501263655180828792'; 
         const VERIFY_LOG_ID = '1500269916304052364';
         const ABONE_LOG_ID = '1500587963338326228'; 
-        const TICKET_LOG_CHANNEL = '1501639133628469268'; // TICKET LOG KANALI
+        const TICKET_LOG_CHANNEL = '1501639133628469268'; 
+        const FEEDBACK_LOG = '1502613775499399300'; // YENİ: Feedback Log
 
         // --- LUAWARE ROL VE KANAL AYARLARI ---
         const TR_ROLE = '1500268780037607544';
         const EN_ROLE = '1500268646545756392';
-        const STAFF_ROLE = '1501638556026802287'; // YETKİLİ ROLÜ
+        const STAFF_ROLE = '1501638556026802287'; 
         const VERIFY_CHANNEL_ID = '1500266130495897722';
         
-        // --- TR VE EN KEY KANALLARI ---
         const TR_KEY_CHANNEL_ID = '1500249077000966404';
         const EN_KEY_CHANNEL_ID = '1500249098219946155';
 
-        // --- ÖNERİ KANALLARI (GİZLENECEK OLANLAR) ---
         const TR_SUGGEST_CHANNEL = '1501262738800902334'; 
         const EN_SUGGEST_CHANNEL = '1501266602891415835'; 
 
@@ -50,7 +50,7 @@ module.exports = {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
             try { 
-                await command.execute(interaction); 
+                await command.execute(interaction, client); 
             } catch (e) { 
                 console.error(e); 
             }
@@ -62,6 +62,34 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
+            // --- 🚨 YENİ: FEEDBACK (GERİ BİLDİRİM) FORMU GÖNDERİLDİĞİNDE ---
+            if (interaction.customId.startsWith('feedback_modal_')) {
+                const stars = interaction.customId.split('_')[2];
+                const text = interaction.fields.getTextInputValue('feedback_text');
+                const logChannel = client.channels.cache.get(FEEDBACK_LOG);
+                
+                const starEmoji = '⭐'.repeat(parseInt(stars));
+                let embedColor = '#ED4245'; 
+                if (stars === '5') embedColor = '#57F287'; 
+                if (stars === '3' || stars === '4') embedColor = '#FEE75C'; 
+                
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('📬 Yeni LUAWARE Geri Bildirimi Geldi!')
+                    .setColor(embedColor)
+                    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+                    .addFields(
+                        { name: '👤 Kullanıcı / User', value: `<@${interaction.user.id}> (\`${interaction.user.tag}\`)`, inline: true },
+                        { name: '🌟 Puan / Rating', value: `${starEmoji} (${stars}/5)`, inline: true },
+                        { name: '💬 Mesaj / Feedback', value: `\`\`\`${text}\`\`\`` }
+                    )
+                    .setFooter({ text: 'LUAWARE Customer Satisfaction' })
+                    .setTimestamp();
+                    
+                if (logChannel) await logChannel.send({ embeds: [logEmbed] });
+                
+                return interaction.reply({ content: '✅ 🇹🇷 Geri bildiriminiz başarıyla iletildi, teşekkür ederiz!\n✅ 🇬🇧 Your feedback has been successfully submitted, thank you!', ephemeral: true });
+            }
+
             // --- YETKİLİ BAŞVURUSU FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
                 const isEn = interaction.customId === 'modal_en';
@@ -128,10 +156,58 @@ module.exports = {
         }
 
         // ==========================================
-        // 3. BUTON ETKİLEŞİMLERİ
+        // 3. SEÇİM MENÜSÜ (STRING SELECT MENU) 
+        // ==========================================
+        if (interaction.isStringSelectMenu()) {
+            // --- 🚨 YENİ: FEEDBACK YILDIZI SEÇİLDİĞİNDE ---
+            if (interaction.customId === 'feedback_stars') {
+                const stars = interaction.values[0];
+                
+                const modal = new ModalBuilder()
+                    .setCustomId(`feedback_modal_${stars}`)
+                    .setTitle('📝 Geri Bildirim / Feedback');
+                    
+                const textInput = new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('feedback_text')
+                        .setLabel('Mesajınız / Your Message')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setPlaceholder('Görüşlerinizi buraya yazın... / Write your thoughts here...')
+                        .setRequired(true)
+                        .setMinLength(5)
+                        .setMaxLength(1000)
+                );
+                    
+                modal.addComponents(textInput);
+                await interaction.showModal(modal);
+                
+                // Seçim yapıldıktan sonra yıldız menüsünü ekrandan temizle
+                return interaction.deleteReply().catch(() => {});
+            }
+        }
+
+        // ==========================================
+        // 4. BUTON ETKİLEŞİMLERİ
         // ==========================================
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
+
+        // --- 🚨 YENİ: FEEDBACK BUTONUNA BASILINCA (YILDIZ SEÇİMİ) ---
+        if (cid === 'feedback_start') {
+            const row = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('feedback_stars')
+                    .setPlaceholder('⭐ Puanınızı Seçin / Select your rating')
+                    .addOptions([
+                        { label: '5 Yıldız / 5 Stars (Mükemmel / Excellent)', value: '5', emoji: '🌟' },
+                        { label: '4 Yıldız / 4 Stars (İyi / Good)', value: '4', emoji: '⭐' },
+                        { label: '3 Yıldız / 3 Stars (Orta / Average)', value: '3', emoji: '🆗' },
+                        { label: '2 Yıldız / 2 Stars (Kötü / Bad)', value: '2', emoji: '⚠️' },
+                        { label: '1 Yıldız / 1 Star (Berbat / Terrible)', value: '1', emoji: '❌' }
+                    ])
+            );
+            return interaction.reply({ content: '🇹🇷 Önce hizmetimize puan verin.\n🇬🇧 First, rate our service.', components: [row], ephemeral: true });
+        }
 
         // --- SCRIPT ÖNERİ MODAL'INI AÇMA ---
         if (cid === 'btn_suggest_tr' || cid === 'btn_suggest_en') {
@@ -275,7 +351,7 @@ module.exports = {
                         ? "Rollerin verildi! Ancak hileyi kullanabilmek için bir **Key** alman gerekiyor.\n\n" +
                           "🔑 **ADIM ADIM KEY NASIL ALINIR?**\n" +
                           "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
-                          "**2.** İçinde `@Luawarescrpt` yazısı olan Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
+                          "**2.** İçinde `@Luawarescrpt` yazısı olan Abone kanıtı ekran görüntünü <#1500594950839075088> kanalına gönder.\n" +
                           "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın veya kesmeyin! Sayfanın **tamamını** SS alıp gönderin, aksi takdirde Yapay Zeka okuyamaz ve reddeder.)*\n" +
                           "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
                           "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
@@ -379,7 +455,7 @@ module.exports = {
             });
         }
 
-        // 🚨 TICKET AÇMA (YETKİLİ ROLÜNÜN GÖREBİLMESİ İÇİN GÜNCELLENDİ) 🚨
+        // 🚨 TICKET AÇMA 🚨
         const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
         if (tIds.includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
@@ -403,7 +479,7 @@ module.exports = {
                     { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
                     { id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                    { id: STAFF_ROLE, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } // YETKİLİ ROLÜ EKLENDİ
+                    { id: STAFF_ROLE, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
                 ]
             });
 
