@@ -1,4 +1,4 @@
--const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const PartnerModel = require('../models/Partner'); // Şemanın yolunu kendine göre ayarla
 
 module.exports = {
