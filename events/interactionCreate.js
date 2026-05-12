@@ -482,16 +482,74 @@ if (interaction.isChatInputCommand()) {
 
         // --- TAM UYUMLU KEY OLUŞTURMA SİSTEMİ ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
+           // --- TAM DETAYLI LUA-USER KEY SİSTEMİ ---
+        if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             const ABONE_ROLU = '1500587633649127445';
 
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ 
-                    content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', 
+                    content: isTR ? '❌ **Key üretebilmek için Abone rolüne sahip olmalısın!**' : '❌ **You must have the Subscriber role!**', 
                     ephemeral: true 
                 });
             }
 
+            await interaction.deferReply({ ephemeral: true }); 
+
+            try {
+                let userKey = await KeyModel.findOne({ owner: interaction.user.id });
+                if (userKey) {
+                    return interaction.editReply({ 
+                        embeds: [new EmbedBuilder().setColor('#ED4245').setDescription(isTR ? `❌ **Zaten bir anahtarın var!**\n🔑 **Anahtarın:** \`${userKey.key}\`` : `❌ **You already have a key!**\n🔑 **Key:** \`${userKey.key}\``)]
+                    });
+                }
+
+                // İstediğin LUA- formatında 4'lü bloklar
+                const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                const newKeyString = `LUA-USER-${part1}-${part2}`;
+                const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
+
+                await new KeyModel({ 
+                    key: newKeyString, 
+                    expiry: 'Sınırsız', 
+                    owner: interaction.user.id, 
+                    licenseId: licenseId 
+                }).save();
+
+                // Detaylı Embed (Zengin Görünüm)
+                const premiumEmbed = new EmbedBuilder()
+                    .setTitle('💎 LUAWARE | License Generated')
+                    .setColor('#00D4FF')
+                    .setDescription(
+                        `🔑 **Key -->** \`${newKeyString}\`\n` +
+                        `🆔 **ID -->** \`#${licenseId}\`\n` +
+                        `👤 **Owner -->** <@${interaction.user.id}>\n` +
+                        `⏳ **Expiry -->** \`Lifetime\`\n` +
+                        `📅 **Date -->** <t:${Math.floor(Date.now() / 1000)}:f>\n\n` +
+                        `⚠️ **Note!! DO NOT SHARE THIS KEY WITH ANYONE**`
+                    )
+                    .setFooter({ text: 'LUAWARE Security' })
+                    .setTimestamp();
+
+                // DM Gönderimi
+                await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
+                // Mobiller için sadece key (Kolay kopyalama)
+                await interaction.user.send({ content: `${newKeyString}` }).catch(() => {}); 
+
+                // Log Kanalı (VERIFY_LOG_ID tanımlı olmalı)
+                const logChan = client.channels.cache.get(VERIFY_LOG_ID);
+                if (logChan) logChan.send({ embeds: [premiumEmbed] });
+
+                return interaction.editReply({ 
+                    content: isTR ? '✅ **Keyin oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key created and sent to your DM!**' 
+                });
+
+            } catch (err) {
+                console.error("HATA:", err);
+                return interaction.editReply({ content: '❌ **Sistem hatası: Veritabanına ulaşılamadı!**' });
+            }
+        }
             await interaction.deferReply({ ephemeral: true }); 
 
             try {
