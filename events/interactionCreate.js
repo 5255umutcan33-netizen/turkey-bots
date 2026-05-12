@@ -46,16 +46,26 @@ module.exports = {
         // ==========================================
         // 1. SLASH KOMUTLARI MOTORU
         // ==========================================
-        if (interaction.isChatInputCommand()) {
-            const command = client.commands.get(interaction.commandName);
-            if (!command) return;
-            try { 
-                await command.execute(interaction, client); 
-            } catch (e) { 
-                console.error(e); 
-            }
-            return;
+        // ==========================================
+// 1. SLASH KOMUTLARI MOTORU
+// ==========================================
+if (interaction.isChatInputCommand()) {
+    const command = client.commands.get(interaction.commandName);
+    if (!command) return;
+    try { 
+        await command.execute(interaction, client); 
+    } catch (e) { 
+        console.error(e); 
+        // Hata durumunda kullanıcıyı bilgilendir ki "düşünüyor"da kalmasın
+        const errorMsg = { content: '❌ Komut çalıştırılırken bir hata oluştu!', ephemeral: true };
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(errorMsg).catch(() => {});
+        } else {
+            await interaction.reply(errorMsg).catch(() => {});
         }
+    }
+    return;
+}
 
         // ==========================================
         // 2. FORM GÖNDERME (MODAL SUBMIT)
@@ -469,54 +479,52 @@ module.exports = {
             }
         }
 
-        // --- KEY OLUŞTURMA SİSTEMİ ---
+        // --- YENİLENMİŞ KEY OLUŞTURMA SİSTEMİ ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             const ABONE_ROLU = '1500587633649127445';
+
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ 
-                    content: isTR 
-                        ? '❌ **Key üretebilmek için Abone rolüne sahip olmalısın! Lütfen Abone SS kanalına kanıt gönder.**' 
-                        : '❌ **You must have the Subscriber role to generate a key! Please submit your sub proof.**', 
+                    content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', 
                     ephemeral: true 
                 });
             }
 
             await interaction.deferReply({ ephemeral: true }); 
-            let userKey = await KeyModel.findOne({ owner: interaction.user.id });
-            if (userKey) {
-                return interaction.editReply({ 
-                    embeds: [new EmbedBuilder().setColor('#ED4245').setDescription(isTR ? `❌ **Zaten bir anahtarın var!**\n🔑 **Anahtarın:** \`${userKey.key}\`` : `❌ **You already have a key!**\n🔑 **Key:** \`${userKey.key}\``)]
-                });
+
+            try {
+                let userKey = await KeyModel.findOne({ owner: interaction.user.id });
+                if (userKey) {
+                    return interaction.editReply({ 
+                        embeds: [new EmbedBuilder().setColor('#ED4245').setDescription(isTR ? `❌ **Zaten anahtarın var:** \`${userKey.key}\`` : `❌ **You already have a key:** \`${userKey.key}\``)]
+                    });
+                }
+
+                const newKeyString = `LUA-USER-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+                const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
+
+                await new KeyModel({ key: newKeyString, expiry: 'Sınırsız', owner: interaction.user.id, licenseId }).save();
+
+                const premiumEmbed = new EmbedBuilder()
+                    .setTitle('💎 LUAWARE | License Generated')
+                    .setColor('#00D4FF')
+                    .setDescription(`🔑 **Key:** \`${newKeyString}\`\n🆔 **ID:** \`#${licenseId}\`\n👤 **Sahibi:** <@${interaction.user.id}>`)
+                    .setTimestamp();
+
+                await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
+                
+                const logChan = client.channels.cache.get(VERIFY_LOG_ID);
+                if (logChan) logChan.send({ embeds: [premiumEmbed] });
+
+                return interaction.editReply({ content: isTR ? '✅ **Keyin gönderildi!**' : '✅ **Key sent!**' });
+
+            } catch (err) {
+                console.error("HATA:", err);
+                return interaction.editReply({ content: '❌ **Veritabanı veya sistem hatası oluştu!**' });
             }
-
-            const newKeyString = `LUA-USER-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-            const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
-
-            await new KeyModel({ key: newKeyString, expiry: 'Sınırsız', hwid: null, owner: interaction.user.id, licenseId: licenseId }).save();
-
-            const premiumEmbed = new EmbedBuilder()
-                .setTitle('💎 LUAWARE | License Generated')
-                .setColor('#00D4FF')
-                .setDescription(
-                    `🔑 **Key -->** \`${newKeyString}\`\n` +
-                    `🆔 **ID -->** \`#${licenseId}\`\n` +
-                    `👤 **Owner -->** <@${interaction.user.id}>\n` +
-                    `⏳ **Expiry -->** \`Lifetime\`\n` +
-                    `📅 **Date -->** <t:${Math.floor(Date.now() / 1000)}:f>\n\n` +
-                    `⚠️ **Note!! DO NOT SHARE THIS KEY WITH ANYONE**`
-                )
-                .setFooter({ text: 'LUAWARE Security' })
-                .setTimestamp();
-
-            await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
-            await interaction.user.send({ content: `${newKeyString}` }).catch(() => {}); 
-
-            const logChan = client.channels.cache.get(VERIFY_LOG_ID);
-            if (logChan) logChan.send({ embeds: [premiumEmbed] });
-
-            return interaction.editReply({ content: isTR ? '✅ **Keyin oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key created and sent to your DM!**' });
         }
+        
 
         // 🚨 YETKİLİ BAŞVURU ONAY / RED & OTO ROL SİSTEMİ 🚨
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
