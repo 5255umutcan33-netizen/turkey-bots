@@ -502,10 +502,10 @@ if (interaction.isChatInputCommand()) {
                     });
                 }
 
-                // image_9b9104.png görselindeki RYP-USER-XXXX-XXXX formatı için:
+                // image_9b9104.png görselindeki LUA-USER-XXXX-XXXX formatı için:
                 const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
                 const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
-                const newKeyString = `RYP-USER-${part1}-${part2}`;
+                const newKeyString = `LUA-USER-${part1}-${part2}`;
                 
                 const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
