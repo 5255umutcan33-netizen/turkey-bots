@@ -479,7 +479,7 @@ if (interaction.isChatInputCommand()) {
             }
         }
 
-        // --- YENİLENMİŞ KEY OLUŞTURMA SİSTEMİ ---
+        // --- TAM UYUMLU KEY OLUŞTURMA SİSTEMİ ---
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             const ABONE_ROLU = '1500587633649127445';
@@ -501,27 +501,33 @@ if (interaction.isChatInputCommand()) {
                     });
                 }
 
-                const newKeyString = `LUA-USER-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+                // image_9b9104.png görselindeki RYP-USER-XXXX-XXXX formatı için:
+                const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                const newKeyString = `RYP-USER-${part1}-${part2}`;
+                
                 const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
                 await new KeyModel({ key: newKeyString, expiry: 'Sınırsız', owner: interaction.user.id, licenseId }).save();
 
                 const premiumEmbed = new EmbedBuilder()
-                    .setTitle('💎 LUAWARE | License Generated')
+                    .setTitle('💎 LUAWARE | Key Generated')
                     .setColor('#00D4FF')
                     .setDescription(`🔑 **Key:** \`${newKeyString}\`\n🆔 **ID:** \`#${licenseId}\`\n👤 **Sahibi:** <@${interaction.user.id}>`)
+                    .setFooter({ text: 'Görseldeki panele bu keyi girebilirsin.' })
                     .setTimestamp();
 
                 await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
                 
+                // Log kanalına gönderim (VERIFY_LOG_ID tanımlı olmalı)
                 const logChan = client.channels.cache.get(VERIFY_LOG_ID);
                 if (logChan) logChan.send({ embeds: [premiumEmbed] });
 
-                return interaction.editReply({ content: isTR ? '✅ **Keyin gönderildi!**' : '✅ **Key sent!**' });
+                return interaction.editReply({ content: isTR ? '✅ **Keyin başarıyla oluşturuldu ve DM kutuna gönderildi!**' : '✅ **Key successfully created and sent to DM!**' });
 
             } catch (err) {
-                console.error("HATA:", err);
-                return interaction.editReply({ content: '❌ **Veritabanı veya sistem hatası oluştu!**' });
+                console.error("Key Hatası:", err);
+                return interaction.editReply({ content: '❌ **Sistemde bir hata oluştu!**' });
             }
         }
         
