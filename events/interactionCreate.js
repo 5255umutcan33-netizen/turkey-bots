@@ -49,19 +49,20 @@ module.exports = {
         // ==========================================
 // 1. SLASH KOMUTLARI MOTORU
 // ==========================================
+// --- 1. SLASH KOMUTLARININ TAKILMASINI ENGELLEYEN MOTOR ---
 if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-    try { 
-        await command.execute(interaction, client); 
-    } catch (e) { 
-        console.error(e); 
-        // Hata durumunda kullanıcıyı bilgilendir ki "düşünüyor"da kalmasın
-        const errorMsg = { content: '❌ Komut çalıştırılırken bir hata oluştu!', ephemeral: true };
+
+    try {
+        await command.execute(interaction, client);
+    } catch (error) {
+        console.error(error);
+        const errorContent = { content: '❌ Komut çalıştırılırken bir hata oluştu!', ephemeral: true };
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply(errorMsg).catch(() => {});
+            await interaction.editReply(errorContent).catch(() => {});
         } else {
-            await interaction.reply(errorMsg).catch(() => {});
+            await interaction.reply(errorContent).catch(() => {});
         }
     }
     return;
