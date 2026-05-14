@@ -1,32 +1,60 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('subscriber')
-        .setDescription('Abone rehberini ve Key alma adımlarını gösterir / Shows the Subscriber guide.'),
-    async execute(interaction) {
-        const guideEmbed = new EmbedBuilder()
-            .setTitle('🔑 LUAWARE | Subscriber Guide / Abone Rehberi')
-            .setColor('#57F287')
-            .setDescription(
-                "🇹🇷 **ADIM ADIM KEY NASIL ALINIR?**\n" +
-                "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
-                "**2.** İçinde <@Luawarescrpt> yazısı olan Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
-                "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın! Sayfanın **tamamını** SS alıp gönderin.)*\n" +
-                "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
-                "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
-                "---\n\n" +
-                "🇬🇧 **HOW TO GET A KEY STEP BY STEP?**\n" +
-                "**1.** [Click Here to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
-                "**2.** Send a screenshot (SS) containing the text `@Luawarescrpt` to the <#1500588822994358282> channel.\n" +
-                "⚠️ *(IMPORTANT: Please do not crop the image! Take a screenshot of the **entire page/screen**.)*\n" +
-                "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
-                "**4.** After getting the role, go to the **Key Generation** channel to get your key!"
-            )
-            .setFooter({ text: 'LUAWARE Auto-Guide' })
-            .setTimestamp();
+        .setDescription('Kullanıcıya Subscriber rolü verir.')
+        .addUserOption(option =>
+            option.setName('kullanici')
+                .setDescription('Rol verilecek kullanıcı')
+                .setRequired(true)
+        )
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
-        // Gizlilik (ephemeral) kaldırıldı. Artık kanaldaki herkes görecek!
-        await interaction.reply({ embeds: [guideEmbed] });
+    async execute(interaction, client) {
+
+        const LOG_CHANNEL_ID = '1504593851309101086';
+        const ROLE_ID = '1500587633649127445';
+
+        const user = interaction.options.getUser('kullanici');
+        const member = await interaction.guild.members.fetch(user.id);
+        const role = interaction.guild.roles.cache.get(ROLE_ID);
+
+        if (!role) {
+            return interaction.reply({ content: '❌ Rol bulunamadı!', ephemeral: true });
+        }
+
+        if (member.roles.cache.has(ROLE_ID)) {
+            return interaction.reply({ content: '❌ Kullanıcıda zaten bu rol var!', ephemeral: true });
+        }
+
+        try {
+            await member.roles.add(role);
+
+            await interaction.reply({
+                content: `✅ ${user.tag} kullanıcısına Subscriber rolü verildi.`,
+                ephemeral: false
+            });
+
+            // 🔔 LOG
+            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+            if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('📢 Subscriber Rol Verildi')
+                    .setColor('#57F287')
+                    .addFields(
+                        { name: '👤 Kullanıcı', value: `<@${user.id}>`, inline: true },
+                        { name: '🛠️ Yetkili', value: `<@${interaction.user.id}>`, inline: true },
+                        { name: '🆔 Kullanıcı ID', value: `\`${user.id}\`` }
+                    )
+                    .setTimestamp();
+
+                logChannel.send({ embeds: [logEmbed] });
+            }
+
+        } catch (err) {
+            console.error(err);
+            await interaction.reply({ content: '❌ Rol verilirken hata oluştu!', ephemeral: true });
+        }
     }
 };
