@@ -776,4 +776,4 @@ if (cid === 'get_key_tr' || cid === 'get_key_en') {
             return interaction.update({ content: '`❌ İşlem iptal edildi.`', embeds: [], components: [] });
         }
     }
-};
+};a
