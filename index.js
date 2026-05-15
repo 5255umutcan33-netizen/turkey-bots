@@ -58,10 +58,7 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// ❌ interactionCreate bloğu buradan kalıcı olarak silindi!
-// ❌ Artık buton ve komutları "events/interactionCreate.js" okuyacak ve çakışma bitecek.
-
-// --- 6. WEB API KÖPRÜLERİ (Vercel Sitesi İçin) ---
+// --- 6. WEB API KÖPRÜLERİ ---
 app.get('/api/keys', async (req, res) => {
     try {
         const keys = await KeyModel.find().sort({ createdAt: -1 });
@@ -69,7 +66,6 @@ app.get('/api/keys', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Veritabanı hatası' }); }
 });
 
-// 📌 KEY LOG SİSTEMİ
 app.post('/api/keys/generate', async (req, res) => {
     const { userId, keyName, expiry } = req.body;
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
@@ -78,7 +74,6 @@ app.post('/api/keys/generate', async (req, res) => {
         const newKey = new KeyModel({ key: keyName, expiry: expiry || 'Sınırsız', hwid: null, owner: userId });
         await newKey.save();
 
-        // LOG KANALINA BİLDİR
         const KEY_LOG_ID = '1491473038204469308'; 
         const logChannel = client.channels.cache.get(KEY_LOG_ID);
         if (logChannel) {
@@ -94,7 +89,6 @@ app.post('/api/keys/generate', async (req, res) => {
                 .setTimestamp();
             logChannel.send({ embeds: [keyLog] }).catch(()=>{});
         }
-
         res.json({ success: true, key: newKey });
     } catch (err) { 
         res.status(500).json({ error: 'Oluşturma hatası' }); 
@@ -151,6 +145,52 @@ app.get('/verify', async (req, res) => {
         return res.json({ success: true, message: "BAŞARILI" });
     } catch (e) { return res.json({ success: false, message: "HATA" }); }
 });
+
+// =========================================================
+// 🚨 LUAWARE LINKVERTISE REKLAM SONRASI KEY TESLİMAT SAYFASI 🚨
+// =========================================================
+app.get('/key-al', async (req, res) => {
+    const userId = req.query.userid;
+    if (!userId) return res.send('<h1 style="color:red; text-align:center; margin-top:50px;">Hata! Discord ID bulunamadı. Lütfen Discord üzerinden tekrar tıklayın.</h1>');
+
+    try {
+        let userKey = await KeyModel.findOne({ owner: userId });
+        
+        if (!userKey) {
+            const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
+            const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
+            const newKeyString = `LUA-USER-${part1}-${part2}`;
+            const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
+            userKey = await new KeyModel({ key: newKeyString, expiry: 'Sınırsız', owner: userId, licenseId: licenseId }).save();
+        }
+
+        const htmlSayfa = `
+            <html lang="tr">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>LUAWARE Key System</title>
+                <style>
+                    body { background-color: #2B2D31; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
+                    .key-box { background-color: #1E1F22; padding: 30px; border-radius: 15px; display: inline-block; border: 2px solid #00D4FF; }
+                    h1 { color: #57F287; }
+                    .key { font-size: 28px; color: #00D4FF; font-family: monospace; font-weight: bold; margin: 20px 0; }
+                </style>
+            </head>
+            <body>
+                <h1>✅ Reklamı Başarıyla Geçtin!</h1>
+                <p>İşte LUAWARE Script Anahtarın:</p>
+                <div class="key-box"><div class="key">${userKey.key}</div></div>
+                <p style="color: #ED4245; margin-top: 20px;">DİKKAT: Anahtar hesabına kodlanmıştır, başkasıyla paylaşma!</p>
+            </body>
+            </html>
+        `;
+        res.send(htmlSayfa);
+    } catch (err) {
+        res.send('<h1 style="color:red; text-align:center;">Sistem Hatasi! Lütfen yöneticilere ulaşın.</h1>');
+    }
+});
+// =========================================================
 
 // --- 8. BAŞLATMA VE PORT AYARI ---
 app.get('/', (req, res) => res.send('RYPHERA OS ONLINE 🚀'));
