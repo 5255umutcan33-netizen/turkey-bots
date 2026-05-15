@@ -426,20 +426,22 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS) KEY OLUŞTURMA SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS API) KEY OLUŞTURMA SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             const ABONE_ROLU = '1500587633649127445';
-            const VIP_ROLU = STAFF_ROLE; // Şimdilik Yetkililer (Staff) direkt key alabilir.
+            const VIP_ROLU = STAFF_ROLE; 
 
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
             }
 
+            // Apinin cevap vermesi zaman alabileceği için botu düşündürme (defer) moduna alıyoruz.
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
             // 1. VIP/YETKİLİ KONTROLÜ (Bu adamlar reklam izlemez, direkt keyi alır)
             if (interaction.member.roles.cache.has(VIP_ROLU) || interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                await interaction.deferReply({ ephemeral: true }).catch(() => {});
                 try {
                     let userKey = await KeyModel.findOne({ owner: interaction.user.id });
                     if (userKey) {
@@ -474,17 +476,32 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN REKLAMLI LİNK ÜRETME (LootLabs API Sistemi)
+            // 2. NORMAL ÜYELER İÇİN LOOTLABS API ILE DINAMIK LİNK ÜRETME
             const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
-            
-            // Kullanıcı reklamı geçince Vercel/Render sitene geri dönecek
             const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
-            
-            // LootLabs sistemi Base64 değil, direkt URL Encode ister (encodeURIComponent).
             const encodedHedef = encodeURIComponent(hedefLink);
             
-            // LootLabs standart yönlendirme URL'si (Otomatik olarak en iyi domaini seçer)
-            const paraKazandiranLink = `https://loot-link.com/s?api=${LOOTLABS_API_KEY}&url=${encodedHedef}`;
+            // Gerçek API uç noktası (Kullanıcıya verilen link değil, botun veri çekeceği arka kapı)
+            const apiUrl = `https://links.lootlabs.gg/api?api=${LOOTLABS_API_KEY}&url=${encodedHedef}`;
+
+            let paraKazandiranLink = "";
+
+            try {
+                // Bot arka planda LootLabs'a bağlanıp linki çekiyor
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                // LootLabs API'sinden gelen JSON formatındaki asıl kısa yönlendirme linkini yakalıyoruz
+                paraKazandiranLink = data.shortenedUrl || data.message || data.short_url || data.url || data.short;
+                
+                if (!paraKazandiranLink || !paraKazandiranLink.startsWith('http')) {
+                    throw new Error("LootLabs API'den geçerli bir link gelmedi.");
+                }
+
+            } catch (err) {
+                console.error("LootLabs API Hatası:", err);
+                return interaction.editReply({ content: isTR ? '❌ **LootLabs reklam sistemi şu an cevap vermiyor, lütfen daha sonra tekrar dene.**' : '❌ **LootLabs ad system is not responding, please try again later.**' });
+            }
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
@@ -504,7 +521,7 @@ module.exports = {
                     .setURL(paraKazandiranLink)
             );
 
-            return interaction.reply({ embeds: [adEmbed], components: [row], ephemeral: true });
+            return interaction.editReply({ embeds: [adEmbed], components: [row] });
         }
         // =========================================================================
 
