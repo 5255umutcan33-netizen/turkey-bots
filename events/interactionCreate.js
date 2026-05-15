@@ -426,12 +426,12 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LINKVERTISE) KEY OLUŞTURMA SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS) KEY OLUŞTURMA SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             const ABONE_ROLU = '1500587633649127445';
-            const VIP_ROLU = STAFF_ROLE; // Şimdilik Yetkililer (Staff) direkt key alabilir. Özel VIP rolü açarsan buraya ID'sini yapıştırırsın.
+            const VIP_ROLU = STAFF_ROLE; // Şimdilik Yetkililer (Staff) direkt key alabilir.
 
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
@@ -474,26 +474,27 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN REKLAMLI LİNK ÜRETME (Para Kazandıran Kısım)
-            const LINKVERTISE_USER_ID = '5755561'; // Senin ID'n
+            // 2. NORMAL ÜYELER İÇİN REKLAMLI LİNK ÜRETME (LootLabs API Sistemi)
+            const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
             
-            // DİKKAT: Kullanıcı reklamı geçince Discord sunucuna geri dönecek şekilde ayarlandı. 
-            // Vercel siten hazır olduğunda buraya sitenin linkini (Örn: https://luaware.com/verify) yapıştırabilirsin.
-            const hedefLink = `https://discord.gg/luaware`; 
+            // Kullanıcı reklamı geçince Vercel/Render sitene geri dönecek
+            const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
             
-            // Linki Linkvertise'ın okuyabileceği formata (Base64) çeviriyoruz.
-            const base64Hedef = Buffer.from(hedefLink).toString('base64');
-            const paraKazandiranLink = `https://linkvertise.com/${LINKVERTISE_USER_ID}/luaware-key/dynamic?r=${base64Hedef}`;
+            // LootLabs sistemi Base64 değil, direkt URL Encode ister (encodeURIComponent).
+            const encodedHedef = encodeURIComponent(hedefLink);
+            
+            // LootLabs standart yönlendirme URL'si (Otomatik olarak en iyi domaini seçer)
+            const paraKazandiranLink = `https://loot-link.com/s?api=${LOOTLABS_API_KEY}&url=${encodedHedef}`;
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
                 .setColor('#FEE75C')
                 .setDescription(
                     isTR 
-                    ? `👋 Merhaba <@${interaction.user.id}>,\n\nSistemimizi ücretsiz tutabilmek ve LUAWARE sunucularını desteklemek için ufak bir reklam geçmeniz gerekmektedir.\n\n👇 **Aşağıdaki butona tıklayıp saniyeler içinde anahtarını alabilirsin:**`
-                    : `👋 Hello <@${interaction.user.id}>,\n\nTo keep our system free and support LUAWARE servers, you need to pass a short advertisement.\n\n👇 **Click the button below to get your key in seconds:**`
+                    ? `👋 Merhaba <@${interaction.user.id}>,\n\nSistemimizi ücretsiz tutabilmek ve LUAWARE sunucularını desteklemek için kısa bir reklam geçmeniz gerekmektedir.\n\n👇 **Aşağıdaki butona tıklayıp sadece 10 saniye içinde anahtarını alabilirsin:**`
+                    : `👋 Hello <@${interaction.user.id}>,\n\nTo keep our system free and support LUAWARE servers, you need to pass a short advertisement.\n\n👇 **Click the button below to get your key in just 10 seconds:**`
                 )
-                .setFooter({ text: 'LUAWARE Monetization System' })
+                .setFooter({ text: 'LUAWARE Monetization System (Powered by LootLabs)' })
                 .setTimestamp();
 
             const row = new ActionRowBuilder().addComponents(
