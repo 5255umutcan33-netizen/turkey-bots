@@ -76,7 +76,7 @@ module.exports = {
                 const category = originalCid.split('_')[2].toUpperCase();
                 const reason = interaction.fields.getTextInputValue('ticket_reason');
 
-                await interaction.deferReply({ ephemeral: true }); // DÜŞÜNMEYİ UZATIR
+                await interaction.deferReply({ ephemeral: true }); 
                 
                 let counter = await Counter.findOneAndUpdate({ id: 'ticket' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
                 const channel = await interaction.guild.channels.create({
@@ -233,9 +233,6 @@ module.exports = {
                     
                 modal.addComponents(textInput);
                 await interaction.showModal(modal);
-                
-                // Mesajı silmeyi showModal'dan sonra direkt deleteReply ile yapamayız çünkü select menu'ye modal açıldı. 
-                // Asıl mesajı silmek istiyorsak message.delete() kullanmalıyız.
                 return interaction.message.delete().catch(() => {});
             }
         }
@@ -306,7 +303,7 @@ module.exports = {
                 return interaction.reply({ content: '⚠️ **Yetkin yok! / No permission!**', ephemeral: true });
             }
             
-            await interaction.deferUpdate(); // DB çekerken takılmasın diye eklendi.
+            await interaction.deferUpdate(); 
             
             const action = cid.startsWith('sug_onay_') ? 'onay' : 'red';
             const targetId = cid.split('_')[2]; 
@@ -356,7 +353,7 @@ module.exports = {
 
         // --- DOĞRULAMA (VERIFY) VE KANAL GİZLEME ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
-            await interaction.deferReply({ ephemeral: true }); // ÇOK KRİTİK: İzinleri verirken API bekletir.
+            await interaction.deferReply({ ephemeral: true }); 
 
             const isTr = cid === 'verify_tr';
             
@@ -428,60 +425,87 @@ module.exports = {
             }
         }
 
-        // --- TAM UYUMLU KEY OLUŞTURMA SİSTEMİ ---
+        // =========================================================================
+        // 🚨 LUAWARE PARA KAZANDIRAN (LINKVERTISE) KEY OLUŞTURMA SİSTEMİ 🚨
+        // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
             const ABONE_ROLU = '1500587633649127445';
+            const VIP_ROLU = STAFF_ROLE; // Şimdilik Yetkililer (Staff) direkt key alabilir. Özel VIP rolü açarsan buraya ID'sini yapıştırırsın.
 
             if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
             }
 
-            await interaction.deferReply({ ephemeral: true }).catch(() => {}); // 15 Dakika süre verir.
+            // 1. VIP/YETKİLİ KONTROLÜ (Bu adamlar reklam izlemez, direkt keyi alır)
+            if (interaction.member.roles.cache.has(VIP_ROLU) || interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                await interaction.deferReply({ ephemeral: true }).catch(() => {});
+                try {
+                    let userKey = await KeyModel.findOne({ owner: interaction.user.id });
+                    if (userKey) {
+                        return interaction.editReply({ 
+                            embeds: [new EmbedBuilder().setColor('#ED4245').setDescription(isTR ? `❌ **Zaten anahtarın var:** \`${userKey.key}\`` : `❌ **You already have a key:** \`${userKey.key}\``)]
+                        }).catch(() => {});
+                    }
 
-            try {
-                let userKey = await KeyModel.findOne({ owner: interaction.user.id });
-                
-                if (userKey) {
-                    return interaction.editReply({ 
-                        embeds: [new EmbedBuilder().setColor('#ED4245').setDescription(isTR ? `❌ **Zaten anahtarın var:** \`${userKey.key}\`` : `❌ **You already have a key:** \`${userKey.key}\``)]
-                    }).catch(() => {});
+                    const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                    const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
+                    const newKeyString = `LUA-USER-${part1}-${part2}`;
+                    const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
+
+                    await new KeyModel({ key: newKeyString, expiry: 'Sınırsız', owner: interaction.user.id, licenseId: licenseId }).save();
+
+                    const premiumEmbed = new EmbedBuilder()
+                        .setTitle('💎 LUAWARE | License Generated')
+                        .setColor('#00D4FF')
+                        .setDescription(`🔑 **Key -->** \`${newKeyString}\`\n🆔 **ID -->** \`#${licenseId}\`\n👤 **Owner -->** <@${interaction.user.id}>\n⏳ **Expiry -->** \`Lifetime\`\n📅 **Date -->** <t:${Math.floor(Date.now() / 1000)}:f>\n\n⚠️ **Note!! DO NOT SHARE THIS KEY WITH ANYONE**`)
+                        .setFooter({ text: 'LUAWARE Security' })
+                        .setTimestamp();
+
+                    await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
+                    await interaction.user.send({ content: `${newKeyString}` }).catch(() => {}); 
+                    
+                    const logChan = client.channels.cache.get(VERIFY_LOG_ID);
+                    if (logChan) logChan.send({ embeds: [premiumEmbed] }).catch(() => {});
+
+                    return interaction.editReply({ content: isTR ? '✅ **VIP Keyin DM kutuna gönderildi!**' : '✅ **VIP Key sent to your DM!**' }).catch(() => {});
+                } catch (err) {
+                    return interaction.editReply({ content: '❌ **Sistem hatası! Veritabanı bağlantısı koptu.**' }).catch(() => {});
                 }
-
-                const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
-                const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
-                const newKeyString = `LUA-USER-${part1}-${part2}`;
-                const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
-
-                await new KeyModel({ key: newKeyString, expiry: 'Sınırsız', owner: interaction.user.id, licenseId: licenseId }).save();
-
-                const premiumEmbed = new EmbedBuilder()
-                    .setTitle('💎 LUAWARE | License Generated')
-                    .setColor('#00D4FF')
-                    .setDescription(
-                        `🔑 **Key -->** \`${newKeyString}\`\n` +
-                        `🆔 **ID -->** \`#${licenseId}\`\n` +
-                        `👤 **Owner -->** <@${interaction.user.id}>\n` +
-                        `⏳ **Expiry -->** \`Lifetime\`\n` +
-                        `📅 **Date -->** <t:${Math.floor(Date.now() / 1000)}:f>\n\n` +
-                        `⚠️ **Note!! DO NOT SHARE THIS KEY WITH ANYONE**`
-                    )
-                    .setFooter({ text: 'LUAWARE Security' })
-                    .setTimestamp();
-
-                await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
-                await interaction.user.send({ content: `${newKeyString}` }).catch(() => {}); 
-
-                const logChan = client.channels.cache.get(VERIFY_LOG_ID);
-                if (logChan) logChan.send({ embeds: [premiumEmbed] }).catch(() => {});
-
-                return interaction.editReply({ content: isTR ? '✅ **Keyin DM kutuna gönderildi!**' : '✅ **Key sent to your DM!**' }).catch(() => {});
-
-            } catch (err) {
-                console.error("KRİTİK HATA:", err);
-                return interaction.editReply({ content: '❌ **Veritabanı bağlantısı başarısız oldu veya bir hata oluştu!**' }).catch(() => {});
             }
+
+            // 2. NORMAL ÜYELER İÇİN REKLAMLI LİNK ÜRETME (Para Kazandıran Kısım)
+            const LINKVERTISE_USER_ID = '5755561'; // Senin ID'n
+            
+            // DİKKAT: Kullanıcı reklamı geçince Discord sunucuna geri dönecek şekilde ayarlandı. 
+            // Vercel siten hazır olduğunda buraya sitenin linkini (Örn: https://luaware.com/verify) yapıştırabilirsin.
+            const hedefLink = `https://discord.gg/luaware`; 
+            
+            // Linki Linkvertise'ın okuyabileceği formata (Base64) çeviriyoruz.
+            const base64Hedef = Buffer.from(hedefLink).toString('base64');
+            const paraKazandiranLink = `https://linkvertise.com/${LINKVERTISE_USER_ID}/luaware-key/dynamic?r=${base64Hedef}`;
+
+            const adEmbed = new EmbedBuilder()
+                .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
+                .setColor('#FEE75C')
+                .setDescription(
+                    isTR 
+                    ? `👋 Merhaba <@${interaction.user.id}>,\n\nSistemimizi ücretsiz tutabilmek ve LUAWARE sunucularını desteklemek için ufak bir reklam geçmeniz gerekmektedir.\n\n👇 **Aşağıdaki butona tıklayıp saniyeler içinde anahtarını alabilirsin:**`
+                    : `👋 Hello <@${interaction.user.id}>,\n\nTo keep our system free and support LUAWARE servers, you need to pass a short advertisement.\n\n👇 **Click the button below to get your key in seconds:**`
+                )
+                .setFooter({ text: 'LUAWARE Monetization System' })
+                .setTimestamp();
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setLabel(isTR ? '🔗 Reklamı Geç ve Key Al' : '🔗 Pass Ads & Get Key')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(paraKazandiranLink)
+            );
+
+            return interaction.reply({ embeds: [adEmbed], components: [row], ephemeral: true });
         }
+        // =========================================================================
 
         // --- YETKİLİ BAŞVURU ONAY / RED & OTO ROL SİSTEMİ ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
@@ -489,7 +513,7 @@ module.exports = {
                 return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             }
             
-            await interaction.deferUpdate(); // Beklemeye alıyoruz ki çökmüş gözükmesin
+            await interaction.deferUpdate();
 
             const action = cid.startsWith('app_onay_') ? 'onay' : 'red';
             const targetId = cid.split('_')[2]; 
@@ -548,7 +572,7 @@ module.exports = {
                 return interaction.reply({ content: '⚠️ **Bu bileti sahiplenmek için Yetkili olmanız gerekmektedir!**', ephemeral: true });
             }
 
-            await interaction.deferUpdate(); // Etkileşimi defer ediyoruz
+            await interaction.deferUpdate(); 
 
             await StaffStat.findOneAndUpdate({ userId: interaction.user.id }, { $inc: { claims: 1 } }, { upsert: true, new: true });
             
@@ -565,7 +589,7 @@ module.exports = {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
             }
 
-            await interaction.deferUpdate(); // DB işlemleri bitene kadar bot dönmeye başlasın
+            await interaction.deferUpdate(); 
 
             const parts = cid.split('_');
             const action = parts[1]; 
