@@ -7,7 +7,13 @@ module.exports = {
         .setDescription('Sunucu ve RYPHERA sistem istatistiklerini gösterir.'),
         
     async execute(interaction) {
+        // 🚨 KRİTİK ÇÖZÜM: Komut DM'den kullanılırsa botun çökmesini engeller.
+        if (!interaction.guild) {
+            return interaction.reply({ content: '❌ **Bu komut sadece sunucularda kullanılabilir!**', ephemeral: true });
+        }
+
         await interaction.deferReply(); 
+        
         const { guild, client } = interaction;
         const totalMembers = guild.memberCount;
         const botCount = guild.members.cache.filter(m => m.user.bot).size;
@@ -27,7 +33,7 @@ module.exports = {
                 `👥 **Üye Sayısı -->** \`${totalMembers - botCount}\` Kullanıcı | \`${botCount}\` Bot\n` +
                 `🔑 **Aktif Lisans -->** \`${activeKeys}\` Üretilmiş Key\n` +
                 `⚙️ **Gecikme (Ping) -->** \`${client.ws.ping}ms\`\n` +
-                `👑 **Geliştirici -->** <@${OWNER_ID}>`
+                `👑 **Kurucu -->** <@${OWNER_ID}>`
             )
             .setFooter({ text: 'Ryphera OS System', iconURL: client.user.displayAvatarURL() })
             .setTimestamp();
