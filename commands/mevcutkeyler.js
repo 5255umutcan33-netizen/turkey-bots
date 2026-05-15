@@ -8,92 +8,63 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(interaction) {
-        // 💎 İLK ONAY EKRANI
-        const confirmEmbed = new EmbedBuilder()
-            .setTitle('🔍 RYPHERA | Veritabanı Sorgusu')
-            .setColor('#1aff00')
-            .setDescription(
-                `⚙️ **İşlem:** \`Lisans Arşivini Görüntüleme\`\n` +
-                `📖 **Format:** \`Sayfalı Kitap Düzeni\`\n` +
-                `📝 **Durum:** \`Devam etmek için onay verin.\``
-            )
-            .setFooter({ text: 'Ryphera OS Arşiv Güvenliği' })
-            .setTimestamp();
+        // 🚨 ONAY EKRANI ÇÖPE ATILDI: Komut yazıldığı an arşivi çekecek.
+        await interaction.deferReply({ ephemeral: true });
 
-        const confirmRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('confirm_list').setLabel('Arşivi Aç').setEmoji('📖').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('cancel_list').setLabel('İptal Et').setStyle(ButtonStyle.Danger)
-        );
+        // 🚨 NÜKLEER ÇÖZÜM 2: Veritabanı donarsa komut çökmez.
+        const dbKeys = await Promise.race([
+            KeyModel.find({}).catch(() => []),
+            new Promise(resolve => setTimeout(() => resolve([]), 2000))
+        ]);
 
-        const response = await interaction.reply({ embeds: [confirmEmbed], components: [confirmRow], ephemeral: true, fetchReply: true });
-        const collector = response.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
+        if (!dbKeys || dbKeys.length === 0) {
+            return interaction.editReply({ content: '⚠️ **Arşivde hiç lisans bulunamadı veya veritabanı yanıt vermedi!**', embeds: [], components: [] });
+        }
 
-        collector.on('collect', async (i) => {
-            if (i.customId === 'cancel_list') {
-                await i.deferUpdate(); 
-                return i.editReply({ content: '❌ İşlem iptal edildi.', embeds: [], components: [] });
-            }
+        // 📄 SAYFALAMA AYARLARI
+        let currentPage = 0;
+        const itemsPerPage = 5; 
+        const totalPages = Math.ceil(dbKeys.length / itemsPerPage);
 
-            if (i.customId === 'confirm_list') {
-                // 🚨 KRİTİK ÇÖZÜM: DB sorgusundan önce botun süresini uzatıyoruz!
-                await i.deferUpdate(); 
+        const generateEmbed = (page) => {
+            const start = page * itemsPerPage;
+            const currentItems = dbKeys.slice(start, start + itemsPerPage);
 
-                const dbKeys = await KeyModel.find({});
+            const descriptionData = currentItems.map(item => {
+                const gosterilenID = item.licenseId ? `#${item.licenseId}` : 'ID Yok';
+                const sahipEtiket = item.owner ? `<@${item.owner}>` : '\`Sahipsiz\`';
+                return `🆔 **ID:** \`${gosterilenID}\`\n👤 **Sahip:** ${sahipEtiket}\n🔑 **Key:** \`${item.key}\`\n⌛ **Bitiş:** \`${item.expiry}\`\n───────────────`;
+            }).join('\n');
 
-                if (!dbKeys || dbKeys.length === 0) {
-                    return i.editReply({ content: '⚠️ Arşivde hiç lisans bulunamadı.', embeds: [], components: [] });
-                }
+            return new EmbedBuilder()
+                .setTitle('📖 RYPHERA | Lisans Arşivi')
+                .setColor('#1aff00')
+                .setDescription(`📊 **Toplam Kayıt:** \`${dbKeys.length}\`\n\n${descriptionData}`)
+                .setFooter({ text: `Sayfa ${page + 1} / ${totalPages} | Ryphera OS Security` })
+                .setTimestamp();
+        };
 
-                // 📄 SAYFALAMA AYARLARI
-                let currentPage = 0;
-                const itemsPerPage = 5; 
-                const totalPages = Math.ceil(dbKeys.length / itemsPerPage);
+        const generateButtons = (page) => {
+            return new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('prev_page').setLabel(`${page > 0 ? page : 'Son'}`).setEmoji('📖').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
+                new ButtonBuilder().setCustomId('current_page_num').setLabel(`Sayfa: ${page + 1}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
+                new ButtonBuilder().setCustomId('next_page').setLabel(`${page + 2 <= totalPages ? page + 2 : 'Bitti'}`).setEmoji('📖').setStyle(ButtonStyle.Primary).setDisabled(page === totalPages - 1)
+            );
+        };
 
-                // Embed Oluşturucu
-                const generateEmbed = (page) => {
-                    const start = page * itemsPerPage;
-                    const currentItems = dbKeys.slice(start, start + itemsPerPage);
+        const response = await interaction.editReply({ embeds: [generateEmbed(currentPage)], components: [generateButtons(currentPage)] });
 
-                    const descriptionData = currentItems.map(item => {
-                        const gosterilenID = item.licenseId ? `#${item.licenseId}` : 'ID Yok';
-                        const sahipEtiket = item.owner ? `<@${item.owner}>` : '\`Sahipsiz\`';
-                        return `🆔 **ID:** \`${gosterilenID}\`\n👤 **Sahip:** ${sahipEtiket}\n🔑 **Key:** \`${item.key}\`\n⌛ **Bitiş:** \`${item.expiry}\`\n───────────────`;
-                    }).join('\n');
+        const pageCollector = response.createMessageComponentCollector({ componentType: ComponentType.Button, time: 300000 });
 
-                    return new EmbedBuilder()
-                        .setTitle('📖 RYPHERA | Lisans Arşivi')
-                        .setColor('#1aff00')
-                        .setDescription(`📊 **Toplam Kayıt:** \`${dbKeys.length}\`\n\n${descriptionData}`)
-                        .setFooter({ text: `Sayfa ${page + 1} / ${totalPages} | Ryphera OS Security` })
-                        .setTimestamp();
-                };
+        pageCollector.on('collect', async (pageInteraction) => {
+            await pageInteraction.deferUpdate(); 
+            if (pageInteraction.customId === 'prev_page') currentPage--;
+            else if (pageInteraction.customId === 'next_page') currentPage++;
+            await pageInteraction.editReply({ embeds: [generateEmbed(currentPage)], components: [generateButtons(currentPage)] });
+        });
 
-                // Buton Oluşturucu
-                const generateButtons = (page) => {
-                    return new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('prev_page').setLabel(`${page > 0 ? page : 'Son'}`).setEmoji('📖').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
-                        new ButtonBuilder().setCustomId('current_page_num').setLabel(`Sayfa: ${page + 1}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
-                        new ButtonBuilder().setCustomId('next_page').setLabel(`${page + 2 <= totalPages ? page + 2 : 'Bitti'}`).setEmoji('📖').setStyle(ButtonStyle.Primary).setDisabled(page === totalPages - 1)
-                    );
-                };
-
-                await i.editReply({ embeds: [generateEmbed(currentPage)], components: [generateButtons(currentPage)] });
-
-                const pageCollector = response.createMessageComponentCollector({ componentType: ComponentType.Button, time: 300000 });
-
-                pageCollector.on('collect', async (pageInteraction) => {
-                    await pageInteraction.deferUpdate(); // Sayfa değiştirirken de çökmesin diye eklendi
-                    
-                    if (pageInteraction.customId === 'prev_page') currentPage--;
-                    else if (pageInteraction.customId === 'next_page') currentPage++;
-
-                    await pageInteraction.editReply({ embeds: [generateEmbed(currentPage)], components: [generateButtons(currentPage)] });
-                });
-
-                pageCollector.on('end', () => {
-                    response.edit({ components: [] }).catch(() => {});
-                });
-            }
+        pageCollector.on('end', () => {
+            interaction.editReply({ components: [] }).catch(() => {});
         });
     },
 };

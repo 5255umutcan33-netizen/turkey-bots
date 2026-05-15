@@ -7,7 +7,6 @@ module.exports = {
         .setDescription('Sunucu ve RYPHERA sistem istatistiklerini gösterir.'),
         
     async execute(interaction) {
-        // 🚨 KRİTİK ÇÖZÜM: Komut DM'den kullanılırsa botun çökmesini engeller.
         if (!interaction.guild) {
             return interaction.reply({ content: '❌ **Bu komut sadece sunucularda kullanılabilir!**', ephemeral: true });
         }
@@ -19,10 +18,12 @@ module.exports = {
         const botCount = guild.members.cache.filter(m => m.user.bot).size;
         const OWNER_ID = '345821033414262794'; 
 
-        let activeKeys = 0;
-        try { activeKeys = await KeyModel.countDocuments({}); } catch (e) {}
+        // 🚨 NÜKLEER ÇÖZÜM: Veritabanı 2 saniyede cevap vermezse bot çökmez, 0 yazar geçer!
+        const activeKeys = await Promise.race([
+            KeyModel.countDocuments({}).catch(() => 0),
+            new Promise(resolve => setTimeout(() => resolve("Bağlantı Bekleniyor..."), 2000))
+        ]);
 
-        // 💎 PREMİUM FORMAT EKRANI
         const statEmbed = new EmbedBuilder()
             .setTitle('📊 Ryphera OS | Sistem İstatistikleri')
             .setColor('#2B2D31') 
