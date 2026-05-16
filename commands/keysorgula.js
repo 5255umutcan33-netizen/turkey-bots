@@ -1,48 +1,55 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const KeyModel = require('../models/key');
+const KeyModel = require('../models/key.js'); 
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('keysorgula')
-        .setDescription('🔍 Belirtilen kullanıcının lisans anahtarı bilgilerini gösterir.')
+        .setName('keysorgulakey')
+        .setDescription('LUAWARE sistemindeki bir lisansı Key (LUA-USER...) veya ID ile sorgular.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addUserOption(option => 
-            option.setName('kullanici')
-                .setDescription('Anahtarını sorgulamak istediğiniz kişi')
-                .setRequired(true)),
+        .addStringOption(option => 
+            option.setName('veri')
+            .setDescription('Sorgulanacak tam Key (Örn: LUA-USER-ABCD) veya 5 Haneli ID')
+            .setRequired(true)
+        ),
 
     async execute(interaction) {
-        const targetUser = interaction.options.getUser('kullanici');
+        const arananVeri = interaction.options.getString('veri').toUpperCase().trim();
+        await interaction.deferReply({ ephemeral: true }); 
 
         try {
-            const userKey = await KeyModel.findOne({ owner: targetUser.id });
+            const data = await KeyModel.findOne({ 
+                $or: [
+                    { key: arananVeri },
+                    { licenseId: arananVeri }
+                ]
+            });
 
-            if (!userKey) {
-                return interaction.reply({ content: `❌ <@${targetUser.id}> adlı kullanıcının sistemimizde kayıtlı bir lisansı yok.`, ephemeral: true });
+            if (!data) {
+                return interaction.editReply({ content: `❌ **${arananVeri}** bilgisine ait bir lisans bulunamadı! Key süresi dolmuş veya yanlış yazılmış olabilir.` });
             }
 
-            const hwidStatus = userKey.hwid ? `\`${userKey.hwid}\`` : '`Boş (Henüz girilmemiş)`';
-            const gosterilenID = userKey.licenseId ? `#${userKey.licenseId}` : 'Eski Sürüm Key';
+            const creationTime = data._id.getTimestamp().getTime();
+            const elapsedHours = (Date.now() - creationTime) / (1000 * 60 * 60);
+            const kalanSaat = data.expiry === '24 Saat' ? Math.max(0, (24 - elapsedHours)).toFixed(1) : 'Sınırsız';
 
-            // 💎 PREMİUM FORMAT
             const embed = new EmbedBuilder()
-                .setTitle('Ryphera | Lisans Sorgulama')
-                .setColor('#FEE75C')
-                .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-                .setDescription(
-                    `👤 **Kullanıcı -->** <@${targetUser.id}>\n` +
-                    `🆔 **5 Haneli ID -->** \`${gosterilenID}\`\n` +
-                    `🔑 **Lisans Anahtarı -->** \`${userKey.key}\`\n` +
-                    `💻 **Cihaz Kilidi (HWID) -->** ${hwidStatus}\n` +
-                    `⌛ **Lisans Süresi -->** \`${userKey.expiry}\``
+                .setTitle('🔍 LUAWARE | Key İstihbarat Raporu')
+                .setColor('#00D4FF')
+                .addFields(
+                    { name: '🆔 Lisans ID', value: `\`#${data.licenseId || 'Bilinmiyor'}\``, inline: true },
+                    { name: '🔑 Tam Anahtar', value: `\`${data.key}\``, inline: true },
+                    { name: '🌐 Kayıtlı IP Adresi', value: `||${data.owner}||`, inline: false },
+                    { name: '⏳ Kalan Süre', value: `**${kalanSaat} Saat**`, inline: true },
+                    { name: '💻 HWID Durumu', value: data.hwid ? `🔒 Kilitli (\`${data.hwid.substring(0, 10)}...\`)` : '🔓 Henüz Kullanılmadı', inline: true }
                 )
-                .setFooter({ text: 'Ryphera OS Database' })
-                .setTimestamp();
+                .setFooter({ text: 'LUAWARE Security OS' })
+                .setTimestamp(data._id.getTimestamp());
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
-            await interaction.reply({ content: '❌ Veritabanı sorgu hatası.', ephemeral: true });
+            console.error("Sorgulama Hatası:", error);
+            await interaction.editReply({ content: '❌ Veritabanı sorgusunda bir hata oluştu!' });
         }
-    },
+    }
 };
