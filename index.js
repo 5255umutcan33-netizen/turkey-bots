@@ -74,16 +74,15 @@ app.post('/api/keys/generate', async (req, res) => {
         const newKey = new KeyModel({ key: keyName, expiry: expiry || 'Sınırsız', hwid: null, owner: userId });
         await newKey.save();
 
-        const KEY_LOG_ID = '1491473038204469308'; 
+        const KEY_LOG_ID = '1505092320091967498'; // GÜNCELLENEN LOG ID
         const logChannel = client.channels.cache.get(KEY_LOG_ID);
         if (logChannel) {
             const keyLog = new EmbedBuilder()
-                .setTitle('🔑 YENİ KEY OLUŞTURULDU')
+                .setTitle('🔑 YENİ MANUEL KEY OLUŞTURULDU')
                 .setColor('#FEE75C')
                 .addFields(
                     { name: '🛠️ Oluşturan', value: `<@${userId}>`, inline: true },
                     { name: '📜 Key Adı', value: `\`${keyName}\``, inline: true },
-                    { name: '🆔 Key ID', value: `\`${newKey._id}\``, inline: true },
                     { name: '⏳ Süre', value: `${expiry || 'Sınırsız'}`, inline: true }
                 )
                 .setTimestamp();
@@ -205,6 +204,30 @@ app.get('/key-al', async (req, res) => {
             owner: userId, 
             licenseId: licenseId 
         }).save();
+
+        // 🚨 YENİ EKLENEN OTOMATİK DİSCORD LOG SİSTEMİ 🚨
+        try {
+            const OTO_LOG_ID = '1505092320091967498'; // Senin verdiğin kanal ID'si
+            const logChannel = client.channels.cache.get(OTO_LOG_ID);
+            
+            if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('🔑 YENİ OTO-KEY ÜRETİLDİ!')
+                    .setColor('#57F287')
+                    .setDescription(`Bir kullanıcı LootLabs görevini başarıyla geçip sistemden yeni bir anahtar aldı.`)
+                    .addFields(
+                        { name: '👤 Kullanıcı', value: `<@${userId}>`, inline: true },
+                        { name: '📜 Key Adı', value: `\`${newKeyString}\``, inline: true },
+                        { name: '⏳ Süre', value: `\`24 Saat\``, inline: true }
+                    )
+                    .setFooter({ text: 'LUAWARE Oto-Log Sistemi' })
+                    .setTimestamp();
+                    
+                logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+            }
+        } catch (logHata) {
+            console.error("Log atılamadı:", logHata);
+        }
 
         // Üretilen yepyeni anahtarı şık bir tasarımla ekrana basıyoruz
         const htmlYeni = `
