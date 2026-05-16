@@ -426,7 +426,7 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS API) KEY OLUŞTURMA SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS GET İSTEĞİ) KEY OLUŞTURMA SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
@@ -437,9 +437,10 @@ module.exports = {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
             }
 
+            // Apiye arka planda bağlanması 1-2 saniye süreceği için "Düşünüyor" moduna alıyoruz:
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
-            // 1. VIP/YETKİLİ KONTROLÜ (Bu adamlar reklam izlemez, direkt keyi alır)
+            // 1. VIP/YETKİLİ KONTROLÜ (Reklamsız Geçiş)
             if (interaction.member.roles.cache.has(VIP_ROLU) || interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 try {
                     let userKey = await KeyModel.findOne({ owner: interaction.user.id });
@@ -475,13 +476,38 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN LOOTLABS DİREKT LİNK SİSTEMİ
+            // 2. NORMAL ÜYELER İÇİN DOKÜMANTASYONDAKİ GERÇEK API FORMÜLÜ
             const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
             const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
             const encodedHedef = encodeURIComponent(hedefLink);
             
-            // Bot sunucuya gitmek yerine adamı doğrudan LootLabs sistemine atacak:
-            const paraKazandiranLink = `https://loot-link.com/s?api=${LOOTLABS_API_KEY}&url=${encodedHedef}`;
+            // Attığın belgedeki Kutsal GET İstek Formülü:
+            const apiUrl = `https://creators.lootlabs.gg/api/public/content_locker?api_token=${LOOTLABS_API_KEY}&title=Luaware_Script_Key&url=${encodedHedef}&tier_id=1&number_of_tasks=1`;
+
+            let paraKazandiranLink = "";
+
+            try {
+                // Bot arka kapıdan LootLabs sunucusuna giriyor
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                // Dokümantasyondaki Hata Kontrolü
+                if (data.type === "error") {
+                    console.error("API Formül Hatası:", data.message);
+                    throw new Error(data.message);
+                }
+                
+                // Başarılı Yanıt Örneğinde Yazan O Altın Link Kodu:
+                paraKazandiranLink = data.message.loot_url;
+                
+                if (!paraKazandiranLink) {
+                    throw new Error("Loot_Url Bulunamadı");
+                }
+
+            } catch (err) {
+                console.error("LootLabs API Hatası:", err);
+                return interaction.editReply({ content: isTR ? '❌ **LootLabs reklam sistemi geçici olarak meşgul, lütfen birkaç dakika sonra tekrar dene.**' : '❌ **LootLabs ad system is busy, please try again later.**' });
+            }
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
@@ -498,7 +524,7 @@ module.exports = {
                 new ButtonBuilder()
                     .setLabel(isTR ? '🔗 Reklamı Geç ve Key Al' : '🔗 Pass Ads & Get Key')
                     .setStyle(ButtonStyle.Link)
-                    .setURL(paraKazandiranLink)
+                    .setURL(paraKazandiranLink) // Başarıyla çekilen gerçek tıklanabilir kısa link!
             );
 
             return interaction.editReply({ embeds: [adEmbed], components: [row] });
