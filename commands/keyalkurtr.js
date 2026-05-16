@@ -3,40 +3,61 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('keyalkurtr')
-        .setDescription('Türkçe lisans panelini kurar.')
+        .setDescription('Türkçe LUAWARE lisans panelini kurar.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(interaction) {
         
-        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM LİSANS EKRANI
+        // 💎 KULLANICILARIN GÖRECEĞİ LUAWARE PREMIUM EKRANI
         const trEmbed = new EmbedBuilder()
-            .setTitle('💎 Ryphera OS | Lisans Merkezi')
+            .setTitle('💎 LUAWARE | Lisans Merkezi')
             .setColor('#2B2D31')
             .setDescription(
-                `👋 **Lisans Merkezine Hoş Geldiniz!**\n\n` +
+                `👋 **LUAWARE Lisans Merkezine Hoş Geldiniz!**\n\n` +
                 `📌 **Durum -->** \`🟢 Aktif\`\n` +
-                `⚙️ **Sistem -->** \`Ryphera OS\`\n` +
-                `📝 **İşlem -->** \`Kişisel anahtarınızı oluşturmak için aşağıdaki butona tıklayın.\`\n\n` +
+                `⚙️ **Sistem -->** \`LUAWARE Security\`\n` +
+                `📝 **İşlem -->** \`Hile anahtarınızı almak, aktif etmek veya sıfırlamak için aşağıdaki butonları kullanın.\`\n\n` +
                 `⚠️ **Dikkat!! ANAHTARINIZI KİMSE İLE PAYLAŞMAYIN**`
             )
-            .setFooter({ text: 'Ryphera OS Güvenlik' });
+            .setImage('https://cdn.discordapp.com/attachments/1111/1111/luaware_banner.png') // İstersen buraya havalı bir banner linki koyabilirsin
+            .setFooter({ text: 'LUAWARE Security System' });
 
-        const row = new ActionRowBuilder().addComponents(
+        // 1. SATIR BUTONLARI (Anahtar Al ve Aktif Et)
+        const row1 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('get_key_tr')
                 .setLabel('Anahtar Al')
-                .setStyle(ButtonStyle.Danger) // Türkçe versiyondaki kırmızı detayı koruduk
-                .setEmoji('🔑')
+                .setStyle(ButtonStyle.Danger) 
+                .setEmoji('🔑'),
+            new ButtonBuilder()
+                .setCustomId('activate_key_tr')
+                .setLabel('Key Aktif Et')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('🚀')
         );
 
-        await interaction.channel.send({ embeds: [trEmbed], components: [row] });
+        // 2. SATIR BUTONLARI (HWID Sıfırla ve Nasıl Alınır)
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('reset_hwid_tr')
+                .setLabel('HWID Sıfırla')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('💻'),
+            new ButtonBuilder()
+                .setCustomId('how_to_get_tr')
+                .setLabel('Nasıl Alınır?')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('❓')
+        );
 
-        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        await interaction.channel.send({ embeds: [trEmbed], components: [row1, row2] });
+
+        // 💎 SADECE SANA GÖRÜNECEK ONAY MESAJI
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Kurulum Başarılı')
             .setColor('#57F287')
             .setDescription(
-                `⚙️ **İşlem -->** \`Türkçe Key Menüsü Kurulumu\`\n` +
+                `⚙️ **İşlem -->** \`Türkçe LUAWARE Key Menüsü Kurulumu\`\n` +
                 `✅ **Durum -->** \`Başarıyla Oluşturuldu\`\n` +
                 `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
                 `👮 **İşlemi Yapan -->** <@${interaction.user.id}>`

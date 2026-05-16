@@ -3,43 +3,63 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('keyalkureng')
-        .setDescription('Setup English license panel.')
+        .setDescription('Setup English LUAWARE license panel.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(interaction) {
         
-        // 💎 KULLANICILARIN GÖRECEĞİ PREMIUM LİSANS EKRANI
+        // 💎 USERS WILL SEE THIS PREMIUM SCREEN
         const enEmbed = new EmbedBuilder()
-            .setTitle('💎 Ryphera OS | License Center')
+            .setTitle('💎 LUAWARE | License Center')
             .setColor('#2B2D31')
             .setDescription(
-                `👋 **Welcome to the License Center!**\n\n` +
+                `👋 **Welcome to the LUAWARE License Center!**\n\n` +
                 `📌 **Status -->** \`🟢 Active\`\n` +
-                `⚙️ **System -->** \`Ryphera OS\`\n` +
-                `📝 **Action -->** \`Click the button below to generate your personal key.\`\n\n` +
+                `⚙️ **System -->** \`LUAWARE Security\`\n` +
+                `📝 **Action -->** \`Use the buttons below to get, activate or reset your script key.\`\n\n` +
                 `⚠️ **Note!! DO NOT SHARE YOUR KEY WITH ANYONE**`
             )
-            .setFooter({ text: 'Ryphera OS Security' });
+            .setFooter({ text: 'LUAWARE Security System' });
 
-        const row = new ActionRowBuilder().addComponents(
+        // ROW 1 BUTTONS
+        const row1 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('get_key_en')
                 .setLabel('Get Key')
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji('🔑')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🔑'),
+            new ButtonBuilder()
+                .setCustomId('activate_key_en')
+                .setLabel('Activate Key')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('🚀')
         );
 
-        await interaction.channel.send({ embeds: [enEmbed], components: [row] });
+        // ROW 2 BUTTONS
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('reset_hwid_en')
+                .setLabel('Reset HWID')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('💻'),
+            new ButtonBuilder()
+                .setCustomId('how_to_get_en')
+                .setLabel('How to Get?')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('❓')
+        );
 
-        // 💎 SADECE SANA GÖRÜNECEK PREMIUM ONAY MESAJI
+        await interaction.channel.send({ embeds: [enEmbed], components: [row1, row2] });
+
+        // 💎 ONLY VISIBLE TO ADMIN
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Setup Complete')
             .setColor('#57F287')
             .setDescription(
-                `⚙️ **İşlem -->** \`İngilizce Key Menüsü Kurulumu\`\n` +
-                `✅ **Durum -->** \`Başarıyla Oluşturuldu\`\n` +
-                `📍 **Kurulan Kanal -->** <#${interaction.channelId}>\n` +
-                `👮 **İşlemi Yapan -->** <@${interaction.user.id}>`
+                `⚙️ **Action -->** \`English LUAWARE Key Menu Setup\`\n` +
+                `✅ **Status -->** \`Successfully Created\`\n` +
+                `📍 **Channel -->** <#${interaction.channelId}>\n` +
+                `👮 **Admin -->** <@${interaction.user.id}>`
             )
             .setTimestamp();
 
