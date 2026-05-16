@@ -1,61 +1,35 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('sifrele')
-        .setDescription('VIP & Yetkililer için Lua kodunu çalınmaya karşı şifreler (Obfuscate).')
-        .addStringOption(option =>
-            option.setName('kod')
-                .setDescription('Şifrelemek istediğiniz Lua kodunu buraya yapıştırın.')
-                .setRequired(true)
-        ),
-
+        .setName('sifrelekur')
+        .setDescription('Kullanıcıların kodlarını şifreleyebileceği paneli kurar.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        
     async execute(interaction) {
-        // Güvenlik: Sadece yöneticiler ve yetkililer kullanabilsin (İleride bunu VIP role de bağlayabilirsin)
-        const STAFF_ROLE = '1501638556026802287';
-        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && !interaction.member.roles.cache.has(STAFF_ROLE)) {
-            return interaction.reply({ content: '❌ **Bu VIP komutunu kullanmak için gerekli yetkiniz yok!**', ephemeral: true });
-        }
+        // 💎 Şifreleme Paneli Tasarımı
+        const panelEmbed = new EmbedBuilder()
+            .setTitle('🔐 LUAWARE | Gelişmiş Şifreleme Merkezi')
+            .setColor('#2B2D31')
+            .setDescription(
+                `👋 **LUAWARE Obfuscation Motoruna Hoş Geldiniz!**\n\n` +
+                `Lua kodlarınızı hırsızlara (Skid) karşı korumak ve güvenli hale getirmek için XOR-Byte şifreleme teknolojimizi kullanabilirsiniz.\n\n` +
+                `👇 **Nasıl Yapılır?**\n` +
+                `Aşağıdaki butona tıklayın ve açılan pencereye şifrelemek istediğiniz kodunuzu yapıştırın.`
+            )
+            .setFooter({ text: 'LUAWARE Anti-Skid Security' });
 
-        const rawCode = interaction.options.getString('kod');
-        await interaction.deferReply({ ephemeral: true }); // Kod uzun olabileceği için bota zaman kazandırıyoruz
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('btn_obfuscate')
+                .setLabel('Kodu Şifrele')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🛡️')
+        );
 
-        try {
-            // --- 🛡️ LUAWARE XOR OBFUSCATION ENGINE ---
-            const xorKey = Math.floor(Math.random() * 150) + 50; // 50-200 arası rastgele şifreleme anahtarı
-            let encryptedBytes = [];
+        await interaction.channel.send({ embeds: [panelEmbed], components: [row] });
 
-            // Kodun her karakterini XOR anahtarı ile kırıyoruz
-            for (let i = 0; i < rawCode.length; i++) {
-                encryptedBytes.push(rawCode.charCodeAt(i) ^ xorKey);
-            }
-
-            const byteString = encryptedBytes.join(',');
-
-            // Roblox Executor'larının arka planda çözeceği runtime wrapper kodunu inşa ediyoruz
-            const obfuscatedCode = `local _LUAWARE_PROTECT = {${byteString}} local _KEY = ${xorKey} local _CHARS = {} for i=1, #_LUAWARE_PROTECT do _CHARS[i] = string.char(_LUAWARE_PROTECT[i] ~ _KEY) end return loadstring(table.concat(_CHARS))()`;
-            // ----------------------------------------
-
-            // Sonuç ekranını şık bir embed ile adama teslim ediyoruz
-            const obfEmbed = new EmbedBuilder()
-                .setTitle('🔐 LUAWARE | Kod Başarıyla Şifrelendi!')
-                .setColor('#00D4FF')
-                .setDescription('Aşağıdaki şifrelenmiş kodu direkt kopyalayıp executor\'ınızda çalıştırabilirsiniz. Orijinal kaynak kodunuz tamamen gizlenmiştir!')
-                .addFields(
-                    { name: '📝 Orijinal Boyut', value: `\`${rawCode.length} Karakter\``, inline: true },
-                    { name: '🛡️ Güvenlik Katmanı', value: `\`XOR-Byte (Anti-Skid)\``, inline: true }
-                )
-                .setFooter({ text: 'LUAWARE Obfuscation Tool v1.0' });
-
-            // Şifrelenmiş kodu kopyalaması kolay olsun diye kod bloğu içinde gönderiyoruz
-            return interaction.editReply({ 
-                embeds: [obfEmbed], 
-                content: `\`\`\`lua\n${obfuscatedCode}\n\`\`\`` 
-            });
-
-        } catch (err) {
-            console.error(err);
-            return interaction.editReply({ content: '❌ **Kod şifrelenirken bir hata oluştu!** Kod karakterlerini kontrol edin.' });
-        }
+        // Yöneticiye giden gizli onay mesajı
+        await interaction.reply({ content: '✅ Şifreleme paneli başarıyla kuruldu!', ephemeral: true });
     }
 };

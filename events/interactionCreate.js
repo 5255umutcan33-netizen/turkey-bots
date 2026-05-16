@@ -103,6 +103,37 @@ module.exports = {
                 });
             }
 
+            // 🚨 YENİ EKLENEN: ŞİFRELEME KUTUSU DOLDURULUNCA OBFUSCATE YAP
+            if (interaction.customId === 'modal_obfuscate') {
+                const rawCode = interaction.fields.getTextInputValue('obf_code');
+                await interaction.deferReply({ ephemeral: true }); // Uzun sürebilir, Discord'a beklemesini söylüyoruz
+
+                try {
+                    // LUAWARE XOR OBFUSCATION ENGINE
+                    const xorKey = Math.floor(Math.random() * 150) + 50; 
+                    let encryptedBytes = [];
+                    for (let i = 0; i < rawCode.length; i++) {
+                        encryptedBytes.push(rawCode.charCodeAt(i) ^ xorKey);
+                    }
+                    const byteString = encryptedBytes.join(',');
+                    const obfuscatedCode = `local _LUAWARE_PROTECT = {${byteString}} local _KEY = ${xorKey} local _CHARS = {} for i=1, #_LUAWARE_PROTECT do _CHARS[i] = string.char(_LUAWARE_PROTECT[i] ~ _KEY) end return loadstring(table.concat(_CHARS))()`;
+
+                    const obfEmbed = new EmbedBuilder()
+                        .setTitle('🔐 LUAWARE | Kod Başarıyla Şifrelendi!')
+                        .setColor('#00D4FF')
+                        .setDescription('Aşağıdaki şifrelenmiş kodu direkt kopyalayıp kullanabilirsiniz.')
+                        .setFooter({ text: 'LUAWARE Obfuscation Tool' });
+
+                    return interaction.editReply({ 
+                        embeds: [obfEmbed], 
+                        content: `\`\`\`lua\n${obfuscatedCode}\n\`\`\`` 
+                    });
+
+                } catch (err) {
+                    return interaction.editReply({ content: '❌ **Hata:** Kod şifrelenemedi.' });
+                }
+            }
+
             if (interaction.customId.startsWith('modal_ticket_')) {
                 const originalCid = interaction.customId.replace('modal_', ''); 
                 const isEn = originalCid.startsWith('ticket_en_');
@@ -272,6 +303,21 @@ module.exports = {
         // ==========================================
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
+
+        // 🚨 YENİ EKLENEN: ŞİFRELEME BUTONUNA BASILINCA (MODAL AÇILIR)
+        if (cid === 'btn_obfuscate') {
+            const modal = new ModalBuilder().setCustomId('modal_obfuscate').setTitle('LUAWARE Şifreleme');
+            const codeInput = new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('obf_code')
+                    .setLabel('Şifrelenecek Kodunuzu Yapıştırın:')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('print("Merhaba Dünya")')
+                    .setRequired(true)
+            );
+            modal.addComponents(codeInput);
+            return interaction.showModal(modal);
+        }
 
         // 🚨 YENİ EKLENEN: HWID SIFIRLAMA BUTONUNA BASILINCA (MODAL AÇILIR)
         if (cid === 'reset_hwid_tr' || cid === 'reset_hwid_en') {
