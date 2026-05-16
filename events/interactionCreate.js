@@ -426,7 +426,7 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS GET) KEY OLUŞTURMA SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS) KEY OLUŞTURMA SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
@@ -471,52 +471,57 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN LOOTLABS RESMİ ENTEGRASYON MOTORU
+            // 2. NORMAL ÜYELER İÇİN LOOTLABS LİNK OLUŞTURMA (HAYALET/PROXY YÖNTEMİ)
             const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
             const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
             const encodedHedef = encodeURIComponent(hedefLink);
             
-            // Attığın son belgedeki birebir onaylanmış resmi API uç noktası
+            // Orijinal LootLabs Uç Noktası
             const apiUrl = `https://creators.lootlabs.gg/api/public/content_locker?api_token=${LOOTLABS_API_KEY}&title=LuawareKey&url=${encodedHedef}&tier_id=1&number_of_tasks=1&theme=1&thumbnail=https://cdn.discordapp.com/embed/avatars/0.png`;
 
             let paraKazandiranLink = "";
 
             try {
-                // Cloudflare kalkanını delmek için tarayıcı taklidi yapıyoruz (User-Agent eklendi)
+                // ADIM 1: Önce Normal Yoldan Deneyelim (Belki Cloudflare anlık geçirir)
                 const response = await fetch(apiUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'application/json'
-                    }
+                    headers: { 'Accept': 'application/json' }
                 });
                 
                 const resText = await response.text();
                 let data;
+                
+                try { data = JSON.parse(resText); } catch (e) { data = { type: "error" }; }
 
-                try {
-                    data = JSON.parse(resText);
-                } catch (jsonErr) {
-                    console.error("LootLabs sunucusu JSON yerine HTML döndürdü. Detay:", resText);
-                    throw new Error("JSON_PARSE_FAILED");
+                if (data.type !== "error" && data.message && data.message.loot_url) {
+                    paraKazandiranLink = data.message.loot_url;
+                } else {
+                    throw new Error("Render IP'si Engellendi, Proxy'ye Geçiliyor...");
                 }
                 
-                if (data.type === "error" || !data.message || !data.message.loot_url) {
-                    console.error("LootLabs API Red Yanıtı:", data);
-                    throw new Error(data.message || "loot_url bulunamadı");
-                }
-                
-                // Başarılı yanıttaki asıl yönlendirici linki yakalıyoruz
-                paraKazandiranLink = data.message.loot_url;
-
             } catch (err) {
-                console.error("🚨 LootLabs Motoru Patladı. Hata:", err.message);
-                return interaction.editReply({ 
-                    content: isTR 
-                    ? '❌ **LootLabs reklam sistemi şu an meşgul veya Render IP adresini engelliyor. Lütfen birkaç dakika sonra tekrar deneyin.**' 
-                    : '❌ **LootLabs system is currently busy or blocking the server IP. Please try again later.**' 
-                }).catch(() => {});
+                // ADIM 2: EĞER NORMAL YOL PATLARSA, HAYALET (PROXY) SUNUCUYA GEÇ!
+                // Bu sayede LootLabs, isteğin Render'dan değil, onaylı bir aracı siteden geldiğini sanır.
+                try {
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
+                    const proxyResponse = await fetch(proxyUrl);
+                    const proxyData = await proxyResponse.json();
+
+                    if (proxyData.type !== "error" && proxyData.message && proxyData.message.loot_url) {
+                        paraKazandiranLink = proxyData.message.loot_url;
+                    } else {
+                        throw new Error("Proxy de geçemedi.");
+                    }
+                } catch (proxyErr) {
+                    console.error("🚨 LootLabs Çöktü (Proxy Dahil):", proxyErr.message);
+                    return interaction.editReply({ 
+                        content: isTR 
+                        ? '❌ **LootLabs reklam sistemi şu an meşgul. Lütfen 1-2 dakika bekleyip tekrar "Anahtar Al" butonuna basın.**' 
+                        : '❌ **LootLabs system is currently busy. Please try again in 1-2 minutes.**' 
+                    }).catch(() => {});
+                }
             }
 
+            // Başarıyla çekilen linki adama sunuyoruz!
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
                 .setColor('#FEE75C')
