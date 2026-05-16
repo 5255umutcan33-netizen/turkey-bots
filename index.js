@@ -135,9 +135,10 @@ app.get('/verify', async (req, res) => {
 });
 
 // =========================================================
-// 🚨 LUAWARE LOOTLABS YENİ IP-TABANLI & ULTRA ŞIK SİSTEMİ 🚨
+// 🚨 LUAWARE LOOTLABS HİBRİT SİSTEMİ (ID + IP KONTROLLÜ) 🚨
 // =========================================================
 app.get('/key-al', async (req, res) => {
+    const userId = req.query.userid; // Discord ID'sini tekrar alıyoruz!
     let userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Bilinmeyen-IP';
     if (userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
 
@@ -193,6 +194,12 @@ app.get('/key-al', async (req, res) => {
                 -webkit-text-fill-color: transparent;
                 text-shadow: 0 0 20px rgba(254, 231, 92, 0.3);
             }
+            .glow-text-red {
+                background: -webkit-linear-gradient(45deg, #ff416c, #ff4b2b);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-shadow: 0 0 20px rgba(255, 65, 108, 0.3);
+            }
             .key-box {
                 background: rgba(0, 0, 0, 0.4);
                 border: 2px solid #57F287;
@@ -219,8 +226,24 @@ app.get('/key-al', async (req, res) => {
         </style>
     `;
 
+    // 🔴 Eğer linkte Discord ID yoksa (adam linki kopyalayıp gizli sekmeden vs girmeye çalışıyorsa)
+    if (!userId) {
+        return res.send(`
+            <html lang="en">
+            <head><title>LUAWARE - Error</title>${baseCSS}</head>
+            <body>
+                <div class="container">
+                    <h1 class="glow-text-red">❌ Error / Hata</h1>
+                    <p class="desc">Discord ID bulunamadı. Lütfen anahtarınızı Discord sunucumuzdaki butona tıklayarak alın.</p>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+
     try {
-        const userKey = await KeyModel.findOne({ owner: userIp });
+        // Sahibini tekrardan Discord ID'si üzerinden arıyoruz
+        const userKey = await KeyModel.findOne({ owner: userId });
 
         if (userKey) {
             const creationTime = userKey._id.getTimestamp().getTime();
@@ -267,7 +290,8 @@ app.get('/key-al', async (req, res) => {
         const newKeyString = `LUA-USER-${part1}-${part2}`;
         const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
-        await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userIp, licenseId: licenseId }).save();
+        // Veritabanına owner olarak Discord ID'yi kaydediyoruz (Sorgulama çalışsın diye)
+        await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userId, licenseId: licenseId }).save();
 
         try {
             const OTO_LOG_ID = '1505092320091967498'; 
@@ -278,9 +302,10 @@ app.get('/key-al', async (req, res) => {
                     .setColor('#57F287')
                     .setDescription(`Bir kullanıcı LootLabs'ı geçti ve sistem ona özel yepyeni bir anahtar oluşturdu.`)
                     .addFields(
-                        { name: '🌐 Kullanıcı IP', value: `||${userIp}||`, inline: true },
+                        { name: '👤 Kullanıcı', value: `<@${userId}>`, inline: true }, // Mavi Etiket Geri Geldi!
                         { name: '📜 Key Adı', value: `\`${newKeyString}\``, inline: true },
-                        { name: '⏳ Süre', value: `\`24 Saat\``, inline: true }
+                        { name: '⏳ Süre', value: `\`24 Saat\``, inline: true },
+                        { name: '🌐 Cihaz IP', value: `||${userIp}||`, inline: false } // Güvenlik için IP spoiler içinde durur
                     )
                     .setFooter({ text: 'LUAWARE Akıllı Üretim Sistemi' })
                     .setTimestamp();
@@ -360,15 +385,12 @@ setInterval(async () => {
             const creationTime = k._id.getTimestamp().getTime(); 
             const elapsedHours = (Date.now() - creationTime) / (1000 * 60 * 60);
 
-            // 🚨 EĞER TAM 24 SAAT GEÇTİYSE DİREKT SİL!
             if (elapsedHours >= 24) {
                 await KeyModel.findByIdAndDelete(k._id);
                 continue; 
             }
 
-            // 23 saat geçmişse ve uyarılmamışsa uyarı mesajı (DM) at
             if (elapsedHours >= 23 && elapsedHours < 24 && !k.notifiedBeforeExpiry) {
-                // Sadece Discord ID olanlara DM atmaya çalış (Hata vermemesi için regex kontrolü)
                 if (/^\d{17,20}$/.test(k.owner)) {
                     const discordUser = await client.users.fetch(k.owner).catch(() => null);
                     if (discordUser) {
