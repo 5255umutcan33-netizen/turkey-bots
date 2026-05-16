@@ -20,7 +20,6 @@ const client = new Client({
     ]
 });
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -74,7 +73,7 @@ app.post('/api/keys/generate', async (req, res) => {
         const newKey = new KeyModel({ key: keyName, expiry: expiry || 'Sınırsız', hwid: null, owner: userId });
         await newKey.save();
 
-        const KEY_LOG_ID = '1505092320091967498'; // GÜNCELLENEN LOG ID
+        const KEY_LOG_ID = '1505092320091967498'; 
         const logChannel = client.channels.cache.get(KEY_LOG_ID);
         if (logChannel) {
             const keyLog = new EmbedBuilder()
@@ -108,44 +107,27 @@ app.post('/api/keys/action', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'İşlem hatası' }); }
 });
 
-app.get('/api/staff', async (req, res) => {
-    try {
-        const guild = client.guilds.cache.first(); 
-        if (!guild) return res.json([]);
-        await guild.members.fetch(); 
-        const staffMembers = guild.members.cache.filter(m => 
-            !m.user.bot && (m.permissions.has('Administrator') || m.roles.cache.some(r => r.name.toLowerCase().match(/admin|mod|kurucu|owner|yetkili/)))
-        );
-        const staffList = staffMembers.map(m => {
-            const highestRole = m.roles.cache.sort((a, b) => b.position - a.position).first();
-            let roleColor = '#5865F2'; 
-            if (highestRole && highestRole.hexColor !== '#000000') roleColor = highestRole.hexColor;
-            return {
-                id: m.user.id,
-                username: m.user.username,
-                avatar: m.user.displayAvatarURL({ dynamic: true, format: 'png', size: 256 }) || 'https://cdn.discordapp.com/embed/avatars/0.png',
-                role: highestRole ? highestRole.name : 'YETKİLİ',
-                color: roleColor
-            };
-        });
-        res.json(staffList);
-    } catch (err) { res.status(500).json([]); }
-});
-
-// --- 7. ROBLOX / SCRIPT VERIFY SİSTEMİ (FREE KEY KORUMASI EKLENDİ) ---
+// --- 7. ROBLOX / SCRIPT VERIFY SİSTEMİ ---
 app.get('/verify', async (req, res) => {
     const { key, hwid } = req.query;
     if (!key || !hwid) return res.json({ success: false, message: "EKSİK VERİ!" });
     try {
         const data = await KeyModel.findOne({ key: key });
         if (!data) return res.json({ success: false, message: "GEÇERSİZ KEY!" });
+
+        // EĞER 24 SAAT GEÇMİŞSE OYUNA SOKMA VE KEYİ SİL!
+        if (data.expiry === '24 Saat') {
+            const creationTime = data._id.getTimestamp().getTime();
+            if (Date.now() - creationTime >= 24 * 60 * 60 * 1000) {
+                await KeyModel.findByIdAndDelete(data._id);
+                return res.json({ success: false, message: "SÜRESİ DOLMUŞ!" });
+            }
+        }
         
-        // 🚨 EĞER KEY ADINDA "FREE" GEÇİYORSA HWID KONTROLÜ YAPMA, HERKESİ İÇERİ AL!
         if (key.includes('FREE')) {
             return res.json({ success: true, message: "BAŞARILI" });
         }
 
-        // Normal Anahtarlar için HWID Sistemi
         if (data.hwid && data.hwid !== hwid) return res.json({ success: false, message: "HWID KİLİDİ!" });
         if (!data.hwid) { data.hwid = hwid; await data.save(); }
         return res.json({ success: true, message: "BAŞARILI" });
@@ -153,105 +135,183 @@ app.get('/verify', async (req, res) => {
 });
 
 // =========================================================
-// 🚨 LUAWARE LOOTLABS REKLAM SONRASI 24 SAATLİK KEY SAYFASI 🚨
+// 🚨 LUAWARE LOOTLABS YENİ IP-TABANLI & ULTRA ŞIK SİSTEMİ 🚨
 // =========================================================
 app.get('/key-al', async (req, res) => {
-    const userId = req.query.userid;
-    if (!userId) {
-        return res.send('<h1 style="color:red; text-align:center; font-family:sans-serif; margin-top:50px;">❌ HATA: Kullanıcı ID bulunamadı! Lütfen Discord üzerinden anahtar oluşturun.</h1>');
-    }
+    let userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Bilinmeyen-IP';
+    if (userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
+
+    // 🎨 ORTAK CSS TASARIMI (CAM EFEKTİ VE NEON)
+    const baseCSS = `
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
+            body {
+                background: linear-gradient(-45deg, #0f0c29, #302b63, #0f0c29);
+                background-size: 400% 400%;
+                animation: gradientBG 15s ease infinite;
+                color: #fff;
+                font-family: 'Poppins', sans-serif;
+                margin: 0;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                overflow: hidden;
+            }
+            @keyframes gradientBG {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+            }
+            .container {
+                background: rgba(25, 25, 35, 0.6);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 20px;
+                padding: 40px;
+                text-align: center;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                max-width: 550px;
+                width: 90%;
+                animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            }
+            @keyframes popIn {
+                0% { opacity: 0; transform: scale(0.8); }
+                100% { opacity: 1; transform: scale(1); }
+            }
+            h1 { margin-top: 0; font-weight: 800; }
+            .glow-text-green {
+                background: -webkit-linear-gradient(45deg, #57F287, #00D4FF);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-shadow: 0 0 20px rgba(87, 242, 135, 0.3);
+            }
+            .glow-text-yellow {
+                background: -webkit-linear-gradient(45deg, #FEE75C, #ffaa00);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-shadow: 0 0 20px rgba(254, 231, 92, 0.3);
+            }
+            .key-box {
+                background: rgba(0, 0, 0, 0.4);
+                border: 2px solid #57F287;
+                padding: 20px;
+                border-radius: 12px;
+                margin: 25px 0;
+                box-shadow: 0 0 25px rgba(87, 242, 135, 0.2);
+                transition: transform 0.3s;
+            }
+            .key-box:hover { transform: scale(1.05); box-shadow: 0 0 35px rgba(87, 242, 135, 0.4); }
+            .key-box.yellow { border-color: #FEE75C; box-shadow: 0 0 25px rgba(254, 231, 92, 0.2); }
+            .key-box.yellow:hover { box-shadow: 0 0 35px rgba(254, 231, 92, 0.4); }
+            .key-text {
+                font-size: 32px;
+                letter-spacing: 3px;
+                margin: 0;
+                color: #fff;
+                font-family: monospace;
+                text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            }
+            .desc { color: #ccc; font-size: 14px; margin-bottom: 5px; }
+            .warning { font-size: 13px; color: #ff5555; font-weight: 600; margin-top: 25px; padding: 10px; background: rgba(255, 0, 0, 0.1); border-radius: 8px; }
+            .footer { margin-top: 20px; font-size: 11px; color: #666; letter-spacing: 1px; }
+        </style>
+    `;
 
     try {
-        // 1. ADIM: Bu adamın zaten veritabanında aktif bir anahtarı var mı?
-        const userKey = await KeyModel.findOne({ owner: userId });
+        const userKey = await KeyModel.findOne({ owner: userIp });
 
-        // EĞER ZATEN KEYİ VARSA: 24 Saat dolmadan yenisini vermiyoruz.
         if (userKey) {
-            const htmlMevcut = `
-                <html lang="tr">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>LUAWARE - Zaten Keyin Var</title>
-                    <style>
-                        body { background-color: #121212; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
-                        .key-box { background: #1e1e1e; padding: 20px; border-radius: 10px; display: inline-block; margin-top: 20px; border: 1px solid #FEE75C; }
-                        h2 { color: #FEE75C; }
-                    </style>
-                </head>
-                <body>
-                    <h2>⚠️ Zaten Aktif Bir Anahtarın Var!</h2>
-                    <p style="color:#aaa;">Sistemi spamlayamazsın. Anahtarın 24 saat dolmadan yenilenemez.</p>
-                    <div class="key-box">
-                        <h1 style="color:#00D4FF; margin:0; letter-spacing: 2px;">${userKey.key}</h1>
-                    </div>
-                </body>
-                </html>
-            `;
-            return res.send(htmlMevcut);
+            const creationTime = userKey._id.getTimestamp().getTime();
+            const elapsedHours = (Date.now() - creationTime) / (1000 * 60 * 60);
+
+            if (elapsedHours >= 24 && userKey.expiry === '24 Saat') {
+                await KeyModel.findByIdAndDelete(userKey._id);
+            } else {
+                // 🟡 ZATEN KEYİ OLANLAR İÇİN EKRAN
+                const htmlMevcut = `
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>LUAWARE - Active License</title>
+                        ${baseCSS}
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1 class="glow-text-yellow">⚠️ Active Key Found</h1>
+                            <p class="desc">🇹🇷 Sisteme kayıtlı aktif bir anahtarın zaten bulunuyor.</p>
+                            <p class="desc">🇬🇧 You already have an active license key in the system.</p>
+                            
+                            <div class="key-box yellow">
+                                <h2 class="key-text">${userKey.key}</h2>
+                            </div>
+                            
+                            <div class="warning">
+                                🇹🇷 24 saatin dolmadan yeni anahtar üretemezsin.<br>
+                                🇬🇧 You cannot generate a new key until your 24 hours expire.
+                            </div>
+                            <div class="footer">LUAWARE SECURITY SYSTEM</div>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                return res.send(htmlMevcut);
+            }
         }
 
-        // EĞER KEYİ YOKSA: Yepyeni bir 24 saatlik anahtar üret!
+        // 🟢 YEPYENİ KEY ÜRETİLEN EKRAN
         const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const newKeyString = `LUA-USER-${part1}-${part2}`;
         const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
-        // Veritabanına "24 Saat" etiketiyle kaydediyoruz
-        await new KeyModel({ 
-            key: newKeyString, 
-            expiry: '24 Saat', 
-            owner: userId, 
-            licenseId: licenseId 
-        }).save();
+        await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userIp, licenseId: licenseId }).save();
 
-        // 🚨 YENİ EKLENEN OTOMATİK DİSCORD LOG SİSTEMİ 🚨
         try {
-            const OTO_LOG_ID = '1505092320091967498'; // Senin verdiğin kanal ID'si
+            const OTO_LOG_ID = '1505092320091967498'; 
             const logChannel = client.channels.cache.get(OTO_LOG_ID);
-            
             if (logChannel) {
                 const logEmbed = new EmbedBuilder()
-                    .setTitle('🔑 YENİ OTO-KEY ÜRETİLDİ!')
+                    .setTitle('🔑 YENİ REKLAM KEYİ ÜRETİLDİ!')
                     .setColor('#57F287')
-                    .setDescription(`Bir kullanıcı LootLabs görevini başarıyla geçip sistemden yeni bir anahtar aldı.`)
+                    .setDescription(`Bir kullanıcı LootLabs'ı geçti ve sistem ona özel yepyeni bir anahtar oluşturdu.`)
                     .addFields(
-                        { name: '👤 Kullanıcı', value: `<@${userId}>`, inline: true },
+                        { name: '🌐 Kullanıcı IP', value: `||${userIp}||`, inline: true },
                         { name: '📜 Key Adı', value: `\`${newKeyString}\``, inline: true },
                         { name: '⏳ Süre', value: `\`24 Saat\``, inline: true }
                     )
-                    .setFooter({ text: 'LUAWARE Oto-Log Sistemi' })
+                    .setFooter({ text: 'LUAWARE Akıllı Üretim Sistemi' })
                     .setTimestamp();
-                    
                 logChannel.send({ embeds: [logEmbed] }).catch(() => {});
             }
-        } catch (logHata) {
-            console.error("Log atılamadı:", logHata);
-        }
+        } catch (logHata) {}
 
-        // Üretilen yepyeni anahtarı şık bir tasarımla ekrana basıyoruz
         const htmlYeni = `
-            <html lang="tr">
+            <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>LUAWARE - Key Başarılı</title>
-                <style>
-                    body { background-color: #0a0a0a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding-top: 100px; }
-                    .key-box { background: #141414; padding: 30px; border-radius: 15px; display: inline-block; margin-top: 30px; border: 2px solid #57F287; box-shadow: 0 0 25px rgba(87, 242, 135, 0.3); }
-                    h1 { color: #57F287; }
-                </style>
+                <title>LUAWARE - Key Generated</title>
+                ${baseCSS}
             </head>
             <body>
-                <h1>✅ Başarılı! Anahtarın Oluşturuldu.</h1>
-                <p style="color:#ccc; font-size:18px;">LootLabs görevini geçip bize destek olduğun için teşekkürler. İşte 24 saatlik anahtarın:</p>
-                <div class="key-box">
-                    <h2 style="color:#00D4FF; margin:0; font-size: 35px; letter-spacing: 3px;">${newKeyString}</h2>
+                <div class="container">
+                    <h1 class="glow-text-green">✅ Access Granted</h1>
+                    <p class="desc">🇹🇷 Destek olduğun için teşekkürler. İşte 24 saatlik anahtarın:</p>
+                    <p class="desc">🇬🇧 Thank you for your support. Here is your 24-hour key:</p>
+                    
+                    <div class="key-box">
+                        <h2 class="key-text">${newKeyString}</h2>
+                    </div>
+                    
+                    <div class="warning">
+                        🇹🇷 Bu anahtar HWID sistemine kilitlenecektir. Kimseyle paylaşma!<br><br>
+                        🇬🇧 This key will be locked to your HWID. Do not share it!
+                    </div>
+                    <div class="footer">LUAWARE SECURITY SYSTEM</div>
                 </div>
-                <p style="color:#ED4245; margin-top:40px; font-weight:bold; font-size:16px;">
-                    ⚠️ DİKKAT: Bu anahtar senin Discord ID'ne işlenmiştir. Kimseyle paylaşma!<br>
-                    Anahtarın 24 saat sonra sistemden otomatik olarak silinecektir.
-                </p>
             </body>
             </html>
         `;
@@ -259,13 +319,22 @@ app.get('/key-al', async (req, res) => {
 
     } catch (err) {
         console.error("Anahtar Üretim Hatası:", err);
-        return res.send('<h1 style="color:red; text-align:center; font-family:sans-serif; margin-top:50px;">❌ Sistem Hatası! Veritabanına bağlanılamadı.</h1>');
+        return res.send(`
+            <html lang="en">
+            <head>
+                <style>body { background: #121212; color: #ff5555; font-family: sans-serif; text-align: center; padding-top: 100px; }</style>
+            </head>
+            <body>
+                <h2>❌ System Error / Sistem Hatası</h2>
+                <p>Database connection failed. Please try again later.</p>
+            </body>
+            </html>
+        `);
     }
 });
-// =========================================================
 
 // --- 8. BAŞLATMA VE PORT AYARI ---
-app.get('/', (req, res) => res.send('RYPHERA OS ONLINE 🚀'));
+app.get('/', (req, res) => res.send('LUAWARE OS ONLINE 🚀'));
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
@@ -281,52 +350,52 @@ client.once('ready', async () => {
 });
 
 // =========================================================================
-// ⏰ LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI (OTOMATİK WORKER)
+// ⏰ LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI VE SİLİCİ
 // =========================================================================
 setInterval(async () => {
     try {
-        // Süresi '24 Saat' olan ve henüz uyarılmamış (notified alanı true olmayan) keyleri çekiyoruz
-        const keys = await KeyModel.find({ expiry: '24 Saat', notifiedBeforeExpiry: { $ne: true } });
+        const keys = await KeyModel.find({ expiry: '24 Saat' });
 
         for (const k of keys) {
-            // MongoDB ID'sinden keyin tam oluşturulma tarihini çekiyoruz
             const creationTime = k._id.getTimestamp().getTime(); 
-            const elapsedMs = Date.now() - creationTime;
-            const elapsedHours = elapsedMs / (1000 * 60 * 60);
+            const elapsedHours = (Date.now() - creationTime) / (1000 * 60 * 60);
 
-            // ⚠️ 23 saat geçmişse (yani bitmesine 1 saat kalmışsa) adama DM at
-            if (elapsedHours >= 23 && elapsedHours < 24) {
-                const discordUser = await client.users.fetch(k.owner).catch(() => null);
-                
-                if (discordUser) {
-                    const reminderEmbed = new EmbedBuilder()
-                        .setTitle('⚠️ LUAWARE | Anahtarının Süresi Bitmek Üzere!')
-                        .setColor('#FEE75C')
-                        .setDescription(
-                            `👋 Merhaba <@${k.owner}>,\n\nSistemden aldığın **24 Saatlik** ücretsiz LUAWARE hile anahtarının süresi **1 saat içinde dolacak.**\n\n` +
-                            `Oyun keyfinin yarıda kesilmemesi ve hilenin kapanmaması için süren bittiğinde **Lisans Merkezi** kanalından yeni bir reklam geçerek taze bir anahtar oluşturabilirsin!\n\n` +
-                            `🔑 **Mevcut Anahtarın:** \`${k.key}\``
-                        )
-                        .setFooter({ text: 'LUAWARE Otomatik Hatırlatıcı Sistemi' })
-                        .setTimestamp();
+            // 🚨 EĞER TAM 24 SAAT GEÇTİYSE DİREKT SİL!
+            if (elapsedHours >= 24) {
+                await KeyModel.findByIdAndDelete(k._id);
+                continue; 
+            }
 
-                    await discordUser.send({ embeds: [reminderEmbed] }).catch(() => {
-                        console.log(`[Hatırlatıcı] ${k.owner} kullanıcısının DM kutusu kapalı olduğu için mesaj atılamadı.`);
-                    });
+            // 23 saat geçmişse ve uyarılmamışsa uyarı mesajı (DM) at
+            if (elapsedHours >= 23 && elapsedHours < 24 && !k.notifiedBeforeExpiry) {
+                // Sadece Discord ID olanlara DM atmaya çalış (Hata vermemesi için regex kontrolü)
+                if (/^\d{17,20}$/.test(k.owner)) {
+                    const discordUser = await client.users.fetch(k.owner).catch(() => null);
+                    if (discordUser) {
+                        const reminderEmbed = new EmbedBuilder()
+                            .setTitle('⚠️ LUAWARE | Anahtarının Süresi Bitmek Üzere!')
+                            .setColor('#FEE75C')
+                            .setDescription(
+                                `👋 Merhaba <@${k.owner}>,\n\nSistemden aldığın **24 Saatlik** ücretsiz LUAWARE hile anahtarının süresi **1 saat içinde dolacak.**\n\n` +
+                                `Oyun keyfinin yarıda kesilmemesi ve hilenin kapanmaması için süren bittiğinde **Lisans Merkezi** kanalından yeni bir reklam geçerek taze bir anahtar oluşturabilirsin!\n\n` +
+                                `🔑 **Mevcut Anahtarın:** \`${k.key}\``
+                            )
+                            .setFooter({ text: 'LUAWARE Otomatik Hatırlatıcı Sistemi' })
+                            .setTimestamp();
+
+                        await discordUser.send({ embeds: [reminderEmbed] }).catch(() => {});
+                    }
                 }
-
-                // Aynı adamı bir daha darlamamak için veritabanında "uyarıldı" olarak işaretliyoruz
                 await KeyModel.findByIdAndUpdate(k._id, { $set: { notifiedBeforeExpiry: true } });
             }
         }
     } catch (err) {
-        console.error("🚨 [Hatırlatıcı Hatası]:", err);
+        console.error("🚨 [Hatırlatıcı/Silici Hatası]:", err);
     }
-}, 5 * 60 * 1000); // 5 dakikada bir arka planda tıkır tıkır çalışır
+}, 5 * 60 * 1000); 
 
 client.login(process.env.TOKEN);
 
-// --- 🛡️ RYPHERA ANTI-CRASH SİSTEMİ (ÖLÜMSÜZLÜK KALKANI) ---
 process.on('unhandledRejection', (reason, promise) => {
     console.log('🚨 [Anti-Crash] İşlenmeyen Hata Engellendi (unhandledRejection):', reason);
 });
