@@ -426,7 +426,7 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS) KEY OLUŞTURMA SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS DIRECT) KEY OLUŞTURMA SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
@@ -437,11 +437,9 @@ module.exports = {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
             }
 
-            // Arka planda sunucu istekleri döneceği için bota "Düşünüyor..." modunu açıyoruz
-            await interaction.deferReply({ ephemeral: true }).catch(() => {});
-
-            // 1. VIP/YETKİLİ KONTROLÜ (Bu adamlar reklam izlemez, direkt keyi alır)
+            // 1. VIP/YETKİLİ KONTROLÜ
             if (interaction.member.roles.cache.has(VIP_ROLU) || interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                await interaction.deferReply({ ephemeral: true }).catch(() => {});
                 try {
                     let userKey = await KeyModel.findOne({ owner: interaction.user.id });
                     if (userKey) {
@@ -471,64 +469,22 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN LOOTLABS LİNK OLUŞTURMA (HAYALET/PROXY YÖNTEMİ)
+            // 2. NORMAL ÜYELER İÇİN DOĞRUDAN LİNK SİSTEMİ (API İPTAL EDİLDİ)
+            // Bu yöntem sayesinde bot arka plandan LootLabs'a bağlanmaya çalışmaz, bu sayede "IP Engellendi" hatası vermez. 
+            // Kullanıcı doğrudan kendi IP'si ile reklama yönlendirilir.
+            
             const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
             const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
-            const encodedHedef = encodeURIComponent(hedefLink);
             
-            // Orijinal LootLabs Uç Noktası
-            const apiUrl = `https://creators.lootlabs.gg/api/public/content_locker?api_token=${LOOTLABS_API_KEY}&title=LuawareKey&url=${encodedHedef}&tier_id=1&number_of_tasks=1&theme=1&thumbnail=https://cdn.discordapp.com/embed/avatars/0.png`;
+            const paraKazandiranLink = `https://links.lootlabs.gg/s?api=${LOOTLABS_API_KEY}&url=${encodeURIComponent(hedefLink)}`;
 
-            let paraKazandiranLink = "";
-
-            try {
-                // ADIM 1: Önce Normal Yoldan Deneyelim (Belki Cloudflare anlık geçirir)
-                const response = await fetch(apiUrl, {
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                const resText = await response.text();
-                let data;
-                
-                try { data = JSON.parse(resText); } catch (e) { data = { type: "error" }; }
-
-                if (data.type !== "error" && data.message && data.message.loot_url) {
-                    paraKazandiranLink = data.message.loot_url;
-                } else {
-                    throw new Error("Render IP'si Engellendi, Proxy'ye Geçiliyor...");
-                }
-                
-            } catch (err) {
-                // ADIM 2: EĞER NORMAL YOL PATLARSA, HAYALET (PROXY) SUNUCUYA GEÇ!
-                // Bu sayede LootLabs, isteğin Render'dan değil, onaylı bir aracı siteden geldiğini sanır.
-                try {
-                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-                    const proxyResponse = await fetch(proxyUrl);
-                    const proxyData = await proxyResponse.json();
-
-                    if (proxyData.type !== "error" && proxyData.message && proxyData.message.loot_url) {
-                        paraKazandiranLink = proxyData.message.loot_url;
-                    } else {
-                        throw new Error("Proxy de geçemedi.");
-                    }
-                } catch (proxyErr) {
-                    console.error("🚨 LootLabs Çöktü (Proxy Dahil):", proxyErr.message);
-                    return interaction.editReply({ 
-                        content: isTR 
-                        ? '❌ **LootLabs reklam sistemi şu an meşgul. Lütfen 1-2 dakika bekleyip tekrar "Anahtar Al" butonuna basın.**' 
-                        : '❌ **LootLabs system is currently busy. Please try again in 1-2 minutes.**' 
-                    }).catch(() => {});
-                }
-            }
-
-            // Başarıyla çekilen linki adama sunuyoruz!
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
                 .setColor('#FEE75C')
                 .setDescription(
                     isTR 
-                    ? `👋 Merhaba <@${interaction.user.id}>,\n\nSistemimizi ücretsiz tutabilmek ve LUAWARE sunucularını desteklemek için kısa bir reklam geçmeniz gerekmektedir.\n\n👇 **Aşağıdaki butona tıklayıp sadece 10 saniye içinde anahtarını alabilirsin:**`
-                    : `👋 Hello <@${interaction.user.id}>,\n\nTo keep our system free and support LUAWARE servers, you need to pass a short advertisement.\n\n👇 **Click the button below to get your key in just 10 seconds:**`
+                    ? `👋 Merhaba <@${interaction.user.id}>,\n\nSistemimizi ücretsiz tutabilmek için kısa bir reklam geçmeniz gerekmektedir.\n\n👇 **Aşağıdaki butona tıkla ve saniyeler içinde anahtarını al:**`
+                    : `👋 Hello <@${interaction.user.id}>,\n\nTo keep our system free, you need to pass a short advertisement.\n\n👇 **Click the button below to get your key:**`
                 )
                 .setFooter({ text: 'LUAWARE Monetization System (Powered by LootLabs)' })
                 .setTimestamp();
@@ -540,7 +496,8 @@ module.exports = {
                     .setURL(paraKazandiranLink)
             );
 
-            return interaction.editReply({ embeds: [adEmbed], components: [row] }).catch(() => {});
+            // Bekleme yapmadan anında cevaplıyoruz, "Düşünüyor" hatası da çıkmıyor.
+            return interaction.reply({ embeds: [adEmbed], components: [row], ephemeral: true }).catch(() => {});
         }
         // =========================================================================
 
