@@ -461,7 +461,8 @@ module.exports = {
             // 2. NORMAL ÜYELER İÇİN SABİT UYGULAMA LİNKİ (API İPTAL)
             // Senin verdiğin sabit linki koyuyoruz ve sonuna adamın ID'sini gizlice ekliyoruz 
             // ki siteye düştüğünde "Bu kim?" hatası almasın.
-            const paraKazandiranLink = `https://lootdest.org/s?MlNWoIbp&userid=${interaction.user.id}`;
+            const paraKazandiranLink = `
+https://loot-link.com/s?bnYUHMrn&userid=${interaction.user.id}`;
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
