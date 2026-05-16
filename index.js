@@ -133,13 +133,20 @@ app.get('/api/staff', async (req, res) => {
     } catch (err) { res.status(500).json([]); }
 });
 
-// --- 7. ROBLOX / SCRIPT VERIFY SİSTEMİ ---
+// --- 7. ROBLOX / SCRIPT VERIFY SİSTEMİ (FREE KEY KORUMASI EKLENDİ) ---
 app.get('/verify', async (req, res) => {
     const { key, hwid } = req.query;
     if (!key || !hwid) return res.json({ success: false, message: "EKSİK VERİ!" });
     try {
         const data = await KeyModel.findOne({ key: key });
         if (!data) return res.json({ success: false, message: "GEÇERSİZ KEY!" });
+        
+        // 🚨 EĞER KEY ADINDA "FREE" GEÇİYORSA HWID KONTROLÜ YAPMA, HERKESİ İÇERİ AL!
+        if (key.includes('FREE')) {
+            return res.json({ success: true, message: "BAŞARILI" });
+        }
+
+        // Normal Anahtarlar için HWID Sistemi
         if (data.hwid && data.hwid !== hwid) return res.json({ success: false, message: "HWID KİLİDİ!" });
         if (!data.hwid) { data.hwid = hwid; await data.save(); }
         return res.json({ success: true, message: "BAŞARILI" });
