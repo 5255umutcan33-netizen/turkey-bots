@@ -280,6 +280,50 @@ client.once('ready', async () => {
     } catch (error) { console.error('❌ Kayıt hatası:', error); }
 });
 
+// =========================================================================
+// ⏰ LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI (OTOMATİK WORKER)
+// =========================================================================
+setInterval(async () => {
+    try {
+        // Süresi '24 Saat' olan ve henüz uyarılmamış (notified alanı true olmayan) keyleri çekiyoruz
+        const keys = await KeyModel.find({ expiry: '24 Saat', notifiedBeforeExpiry: { $ne: true } });
+
+        for (const k of keys) {
+            // MongoDB ID'sinden keyin tam oluşturulma tarihini çekiyoruz
+            const creationTime = k._id.getTimestamp().getTime(); 
+            const elapsedMs = Date.now() - creationTime;
+            const elapsedHours = elapsedMs / (1000 * 60 * 60);
+
+            // ⚠️ 23 saat geçmişse (yani bitmesine 1 saat kalmışsa) adama DM at
+            if (elapsedHours >= 23 && elapsedHours < 24) {
+                const discordUser = await client.users.fetch(k.owner).catch(() => null);
+                
+                if (discordUser) {
+                    const reminderEmbed = new EmbedBuilder()
+                        .setTitle('⚠️ LUAWARE | Anahtarının Süresi Bitmek Üzere!')
+                        .setColor('#FEE75C')
+                        .setDescription(
+                            `👋 Merhaba <@${k.owner}>,\n\nSistemden aldığın **24 Saatlik** ücretsiz LUAWARE hile anahtarının süresi **1 saat içinde dolacak.**\n\n` +
+                            `Oyun keyfinin yarıda kesilmemesi ve hilenin kapanmaması için süren bittiğinde **Lisans Merkezi** kanalından yeni bir reklam geçerek taze bir anahtar oluşturabilirsin!\n\n` +
+                            `🔑 **Mevcut Anahtarın:** \`${k.key}\``
+                        )
+                        .setFooter({ text: 'LUAWARE Otomatik Hatırlatıcı Sistemi' })
+                        .setTimestamp();
+
+                    await discordUser.send({ embeds: [reminderEmbed] }).catch(() => {
+                        console.log(`[Hatırlatıcı] ${k.owner} kullanıcısının DM kutusu kapalı olduğu için mesaj atılamadı.`);
+                    });
+                }
+
+                // Aynı adamı bir daha darlamamak için veritabanında "uyarıldı" olarak işaretliyoruz
+                await KeyModel.findByIdAndUpdate(k._id, { $set: { notifiedBeforeExpiry: true } });
+            }
+        }
+    } catch (err) {
+        console.error("🚨 [Hatırlatıcı Hatası]:", err);
+    }
+}, 5 * 60 * 1000); // 5 dakikada bir arka planda tıkır tıkır çalışır
+
 client.login(process.env.TOKEN);
 
 // --- 🛡️ RYPHERA ANTI-CRASH SİSTEMİ (ÖLÜMSÜZLÜK KALKANI) ---
