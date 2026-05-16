@@ -9,7 +9,8 @@ const {
     TextInputBuilder, 
     TextInputStyle, 
     Events,
-    StringSelectMenuBuilder
+    StringSelectMenuBuilder,
+    AttachmentBuilder // YENİ: DOSYA ÇIKTISI VEREBİLMEK İÇİN EKLENDİ
 } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
 const KeyModel = require('../models/key');
@@ -69,7 +70,43 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
-            // 🚨 YENİ EKLENEN: HWID SIFIRLAMA FORMU
+            // 🚨 YENİ: DOSYA ÇIKTILI TR/EN ŞİFRELEME MOTORU (OBFUSCATE)
+            if (interaction.customId === 'modal_obfuscate_tr' || interaction.customId === 'modal_obfuscate_en') {
+                const isTR = interaction.customId === 'modal_obfuscate_tr';
+                const rawCode = interaction.fields.getTextInputValue('obf_code');
+                await interaction.deferReply({ ephemeral: true }); 
+
+                try {
+                    // LUAWARE XOR OBFUSCATION ENGINE
+                    const xorKey = Math.floor(Math.random() * 150) + 50; 
+                    let encryptedBytes = [];
+                    for (let i = 0; i < rawCode.length; i++) {
+                        encryptedBytes.push(rawCode.charCodeAt(i) ^ xorKey);
+                    }
+                    const byteString = encryptedBytes.join(',');
+                    const obfuscatedCode = `local _LUAWARE_PROTECT = {${byteString}} local _KEY = ${xorKey} local _CHARS = {} for i=1, #_LUAWARE_PROTECT do _CHARS[i] = string.char(_LUAWARE_PROTECT[i] ~ _KEY) end return loadstring(table.concat(_CHARS))()`;
+
+                    // Şifrelenen kodu .lua DOSYASINA dönüştürüyoruz
+                    const buffer = Buffer.from(obfuscatedCode, 'utf-8');
+                    const attachment = new AttachmentBuilder(buffer, { name: 'luaware_protected.lua' });
+
+                    const obfEmbed = new EmbedBuilder()
+                        .setTitle(isTR ? '🔐 LUAWARE | Kod Başarıyla Şifrelendi!' : '🔐 LUAWARE | Code Obfuscated Successfully!')
+                        .setColor('#00D4FF')
+                        .setDescription(isTR ? 'Sisteme girdiğiniz kod şifrelenerek aşağıdaki `.lua` dosyasına kaydedildi. İndirip executorunuza yapıştırabilirsiniz!' : 'The code you entered has been encrypted and saved to the `.lua` file below. Download and execute it!')
+                        .setFooter({ text: 'LUAWARE Obfuscation Tool' });
+
+                    return interaction.editReply({ 
+                        embeds: [obfEmbed], 
+                        files: [attachment] // Kodu mesaja yazmak yerine dosya olarak gönderiyoruz!
+                    });
+
+                } catch (err) {
+                    return interaction.editReply({ content: isTR ? '❌ **Hata:** Kod şifrelenemedi.' : '❌ **Error:** Failed to obfuscate code.' });
+                }
+            }
+
+            // HWID SIFIRLAMA FORMU
             if (interaction.customId === 'modal_hwid_tr' || interaction.customId === 'modal_hwid_en') {
                 const isTR = interaction.customId === 'modal_hwid_tr';
                 const keyInput = interaction.fields.getTextInputValue('key_input');
@@ -87,7 +124,7 @@ module.exports = {
                 return interaction.editReply({ content: isTR ? '✅ **HWID başarıyla sıfırlandı! Artık yeni bir cihazdan veya hesaptan giriş yapabilirsiniz.**' : '✅ **HWID successfully reset! You can now log in from a new device.**' });
             }
 
-            // 🚨 YENİ EKLENEN: ANAHTAR AKTİFLEŞTİRME / SORGULAMA FORMU
+            // ANAHTAR AKTİFLEŞTİRME / SORGULAMA FORMU
             if (interaction.customId === 'modal_activate_tr' || interaction.customId === 'modal_activate_en') {
                 const isTR = interaction.customId === 'modal_activate_tr';
                 const keyInput = interaction.fields.getTextInputValue('key_input');
@@ -101,37 +138,6 @@ module.exports = {
                     ? `✅ **Anahtar Durumu:** Aktif!\n🔑 **Key:** \`${keyData.key}\`\n⏳ **Süre:** \`${keyData.expiry}\`\n💻 **Kilitli Cihaz (HWID):** \`${keyData.hwid ? 'Evet' : 'Hayır'}\`\n\n*Hileyi Roblox üzerinde çalıştırıp bu anahtarı girebilirsiniz.*` 
                     : `✅ **Key Status:** Active!\n🔑 **Key:** \`${keyData.key}\`\n⏳ **Expiry:** \`${keyData.expiry}\`\n💻 **HWID Locked:** \`${keyData.hwid ? 'Yes' : 'No'}\`\n\n*You can execute the script on Roblox and enter this key.*` 
                 });
-            }
-
-            // 🚨 YENİ EKLENEN: ŞİFRELEME KUTUSU DOLDURULUNCA OBFUSCATE YAP
-            if (interaction.customId === 'modal_obfuscate') {
-                const rawCode = interaction.fields.getTextInputValue('obf_code');
-                await interaction.deferReply({ ephemeral: true }); // Uzun sürebilir, Discord'a beklemesini söylüyoruz
-
-                try {
-                    // LUAWARE XOR OBFUSCATION ENGINE
-                    const xorKey = Math.floor(Math.random() * 150) + 50; 
-                    let encryptedBytes = [];
-                    for (let i = 0; i < rawCode.length; i++) {
-                        encryptedBytes.push(rawCode.charCodeAt(i) ^ xorKey);
-                    }
-                    const byteString = encryptedBytes.join(',');
-                    const obfuscatedCode = `local _LUAWARE_PROTECT = {${byteString}} local _KEY = ${xorKey} local _CHARS = {} for i=1, #_LUAWARE_PROTECT do _CHARS[i] = string.char(_LUAWARE_PROTECT[i] ~ _KEY) end return loadstring(table.concat(_CHARS))()`;
-
-                    const obfEmbed = new EmbedBuilder()
-                        .setTitle('🔐 LUAWARE | Kod Başarıyla Şifrelendi!')
-                        .setColor('#00D4FF')
-                        .setDescription('Aşağıdaki şifrelenmiş kodu direkt kopyalayıp kullanabilirsiniz.')
-                        .setFooter({ text: 'LUAWARE Obfuscation Tool' });
-
-                    return interaction.editReply({ 
-                        embeds: [obfEmbed], 
-                        content: `\`\`\`lua\n${obfuscatedCode}\n\`\`\`` 
-                    });
-
-                } catch (err) {
-                    return interaction.editReply({ content: '❌ **Hata:** Kod şifrelenemedi.' });
-                }
             }
 
             if (interaction.customId.startsWith('modal_ticket_')) {
@@ -304,22 +310,23 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // 🚨 YENİ EKLENEN: ŞİFRELEME BUTONUNA BASILINCA (MODAL AÇILIR)
-        if (cid === 'btn_obfuscate') {
-            const modal = new ModalBuilder().setCustomId('modal_obfuscate').setTitle('LUAWARE Şifreleme');
+        // 🚨 YENİ: ŞİFRELEME (OBFUSCATE) TR/EN BUTONLARINA BASILINCA (MODAL AÇILIR)
+        if (cid === 'btn_obfuscate_tr' || cid === 'btn_obfuscate_en') {
+            const isTR = cid === 'btn_obfuscate_tr';
+            const modal = new ModalBuilder().setCustomId(isTR ? 'modal_obfuscate_tr' : 'modal_obfuscate_en').setTitle(isTR ? 'LUAWARE Şifreleme' : 'LUAWARE Obfuscation');
             const codeInput = new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('obf_code')
-                    .setLabel('Şifrelenecek Kodunuzu Yapıştırın:')
+                    .setLabel(isTR ? 'Şifrelenecek Kodunuzu Yapıştırın:' : 'Paste your code here:')
                     .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('print("Merhaba Dünya")')
+                    .setPlaceholder('print("Luaware is the best")')
                     .setRequired(true)
             );
             modal.addComponents(codeInput);
             return interaction.showModal(modal);
         }
 
-        // 🚨 YENİ EKLENEN: HWID SIFIRLAMA BUTONUNA BASILINCA (MODAL AÇILIR)
+        // HWID SIFIRLAMA BUTONUNA BASILINCA
         if (cid === 'reset_hwid_tr' || cid === 'reset_hwid_en') {
             const isTR = cid === 'reset_hwid_tr';
             const modal = new ModalBuilder().setCustomId(isTR ? 'modal_hwid_tr' : 'modal_hwid_en').setTitle(isTR ? 'LUAWARE HWID Sıfırlama' : 'LUAWARE HWID Reset');
@@ -335,7 +342,7 @@ module.exports = {
             return interaction.showModal(modal);
         }
 
-        // 🚨 YENİ EKLENEN: KEY AKTİFLEŞTİR BUTONUNA BASILINCA (MODAL AÇILIR)
+        // KEY AKTİFLEŞTİR BUTONUNA BASILINCA
         if (cid === 'activate_key_tr' || cid === 'activate_key_en') {
             const isTR = cid === 'activate_key_tr';
             const modal = new ModalBuilder().setCustomId(isTR ? 'modal_activate_tr' : 'modal_activate_en').setTitle(isTR ? 'Anahtar Doğrulama' : 'Key Activation');
@@ -351,7 +358,7 @@ module.exports = {
             return interaction.showModal(modal);
         }
 
-        // 🚨 YENİ EKLENEN: NASIL ALINIR BUTONU
+        // NASIL ALINIR BUTONU
         if (cid === 'how_to_get_tr' || cid === 'how_to_get_en') {
             const isTR = cid === 'how_to_get_tr';
             const embed = new EmbedBuilder()
