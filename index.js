@@ -147,47 +147,89 @@ app.get('/verify', async (req, res) => {
 });
 
 // =========================================================
-// 🚨 LUAWARE LINKVERTISE REKLAM SONRASI KEY TESLİMAT SAYFASI 🚨
+// 🚨 LUAWARE LOOTLABS REKLAM SONRASI 24 SAATLİK KEY SAYFASI 🚨
 // =========================================================
 app.get('/key-al', async (req, res) => {
     const userId = req.query.userid;
-    if (!userId) return res.send('<h1 style="color:red; text-align:center; margin-top:50px;">Hata! Discord ID bulunamadı. Lütfen Discord üzerinden tekrar tıklayın.</h1>');
+    if (!userId) {
+        return res.send('<h1 style="color:red; text-align:center; font-family:sans-serif; margin-top:50px;">❌ HATA: Kullanıcı ID bulunamadı! Lütfen Discord üzerinden anahtar oluşturun.</h1>');
+    }
 
     try {
-        let userKey = await KeyModel.findOne({ owner: userId });
-        
-        if (!userKey) {
-            const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
-            const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
-            const newKeyString = `LUA-USER-${part1}-${part2}`;
-            const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
-            userKey = await new KeyModel({ key: newKeyString, expiry: 'Sınırsız', owner: userId, licenseId: licenseId }).save();
+        // 1. ADIM: Bu adamın zaten veritabanında aktif bir anahtarı var mı?
+        const userKey = await KeyModel.findOne({ owner: userId });
+
+        // EĞER ZATEN KEYİ VARSA: 24 Saat dolmadan yenisini vermiyoruz.
+        if (userKey) {
+            const htmlMevcut = `
+                <html lang="tr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>LUAWARE - Zaten Keyin Var</title>
+                    <style>
+                        body { background-color: #121212; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
+                        .key-box { background: #1e1e1e; padding: 20px; border-radius: 10px; display: inline-block; margin-top: 20px; border: 1px solid #FEE75C; }
+                        h2 { color: #FEE75C; }
+                    </style>
+                </head>
+                <body>
+                    <h2>⚠️ Zaten Aktif Bir Anahtarın Var!</h2>
+                    <p style="color:#aaa;">Sistemi spamlayamazsın. Anahtarın 24 saat dolmadan yenilenemez.</p>
+                    <div class="key-box">
+                        <h1 style="color:#00D4FF; margin:0; letter-spacing: 2px;">${userKey.key}</h1>
+                    </div>
+                </body>
+                </html>
+            `;
+            return res.send(htmlMevcut);
         }
 
-        const htmlSayfa = `
+        // EĞER KEYİ YOKSA: Yepyeni bir 24 saatlik anahtar üret!
+        const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
+        const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
+        const newKeyString = `LUA-USER-${part1}-${part2}`;
+        const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
+
+        // Veritabanına "24 Saat" etiketiyle kaydediyoruz
+        await new KeyModel({ 
+            key: newKeyString, 
+            expiry: '24 Saat', 
+            owner: userId, 
+            licenseId: licenseId 
+        }).save();
+
+        // Üretilen yepyeni anahtarı şık bir tasarımla ekrana basıyoruz
+        const htmlYeni = `
             <html lang="tr">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>LUAWARE Key System</title>
+                <title>LUAWARE - Key Başarılı</title>
                 <style>
-                    body { background-color: #2B2D31; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
-                    .key-box { background-color: #1E1F22; padding: 30px; border-radius: 15px; display: inline-block; border: 2px solid #00D4FF; }
+                    body { background-color: #0a0a0a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding-top: 100px; }
+                    .key-box { background: #141414; padding: 30px; border-radius: 15px; display: inline-block; margin-top: 30px; border: 2px solid #57F287; box-shadow: 0 0 25px rgba(87, 242, 135, 0.3); }
                     h1 { color: #57F287; }
-                    .key { font-size: 28px; color: #00D4FF; font-family: monospace; font-weight: bold; margin: 20px 0; }
                 </style>
             </head>
             <body>
-                <h1>✅ Reklamı Başarıyla Geçtin!</h1>
-                <p>İşte LUAWARE Script Anahtarın:</p>
-                <div class="key-box"><div class="key">${userKey.key}</div></div>
-                <p style="color: #ED4245; margin-top: 20px;">DİKKAT: Anahtar hesabına kodlanmıştır, başkasıyla paylaşma!</p>
+                <h1>✅ Başarılı! Anahtarın Oluşturuldu.</h1>
+                <p style="color:#ccc; font-size:18px;">LootLabs görevini geçip bize destek olduğun için teşekkürler. İşte 24 saatlik anahtarın:</p>
+                <div class="key-box">
+                    <h2 style="color:#00D4FF; margin:0; font-size: 35px; letter-spacing: 3px;">${newKeyString}</h2>
+                </div>
+                <p style="color:#ED4245; margin-top:40px; font-weight:bold; font-size:16px;">
+                    ⚠️ DİKKAT: Bu anahtar senin Discord ID'ne işlenmiştir. Kimseyle paylaşma!<br>
+                    Anahtarın 24 saat sonra sistemden otomatik olarak silinecektir.
+                </p>
             </body>
             </html>
         `;
-        res.send(htmlSayfa);
+        return res.send(htmlYeni);
+
     } catch (err) {
-        res.send('<h1 style="color:red; text-align:center;">Sistem Hatasi! Lütfen yöneticilere ulaşın.</h1>');
+        console.error("Anahtar Üretim Hatası:", err);
+        return res.send('<h1 style="color:red; text-align:center; font-family:sans-serif; margin-top:50px;">❌ Sistem Hatası! Veritabanına bağlanılamadı.</h1>');
     }
 });
 // =========================================================

@@ -415,7 +415,7 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS DOĞRUDAN YÖNLENDİRME) SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN UYGULAMA LİNKİ SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
@@ -458,14 +458,10 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN DOĞRUDAN LOOTLABS LİNK OLUŞTURMA
-            const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
-            
-            // İşte adamın reklamı geçtikten sonra düşeceği, senin botunun ana dosyasına gidecek olan link:
-            const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
-            
-            // API ile sorgulamak yerine LootLabs'ın dinamik yönlendirmesini kullanıyoruz (Beyaz ekran ve meşgul hatası YOK)
-            const paraKazandiranLink = `https://links.lootlabs.gg/s?api=${LOOTLABS_API_KEY}&url=${encodeURIComponent(hedefLink)}`;
+            // 2. NORMAL ÜYELER İÇİN SABİT UYGULAMA LİNKİ (API İPTAL)
+            // Senin verdiğin sabit linki koyuyoruz ve sonuna adamın ID'sini gizlice ekliyoruz 
+            // ki siteye düştüğünde "Bu kim?" hatası almasın.
+            const paraKazandiranLink = `https://lootdest.org/s?MlNWoIbp&userid=${interaction.user.id}`;
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
@@ -485,7 +481,7 @@ module.exports = {
                     .setURL(paraKazandiranLink)
             );
 
-            // Anında cevap (Defer Reply yok, Düşünüyor hatası yok)
+            // Anında cevaplıyoruz (Düşünüyor hatası YOK!)
             return interaction.reply({ embeds: [adEmbed], components: [row], ephemeral: true }).catch(() => {});
         }
         // =========================================================================
