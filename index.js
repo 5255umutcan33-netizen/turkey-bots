@@ -115,7 +115,6 @@ app.get('/verify', async (req, res) => {
         const data = await KeyModel.findOne({ key: key });
         if (!data) return res.json({ success: false, message: "GEÇERSİZ KEY!" });
 
-        // EĞER 24 SAAT GEÇMİŞSE OYUNA SOKMA VE KEYİ SİL!
         if (data.expiry === '24 Saat') {
             const creationTime = data._id.getTimestamp().getTime();
             if (Date.now() - creationTime >= 24 * 60 * 60 * 1000) {
@@ -135,14 +134,13 @@ app.get('/verify', async (req, res) => {
 });
 
 // =========================================================
-// 🚨 LUAWARE LOOTLABS HİBRİT SİSTEMİ (ID + IP KONTROLLÜ) 🚨
+// 🚨 LUAWARE LOOTLABS SAF IP SİSTEMİ (ID İPTAL) 🚨
 // =========================================================
 app.get('/key-al', async (req, res) => {
-    const userId = req.query.userid; // Discord ID'sini tekrar alıyoruz!
+    // Discord ID'yi tamamen umursamıyoruz, URL'de ne yazarsa yazsın IP baz alınacak
     let userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Bilinmeyen-IP';
     if (userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
 
-    // 🎨 ORTAK CSS TASARIMI (CAM EFEKTİ VE NEON)
     const baseCSS = `
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
@@ -194,12 +192,6 @@ app.get('/key-al', async (req, res) => {
                 -webkit-text-fill-color: transparent;
                 text-shadow: 0 0 20px rgba(254, 231, 92, 0.3);
             }
-            .glow-text-red {
-                background: -webkit-linear-gradient(45deg, #ff416c, #ff4b2b);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                text-shadow: 0 0 20px rgba(255, 65, 108, 0.3);
-            }
             .key-box {
                 background: rgba(0, 0, 0, 0.4);
                 border: 2px solid #57F287;
@@ -226,24 +218,8 @@ app.get('/key-al', async (req, res) => {
         </style>
     `;
 
-    // 🔴 Eğer linkte Discord ID yoksa (adam linki kopyalayıp gizli sekmeden vs girmeye çalışıyorsa)
-    if (!userId) {
-        return res.send(`
-            <html lang="en">
-            <head><title>LUAWARE - Error</title>${baseCSS}</head>
-            <body>
-                <div class="container">
-                    <h1 class="glow-text-red">❌ Error / Hata</h1>
-                    <p class="desc">Discord ID bulunamadı. Lütfen anahtarınızı Discord sunucumuzdaki butona tıklayarak alın.</p>
-                </div>
-            </body>
-            </html>
-        `);
-    }
-
     try {
-        // Sahibini tekrardan Discord ID'si üzerinden arıyoruz
-        const userKey = await KeyModel.findOne({ owner: userId });
+        const userKey = await KeyModel.findOne({ owner: userIp }); // Sadece IP arar
 
         if (userKey) {
             const creationTime = userKey._id.getTimestamp().getTime();
@@ -252,7 +228,6 @@ app.get('/key-al', async (req, res) => {
             if (elapsedHours >= 24 && userKey.expiry === '24 Saat') {
                 await KeyModel.findByIdAndDelete(userKey._id);
             } else {
-                // 🟡 ZATEN KEYİ OLANLAR İÇİN EKRAN
                 const htmlMevcut = `
                     <html lang="en">
                     <head>
@@ -284,14 +259,13 @@ app.get('/key-al', async (req, res) => {
             }
         }
 
-        // 🟢 YEPYENİ KEY ÜRETİLEN EKRAN
         const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const newKeyString = `LUA-USER-${part1}-${part2}`;
         const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
-        // Veritabanına owner olarak Discord ID'yi kaydediyoruz (Sorgulama çalışsın diye)
-        await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userId, licenseId: licenseId }).save();
+        // Veritabanına owner olarak direkt IP kaydediyoruz.
+        await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userIp, licenseId: licenseId }).save();
 
         try {
             const OTO_LOG_ID = '1505092320091967498'; 
@@ -302,10 +276,9 @@ app.get('/key-al', async (req, res) => {
                     .setColor('#57F287')
                     .setDescription(`Bir kullanıcı LootLabs'ı geçti ve sistem ona özel yepyeni bir anahtar oluşturdu.`)
                     .addFields(
-                        { name: '👤 Kullanıcı', value: `<@${userId}>`, inline: true }, // Mavi Etiket Geri Geldi!
+                        { name: '🌐 Kullanıcı IP', value: `||${userIp}||`, inline: true }, 
                         { name: '📜 Key Adı', value: `\`${newKeyString}\``, inline: true },
-                        { name: '⏳ Süre', value: `\`24 Saat\``, inline: true },
-                        { name: '🌐 Cihaz IP', value: `||${userIp}||`, inline: false } // Güvenlik için IP spoiler içinde durur
+                        { name: '⏳ Süre', value: `\`24 Saat\``, inline: true }
                     )
                     .setFooter({ text: 'LUAWARE Akıllı Üretim Sistemi' })
                     .setTimestamp();
@@ -375,7 +348,7 @@ client.once('ready', async () => {
 });
 
 // =========================================================================
-// ⏰ LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI VE SİLİCİ
+// ⏰ LUAWARE 24 SAATLİK KEY BİTİŞ SİLİCİ
 // =========================================================================
 setInterval(async () => {
     try {
@@ -387,32 +360,10 @@ setInterval(async () => {
 
             if (elapsedHours >= 24) {
                 await KeyModel.findByIdAndDelete(k._id);
-                continue; 
-            }
-
-            if (elapsedHours >= 23 && elapsedHours < 24 && !k.notifiedBeforeExpiry) {
-                if (/^\d{17,20}$/.test(k.owner)) {
-                    const discordUser = await client.users.fetch(k.owner).catch(() => null);
-                    if (discordUser) {
-                        const reminderEmbed = new EmbedBuilder()
-                            .setTitle('⚠️ LUAWARE | Anahtarının Süresi Bitmek Üzere!')
-                            .setColor('#FEE75C')
-                            .setDescription(
-                                `👋 Merhaba <@${k.owner}>,\n\nSistemden aldığın **24 Saatlik** ücretsiz LUAWARE hile anahtarının süresi **1 saat içinde dolacak.**\n\n` +
-                                `Oyun keyfinin yarıda kesilmemesi ve hilenin kapanmaması için süren bittiğinde **Lisans Merkezi** kanalından yeni bir reklam geçerek taze bir anahtar oluşturabilirsin!\n\n` +
-                                `🔑 **Mevcut Anahtarın:** \`${k.key}\``
-                            )
-                            .setFooter({ text: 'LUAWARE Otomatik Hatırlatıcı Sistemi' })
-                            .setTimestamp();
-
-                        await discordUser.send({ embeds: [reminderEmbed] }).catch(() => {});
-                    }
-                }
-                await KeyModel.findByIdAndUpdate(k._id, { $set: { notifiedBeforeExpiry: true } });
             }
         }
     } catch (err) {
-        console.error("🚨 [Hatırlatıcı/Silici Hatası]:", err);
+        console.error("🚨 [Silici Hatası]:", err);
     }
 }, 5 * 60 * 1000); 
 
