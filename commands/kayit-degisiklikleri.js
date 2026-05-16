@@ -2,7 +2,8 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('disc
 
 function formatText(text, prefix) {
     if (!text) return null;
-    let lines = text.split(/,|\n/);
+    // YENİ: Artık virgül, alt satır (\n) VEYA nokta (.) görünce kelimeyi böler ve alt alta dizer
+    let lines = text.split(/,|\n|\./);
     lines = lines.map(l => {
         let clean = l.trim();
         if (clean.startsWith('+') || clean.startsWith('-') || clean.startsWith('/')) {
@@ -19,9 +20,9 @@ module.exports = {
         .setDescription('Yeni bir güncelleme notu yayınlar (Türkçe).')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addStringOption(option => option.setName('surum').setDescription('Güncelleme sürümü (Örn: v1.2.0)').setRequired(true))
-        .addStringOption(option => option.setName('eklenenler').setDescription('Eklenenler (+). Virgülle ayırın.'))
-        .addStringOption(option => option.setName('kaldirilanlar').setDescription('Kaldırılanlar (-). Virgülle ayırın.'))
-        .addStringOption(option => option.setName('duzeltilenler').setDescription('Düzeltilen Buglar (/). Virgülle ayırın.')),
+        .addStringOption(option => option.setName('eklenenler').setDescription('Eklenenler (+). Nokta veya virgülle ayırın.'))
+        .addStringOption(option => option.setName('kaldirilanlar').setDescription('Kaldırılanlar (-). Nokta veya virgülle ayırın.'))
+        .addStringOption(option => option.setName('duzeltilenler').setDescription('Düzeltilen Buglar (/). Nokta veya virgülle ayırın.')),
 
     async execute(interaction) {
         const version = interaction.options.getString('surum');
@@ -33,7 +34,7 @@ module.exports = {
             .setTitle(`🚀 LUAWARE | Güncelleme Notları [${version}]`)
             .setColor('#57F287')
             .setFooter({ text: 'LUAWARE Geliştirici Ekibi' })
-            .setTimestamp(); // Anlık Tarih/Saat çakar
+            .setTimestamp();
 
         let desc = "Sistemimizdeki en son değişiklikler aşağıdadır:\n\n";
 

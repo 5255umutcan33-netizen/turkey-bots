@@ -2,11 +2,10 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('disc
 
 function formatText(text, prefix) {
     if (!text) return null;
-    // Virgül veya alt satıra geçişleri algılayıp böler
-    let lines = text.split(/,|\n/);
+    // YENİ: Aynı şekilde İngilizce sisteme de noktadan sonra bölme özelliği eklendi
+    let lines = text.split(/,|\n|\./);
     lines = lines.map(l => {
         let clean = l.trim();
-        // Eğer kullanıcı yanlışlıkla başına + veya - koyduysa onu temizle
         if (clean.startsWith('+') || clean.startsWith('-') || clean.startsWith('/')) {
             clean = clean.substring(1).trim(); 
         }
@@ -21,9 +20,9 @@ module.exports = {
         .setDescription('Publish a new update log (English).')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addStringOption(option => option.setName('version').setDescription('Update version (e.g., v1.2.0)').setRequired(true))
-        .addStringOption(option => option.setName('added').setDescription('Added features (+). Separate with commas.'))
-        .addStringOption(option => option.setName('removed').setDescription('Removed features (-). Separate with commas.'))
-        .addStringOption(option => option.setName('fixed').setDescription('Fixed bugs (/). Separate with commas.')),
+        .addStringOption(option => option.setName('added').setDescription('Added features (+). Separate with dots or commas.'))
+        .addStringOption(option => option.setName('removed').setDescription('Removed features (-). Separate with dots or commas.'))
+        .addStringOption(option => option.setName('fixed').setDescription('Fixed bugs (/). Separate with dots or commas.')),
 
     async execute(interaction) {
         const version = interaction.options.getString('version');
@@ -35,7 +34,7 @@ module.exports = {
             .setTitle(`🚀 LUAWARE | Update Logs [${version}]`)
             .setColor('#00D4FF')
             .setFooter({ text: 'LUAWARE Development Team' })
-            .setTimestamp(); // Otomatik Tarih ve Saat Ekler!
+            .setTimestamp();
 
         let desc = "Here are the latest changes to our system:\n\n";
 
