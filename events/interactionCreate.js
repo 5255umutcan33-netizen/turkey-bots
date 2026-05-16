@@ -409,7 +409,7 @@ module.exports = {
                           "*(Lütfen bu adımları yapmadan boş yere ticket açmayın!)*"
                         : "Your roles have been granted! But you need a **Key** to use the script.\n\n" +
                           "🔑 **HOW TO GET A KEY STEP BY STEP?**\n" +
-                          "**1.** [Click Here to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
+                          "**1.** [Click Here to Choose to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
                           "**2.** Send a screenshot (SS) containing the text `@Luawarescrpt` to the <#1500588822994358282> channel.\n" +
                           "⚠️ *(IMPORTANT: Please do not crop or cut the image! Take a screenshot of the **entire page/screen**.)*\n" +
                           "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
@@ -426,7 +426,7 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS GET İSTEĞİ) KEY OLUŞTURMA SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS GET) KEY OLUŞTURMA SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
@@ -437,10 +437,10 @@ module.exports = {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
             }
 
-            // Apiye arka planda bağlanması 1-2 saniye süreceği için "Düşünüyor" moduna alıyoruz:
+            // Arka planda sunucu istekleri döneceği için bota "Düşünüyor..." modunu açıyoruz
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
-            // 1. VIP/YETKİLİ KONTROLÜ (Reklamsız Geçiş)
+            // 1. VIP/YETKİLİ KONTROLÜ (Bu adamlar reklam izlemez, direkt keyi alır)
             if (interaction.member.roles.cache.has(VIP_ROLU) || interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 try {
                     let userKey = await KeyModel.findOne({ owner: interaction.user.id });
@@ -460,53 +460,61 @@ module.exports = {
                     const premiumEmbed = new EmbedBuilder()
                         .setTitle('💎 LUAWARE | License Generated')
                         .setColor('#00D4FF')
-                        .setDescription(`🔑 **Key -->** \`${newKeyString}\`\n🆔 **ID -->** \`#${licenseId}\`\n👤 **Owner -->** <@${interaction.user.id}>\n⏳ **Expiry -->** \`Lifetime\`\n📅 **Date -->** <t:${Math.floor(Date.now() / 1000)}:f>\n\n⚠️ **Note!! DO NOT SHARE THIS KEY WITH ANYONE**`)
+                        .setDescription(`🔑 **Key -->** \`${newKeyString}\`\n🆔 **ID -->** \`#${licenseId}\`\n👤 **Owner -->** <@${interaction.user.id}>\n⏳ **Expiry -->** \`Lifetime\`\n📅 **Date -->** <t:${Math.floor(Date.now() / 1000)}:f>`)
                         .setFooter({ text: 'LUAWARE Security' })
                         .setTimestamp();
 
                     await interaction.user.send({ embeds: [premiumEmbed] }).catch(() => {});
-                    await interaction.user.send({ content: `${newKeyString}` }).catch(() => {}); 
-                    
-                    const logChan = client.channels.cache.get(VERIFY_LOG_ID);
-                    if (logChan) logChan.send({ embeds: [premiumEmbed] }).catch(() => {});
-
                     return interaction.editReply({ content: isTR ? '✅ **VIP Keyin DM kutuna gönderildi!**' : '✅ **VIP Key sent to your DM!**' }).catch(() => {});
                 } catch (err) {
                     return interaction.editReply({ content: '❌ **Sistem hatası! Veritabanı bağlantısı koptu.**' }).catch(() => {});
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN DOKÜMANTASYONDAKİ GERÇEK API FORMÜLÜ
+            // 2. NORMAL ÜYELER İÇİN LOOTLABS RESMİ ENTEGRASYON MOTORU
             const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
             const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
             const encodedHedef = encodeURIComponent(hedefLink);
             
-            // Attığın belgedeki Kutsal GET İstek Formülü:
-            const apiUrl = `https://creators.lootlabs.gg/api/public/content_locker?api_token=${LOOTLABS_API_KEY}&title=Luaware_Script_Key&url=${encodedHedef}&tier_id=1&number_of_tasks=1`;
+            // Attığın son belgedeki birebir onaylanmış resmi API uç noktası
+            const apiUrl = `https://creators.lootlabs.gg/api/public/content_locker?api_token=${LOOTLABS_API_KEY}&title=LuawareKey&url=${encodedHedef}&tier_id=1&number_of_tasks=1&theme=1&thumbnail=https://cdn.discordapp.com/embed/avatars/0.png`;
 
             let paraKazandiranLink = "";
 
             try {
-                // Bot arka kapıdan LootLabs sunucusuna giriyor
-                const response = await fetch(apiUrl);
-                const data = await response.json();
+                // Cloudflare kalkanını delmek için tarayıcı taklidi yapıyoruz (User-Agent eklendi)
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json'
+                    }
+                });
                 
-                // Dokümantasyondaki Hata Kontrolü
-                if (data.type === "error") {
-                    console.error("API Formül Hatası:", data.message);
-                    throw new Error(data.message);
+                const resText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(resText);
+                } catch (jsonErr) {
+                    console.error("LootLabs sunucusu JSON yerine HTML döndürdü. Detay:", resText);
+                    throw new Error("JSON_PARSE_FAILED");
                 }
                 
-                // Başarılı Yanıt Örneğinde Yazan O Altın Link Kodu:
+                if (data.type === "error" || !data.message || !data.message.loot_url) {
+                    console.error("LootLabs API Red Yanıtı:", data);
+                    throw new Error(data.message || "loot_url bulunamadı");
+                }
+                
+                // Başarılı yanıttaki asıl yönlendirici linki yakalıyoruz
                 paraKazandiranLink = data.message.loot_url;
-                
-                if (!paraKazandiranLink) {
-                    throw new Error("Loot_Url Bulunamadı");
-                }
 
             } catch (err) {
-                console.error("LootLabs API Hatası:", err);
-                return interaction.editReply({ content: isTR ? '❌ **LootLabs reklam sistemi geçici olarak meşgul, lütfen birkaç dakika sonra tekrar dene.**' : '❌ **LootLabs ad system is busy, please try again later.**' });
+                console.error("🚨 LootLabs Motoru Patladı. Hata:", err.message);
+                return interaction.editReply({ 
+                    content: isTR 
+                    ? '❌ **LootLabs reklam sistemi şu an meşgul veya Render IP adresini engelliyor. Lütfen birkaç dakika sonra tekrar deneyin.**' 
+                    : '❌ **LootLabs system is currently busy or blocking the server IP. Please try again later.**' 
+                }).catch(() => {});
             }
 
             const adEmbed = new EmbedBuilder()
@@ -524,10 +532,10 @@ module.exports = {
                 new ButtonBuilder()
                     .setLabel(isTR ? '🔗 Reklamı Geç ve Key Al' : '🔗 Pass Ads & Get Key')
                     .setStyle(ButtonStyle.Link)
-                    .setURL(paraKazandiranLink) // Başarıyla çekilen gerçek tıklanabilir kısa link!
+                    .setURL(paraKazandiranLink)
             );
 
-            return interaction.editReply({ embeds: [adEmbed], components: [row] });
+            return interaction.editReply({ embeds: [adEmbed], components: [row] }).catch(() => {});
         }
         // =========================================================================
 
