@@ -69,6 +69,40 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
+            // 🚨 YENİ EKLENEN: HWID SIFIRLAMA FORMU
+            if (interaction.customId === 'modal_hwid_tr' || interaction.customId === 'modal_hwid_en') {
+                const isTR = interaction.customId === 'modal_hwid_tr';
+                const keyInput = interaction.fields.getTextInputValue('key_input');
+                await interaction.deferReply({ ephemeral: true });
+
+                const keyData = await KeyModel.findOne({ key: keyInput });
+                if (!keyData) return interaction.editReply({ content: isTR ? '❌ **Böyle bir anahtar bulunamadı!**' : '❌ **Key not found!**' });
+                
+                if (keyData.owner !== interaction.user.id && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                    return interaction.editReply({ content: isTR ? '❌ **Bu anahtar size ait değil!**' : '❌ **This key does not belong to you!**' });
+                }
+
+                keyData.hwid = null; // Veritabanından HWID'yi siliyoruz
+                await keyData.save();
+                return interaction.editReply({ content: isTR ? '✅ **HWID başarıyla sıfırlandı! Artık yeni bir cihazdan veya hesaptan giriş yapabilirsiniz.**' : '✅ **HWID successfully reset! You can now log in from a new device.**' });
+            }
+
+            // 🚨 YENİ EKLENEN: ANAHTAR AKTİFLEŞTİRME / SORGULAMA FORMU
+            if (interaction.customId === 'modal_activate_tr' || interaction.customId === 'modal_activate_en') {
+                const isTR = interaction.customId === 'modal_activate_tr';
+                const keyInput = interaction.fields.getTextInputValue('key_input');
+                await interaction.deferReply({ ephemeral: true });
+
+                const keyData = await KeyModel.findOne({ key: keyInput });
+                if (!keyData) return interaction.editReply({ content: isTR ? '❌ **Geçersiz veya süresi dolmuş anahtar!**' : '❌ **Invalid or expired Key!**' });
+                
+                return interaction.editReply({ 
+                    content: isTR 
+                    ? `✅ **Anahtar Durumu:** Aktif!\n🔑 **Key:** \`${keyData.key}\`\n⏳ **Süre:** \`${keyData.expiry}\`\n💻 **Kilitli Cihaz (HWID):** \`${keyData.hwid ? 'Evet' : 'Hayır'}\`\n\n*Hileyi Roblox üzerinde çalıştırıp bu anahtarı girebilirsiniz.*` 
+                    : `✅ **Key Status:** Active!\n🔑 **Key:** \`${keyData.key}\`\n⏳ **Expiry:** \`${keyData.expiry}\`\n💻 **HWID Locked:** \`${keyData.hwid ? 'Yes' : 'No'}\`\n\n*You can execute the script on Roblox and enter this key.*` 
+                });
+            }
+
             if (interaction.customId.startsWith('modal_ticket_')) {
                 const originalCid = interaction.customId.replace('modal_', ''); 
                 const isEn = originalCid.startsWith('ticket_en_');
@@ -238,6 +272,50 @@ module.exports = {
         // ==========================================
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
+
+        // 🚨 YENİ EKLENEN: HWID SIFIRLAMA BUTONUNA BASILINCA (MODAL AÇILIR)
+        if (cid === 'reset_hwid_tr' || cid === 'reset_hwid_en') {
+            const isTR = cid === 'reset_hwid_tr';
+            const modal = new ModalBuilder().setCustomId(isTR ? 'modal_hwid_tr' : 'modal_hwid_en').setTitle(isTR ? 'LUAWARE HWID Sıfırlama' : 'LUAWARE HWID Reset');
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('key_input')
+                        .setLabel(isTR ? 'Mevcut LUAWARE Anahtarınız:' : 'Your LUAWARE Key:')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                )
+            );
+            return interaction.showModal(modal);
+        }
+
+        // 🚨 YENİ EKLENEN: KEY AKTİFLEŞTİR BUTONUNA BASILINCA (MODAL AÇILIR)
+        if (cid === 'activate_key_tr' || cid === 'activate_key_en') {
+            const isTR = cid === 'activate_key_tr';
+            const modal = new ModalBuilder().setCustomId(isTR ? 'modal_activate_tr' : 'modal_activate_en').setTitle(isTR ? 'Anahtar Doğrulama' : 'Key Activation');
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('key_input')
+                        .setLabel(isTR ? 'Doğrulamak İstediğiniz Anahtar:' : 'Enter Your Key:')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                )
+            );
+            return interaction.showModal(modal);
+        }
+
+        // 🚨 YENİ EKLENEN: NASIL ALINIR BUTONU
+        if (cid === 'how_to_get_tr' || cid === 'how_to_get_en') {
+            const isTR = cid === 'how_to_get_tr';
+            const embed = new EmbedBuilder()
+                .setTitle(isTR ? '❓ Nasıl Anahtar Alınır?' : '❓ How to Get a Key?')
+                .setColor('#00D4FF')
+                .setDescription(isTR ?
+                    "**1.** `🔑 Anahtar Al` butonuna tıklayın.\n**2.** Açılan gizli mesajdaki linke tıklayarak siteye gidin.\n**3.** LootLabs üzerindeki ufak reklam/görev adımlarını tamamlayın.\n**4.** İşlem bittiğinde sistem sizi otomatik olarak lisans sayfanıza atacaktır.\n**5.** Oluşturulan anahtarı kopyalayıp Roblox executor'unuzdaki LUAWARE menüsüne yapıştırıp çalıştırın!" :
+                    "**1.** Click the `🔑 Get Key` button.\n**2.** Go to the link provided in the hidden message.\n**3.** Complete the short tasks on LootLabs.\n**4.** You will automatically be redirected to the key page once done.\n**5.** Paste the generated key into your Roblox executor and run!");
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
 
         if (['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'].includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
@@ -458,11 +536,8 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN SABİT UYGULAMA LİNKİ (API İPTAL)
-            // Senin verdiğin sabit linki koyuyoruz ve sonuna adamın ID'sini gizlice ekliyoruz 
-            // ki siteye düştüğünde "Bu kim?" hatası almasın.
-            const paraKazandiranLink = `
-https://loot-link.com/s?bnYUHMrn&userid=${interaction.user.id}`;
+            // 2. NORMAL ÜYELER İÇİN SABİT UYGULAMA LİNKİ
+            const paraKazandiranLink = `https://loot-link.com/s?bnYUHMrn&userid=${interaction.user.id}`;
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
@@ -482,7 +557,6 @@ https://loot-link.com/s?bnYUHMrn&userid=${interaction.user.id}`;
                     .setURL(paraKazandiranLink)
             );
 
-            // Anında cevaplıyoruz (Düşünüyor hatası YOK!)
             return interaction.reply({ embeds: [adEmbed], components: [row], ephemeral: true }).catch(() => {});
         }
         // =========================================================================
