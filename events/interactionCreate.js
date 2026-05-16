@@ -437,7 +437,6 @@ module.exports = {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
             }
 
-            // Apinin cevap vermesi zaman alabileceği için botu düşündürme (defer) moduna alıyoruz.
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
             // 1. VIP/YETKİLİ KONTROLÜ (Bu adamlar reklam izlemez, direkt keyi alır)
@@ -476,32 +475,13 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN LOOTLABS API ILE DINAMIK LİNK ÜRETME
+            // 2. NORMAL ÜYELER İÇİN LOOTLABS DİREKT LİNK SİSTEMİ
             const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
             const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
             const encodedHedef = encodeURIComponent(hedefLink);
             
-            // Gerçek API uç noktası (Kullanıcıya verilen link değil, botun veri çekeceği arka kapı)
-            const apiUrl = `https://links.lootlabs.gg/api?api=${LOOTLABS_API_KEY}&url=${encodedHedef}`;
-
-            let paraKazandiranLink = "";
-
-            try {
-                // Bot arka planda LootLabs'a bağlanıp linki çekiyor
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-                
-                // LootLabs API'sinden gelen JSON formatındaki asıl kısa yönlendirme linkini yakalıyoruz
-                paraKazandiranLink = data.shortenedUrl || data.message || data.short_url || data.url || data.short;
-                
-                if (!paraKazandiranLink || !paraKazandiranLink.startsWith('http')) {
-                    throw new Error("LootLabs API'den geçerli bir link gelmedi.");
-                }
-
-            } catch (err) {
-                console.error("LootLabs API Hatası:", err);
-                return interaction.editReply({ content: isTR ? '❌ **LootLabs reklam sistemi şu an cevap vermiyor, lütfen daha sonra tekrar dene.**' : '❌ **LootLabs ad system is not responding, please try again later.**' });
-            }
+            // Bot sunucuya gitmek yerine adamı doğrudan LootLabs sistemine atacak:
+            const paraKazandiranLink = `https://loot-link.com/s?api=${LOOTLABS_API_KEY}&url=${encodedHedef}`;
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
