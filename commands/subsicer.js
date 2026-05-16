@@ -3,32 +3,30 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('subscriber')
-        .setDescription('Abone rehberini ve Key alma adımlarını gösterir / Shows the Subscriber guide.'),
+        .setDescription('Anahtar alma adımlarını gösterir / Shows the key generation guide.'),
         
     async execute(interaction) {
         const guideEmbed = new EmbedBuilder()
-            .setTitle('🔑 LUAWARE | Subscriber Guide / Abone Rehberi')
+            .setTitle('🔑 LUAWARE | Key Guide / Anahtar Rehberi')
             .setColor('#57F287')
             .setDescription(
                 "🇹🇷 **ADIM ADIM KEY NASIL ALINIR?**\n" +
-                "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
-                "**2.** İçinde `@Luawarescrpt` yazısı net bir şekilde görünen Abone kanıtı ekran görüntünü (SS) <#1500594950839075088> kanalına gönder.\n" +
-                "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın! Sayfanın **tamamını** SS alıp gönderin.)*\n" +
-                "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
-                "**4.** Rolü aldıktan sonra **Lisans Merkezi** kanalına git ve `🔑 Anahtar Al` butonuna tıkla. Karşına çıkan kısa reklam görevini geçtiğinde 24 Saatlik LUAWARE anahtarın anında ekranda olacak!\n\n" +
+                "**1.** **Lisans Merkezi** kanalına gidin.\n" +
+                "**2.** `🔑 Anahtar Al` butonuna tıklayın.\n" +
+                "**3.** Önünüze açılan gizli mesajdaki reklam (LootLabs) linkine tıklayın.\n" +
+                "**4.** Kısa görevleri tamamladığınızda 24 Saatlik özel LUAWARE anahtarınız anında ekranda belirecektir!\n\n" +
                 "---\n\n" +
                 "🇬🇧 **HOW TO GET A KEY STEP BY STEP?**\n" +
-                "**1.** [Click Here to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
-                "**2.** Send a screenshot (SS) clearly showing the text `@Luawarescrpt` to the <#1500588822994358282> channel.\n" +
-                "⚠️ *(IMPORTANT: Please do not crop the image! Take a screenshot of the **entire page/screen**.)*\n" +
-                "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
-                "**4.** After getting the role, go to the **License Center** channel and click the `🔑 Get Key` button. Complete the short ad task, and your 24-hour LUAWARE key will be generated instantly!"
+                "**1.** Go to the **License Center** channel.\n" +
+                "**2.** Click the `🔑 Get Key` button.\n" +
+                "**3.** Click the ad (LootLabs) link provided in the hidden message.\n" +
+                "**4.** Complete the short tasks, and your 24-hour custom LUAWARE key will be generated instantly!"
             )
-            .setImage('https://cdn.discordapp.com/attachments/1111/1111/luaware_banner.png') // İstersen buraya da LUAWARE banner linkini koyabilirsin, boş kalırsa resim çıkmaz
+            .setImage('https://cdn.discordapp.com/attachments/1111/1111/luaware_banner.png') // Banner linkini buraya sabitleyebilirsin
             .setFooter({ text: 'LUAWARE Security System' })
             .setTimestamp();
 
-        // Gizlilik (ephemeral) yok. Herkes görebilir.
+        // Herkesin görmesi için ephemeral (gizlilik) kapalı
         await interaction.reply({ embeds: [guideEmbed] });
     }
 };
