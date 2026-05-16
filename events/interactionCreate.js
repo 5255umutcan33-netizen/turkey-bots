@@ -10,7 +10,7 @@ const {
     TextInputStyle, 
     Events,
     StringSelectMenuBuilder,
-    AttachmentBuilder // YENİ: DOSYA ÇIKTISI VEREBİLMEK İÇİN EKLENDİ
+    AttachmentBuilder
 } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
 const KeyModel = require('../models/key');
@@ -28,7 +28,6 @@ module.exports = {
         const SUGGEST_LOG_TR = '1501260343727620309'; 
         const SUGGEST_LOG_EN = '1501263655180828792'; 
         const VERIFY_LOG_ID = '1500269916304052364';
-        const ABONE_LOG_ID = '1500587963338326228'; 
         const TICKET_LOG_CHANNEL = '1501639133628469268'; 
         const FEEDBACK_LOG = '1502613775499399300'; 
 
@@ -70,7 +69,7 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
-            // 🚨 YENİ: DOSYA ÇIKTILI TR/EN ŞİFRELEME MOTORU (OBFUSCATE)
+            // DOSYA ÇIKTILI TR/EN ŞİFRELEME MOTORU (OBFUSCATE)
             if (interaction.customId === 'modal_obfuscate_tr' || interaction.customId === 'modal_obfuscate_en') {
                 const isTR = interaction.customId === 'modal_obfuscate_tr';
                 const rawCode = interaction.fields.getTextInputValue('obf_code');
@@ -98,7 +97,7 @@ module.exports = {
 
                     return interaction.editReply({ 
                         embeds: [obfEmbed], 
-                        files: [attachment] // Kodu mesaja yazmak yerine dosya olarak gönderiyoruz!
+                        files: [attachment] 
                     });
 
                 } catch (err) {
@@ -119,7 +118,7 @@ module.exports = {
                     return interaction.editReply({ content: isTR ? '❌ **Bu anahtar size ait değil!**' : '❌ **This key does not belong to you!**' });
                 }
 
-                keyData.hwid = null; // Veritabanından HWID'yi siliyoruz
+                keyData.hwid = null; 
                 await keyData.save();
                 return interaction.editReply({ content: isTR ? '✅ **HWID başarıyla sıfırlandı! Artık yeni bir cihazdan veya hesaptan giriş yapabilirsiniz.**' : '✅ **HWID successfully reset! You can now log in from a new device.**' });
             }
@@ -310,7 +309,7 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // 🚨 YENİ: ŞİFRELEME (OBFUSCATE) TR/EN BUTONLARINA BASILINCA (MODAL AÇILIR)
+        // ŞİFRELEME (OBFUSCATE) TR/EN BUTONLARINA BASILINCA (MODAL AÇILIR)
         if (cid === 'btn_obfuscate_tr' || cid === 'btn_obfuscate_en') {
             const isTR = cid === 'btn_obfuscate_tr';
             const modal = new ModalBuilder().setCustomId(isTR ? 'modal_obfuscate_tr' : 'modal_obfuscate_en').setTitle(isTR ? 'LUAWARE Şifreleme' : 'LUAWARE Obfuscation');
@@ -472,6 +471,7 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
+        // 🚨 YENİ GÜNCELLENEN: ABONE ŞARTI KALKAN HOŞ GELDİN KISMI 🚨
         if (cid === 'verify_tr' || cid === 'verify_en') {
             await interaction.deferReply({ ephemeral: true }); 
 
@@ -519,22 +519,18 @@ module.exports = {
                     .setColor('#57F287')
                     .setDescription(
                         isTr 
-                        ? "Rollerin verildi! Ancak hileyi kullanabilmek için bir **Key** alman gerekiyor.\n\n" +
-                          "🔑 **ADIM ADIM KEY NASIL ALINIR?**\n" +
-                          "**1.** [Buraya Tıklayarak YouTube Kanalımıza Abone Ol](https://www.youtube.com/@LuawareScrpt)\n" +
-                          "**2.** İçinde `@Luawarescrpt` yazısı olan Abone kanıtı ekran görüntünü <#1500594950839075088> kanalına gönder.\n" +
-                          "⚠️ *(ÖNEMLİ: Lütfen resmi kırpmayın veya kesmeyin! Sayfanın **tamamını** SS alıp gönderin.)*\n" +
-                          "**3.** Yapay Zeka seni anında onaylayıp **Abone** rolünü verecek.\n" +
-                          "**4.** Rolü aldıktan sonra **Key Alma** kanalına gidip butonla keyini saniyeler içinde oluşturabilirsin!\n\n" +
-                          "*(Lütfen bu adımları yapmadan boş yere ticket açmayın!)*"
-                        : "Your roles have been granted! But you need a **Key** to use the script.\n\n" +
-                          "🔑 **HOW TO GET A KEY STEP BY STEP?**\n" +
-                          "**1.** [Click Here to Choose to Subscribe to Our YouTube Channel](https://www.youtube.com/@LuawareScrpt)\n" +
-                          "**2.** Send a screenshot (SS) containing the text `@Luawarescrpt` to the <#1500588822994358282> channel.\n" +
-                          "⚠️ *(IMPORTANT: Please do not crop or cut the image! Take a screenshot of the **entire page/screen**.)*\n" +
-                          "**3.** The AI will instantly approve you and give you the **Subscriber** role.\n" +
-                          "**4.** After getting the role, go to the **Key Generation** channel to get your key!\n\n" +
-                          "*(Please follow these steps before opening a ticket!)*"
+                        ? "Rollerin verildi! Hileyi kullanabilmek için bir **Key** alman gerekiyor.\n\n" +
+                          "🔑 **NASIL KEY ALINIR?**\n" +
+                          "**1.** **Lisans Merkezi** kanalına git.\n" +
+                          "**2.** `🔑 Anahtar Al` butonuna tıkla.\n" +
+                          "**3.** Açılan gizli mesajdaki linkte bulunan ufak görevleri (Reklamı) geç.\n" +
+                          "**4.** Reklamı geçtiğin an sistem sana 24 Saatlik özel anahtarını verecek!"
+                        : "Your roles have been granted! You need a **Key** to use the script.\n\n" +
+                          "🔑 **HOW TO GET A KEY?**\n" +
+                          "**1.** Go to the **License Center** channel.\n" +
+                          "**2.** Click the `🔑 Get Key` button.\n" +
+                          "**3.** Complete the short tasks (Ads) on the provided link.\n" +
+                          "**4.** Once done, the system will instantly give you your 24-Hour custom key!"
                     )
                     .setFooter({ text: 'LUAWARE Auto-Guide' });
 
@@ -546,16 +542,11 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN UYGULAMA LİNKİ SİSTEMİ 🚨
+        // 🚨 YENİ GÜNCELLENEN: ABONE ZORUNLULUĞU KALKAN UYGULAMA LİNKİ SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
-            const ABONE_ROLU = '1500587633649127445';
             const VIP_ROLU = STAFF_ROLE; 
-
-            if (!interaction.member.roles.cache.has(ABONE_ROLU)) {
-                return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
-            }
 
             // 1. VIP/YETKİLİ KONTROLÜ (REKLAMSIZ GEÇİŞ)
             if (interaction.member.roles.cache.has(VIP_ROLU) || interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -589,7 +580,7 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN SABİT UYGULAMA LİNKİ
+            // 2. NORMAL ÜYELER İÇİN SABİT UYGULAMA LİNKİ (ABONE KONTROLÜ SİLİNDİ)
             const paraKazandiranLink = `https://loot-link.com/s?bnYUHMrn&userid=${interaction.user.id}`;
 
             const adEmbed = new EmbedBuilder()
@@ -687,13 +678,13 @@ module.exports = {
             await interaction.channel.send({ content: `✅ **Bu bilet <@${interaction.user.id}> tarafından sahiplenildi.**` });
         }
 
+        // ESKİ ABONE SS BUTONLARI (Kaldırmadım ki eskiden kalan mesajlara basılırsa bot çökmesin, ama artık kullanılmayacak)
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
             }
 
             await interaction.deferUpdate(); 
-
             const parts = cid.split('_');
             const action = parts[1]; 
             const userId = parts[2];
@@ -708,51 +699,29 @@ module.exports = {
             }
 
             const targetMember = await interaction.guild.members.fetch(userId).catch(() => null);
-            const logChannelObj = interaction.client.channels.cache.get(ABONE_LOG_ID);
 
             if (action === 'yes') {
                 if (targetMember) {
                     await targetMember.roles.add('1500587633649127445').catch(() => {}); 
                     await targetMember.roles.remove('1500249403443908711').catch(() => {}); 
-                    
-                    if (originalChannel) {
-                        await originalChannel.permissionOverwrites.edit(targetMember.id, { ViewChannel: false }).catch(() => {});
-                    }
-
-                    const dmMsg = lang === 'tr' 
-                        ? `🎉 **Tebrikler!** Abone kanıtınız ONAYLANDI ve rolünüz verildi.\n🔒 *Doğrulama kanalına erişiminiz kapatıldı.*`
-                        : `🎉 **Congratulations!** Your sub proof is APPROVED and your role has been given.\n🔒 *Access to the verification channel is now hidden.*`;
-                    
+                    if (originalChannel) { await originalChannel.permissionOverwrites.edit(targetMember.id, { ViewChannel: false }).catch(() => {}); }
+                    const dmMsg = lang === 'tr' ? `🎉 **Tebrikler!** Abone kanıtınız ONAYLANDI.` : `🎉 **Congratulations!** Your sub proof is APPROVED.`;
                     await targetMember.send(dmMsg).catch(() => {});
                 }
-                
                 try {
-                    const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                        .setColor('#1aff00') 
-                        .addFields({ name: 'Durum / Status', value: `✅ Onaylandı / Approved (Yetkili: <@${interaction.user.id}>)` });
+                    const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor('#1aff00').addFields({ name: 'Durum / Status', value: `✅ Onaylandı / Approved` });
                     await interaction.editReply({ embeds: [updatedEmbed], components: [] });
-                } catch (e) { console.error("Update error:", e); }
-                
+                } catch (e) {}
             } 
             else if (action === 'no') {
                 if (targetMember) {
-                    const dmMsg = lang === 'tr' 
-                        ? `❌ **Reddedildi:** Abone kanıtınız reddedildi. Lütfen doğru görseli tekrar gönderin.`
-                        : `❌ **Rejected:** Your sub proof was rejected. Please submit the correct image again.`;
-                    
+                    const dmMsg = lang === 'tr' ? `❌ **Reddedildi:** Abone kanıtınız reddedildi.` : `❌ **Rejected:** Your sub proof was rejected.`;
                     await targetMember.send(dmMsg).catch(() => {});
                 }
-                
                 try {
-                    const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                        .setColor('#ED4245')
-                        .addFields({ name: 'Durum / Status', value: `❌ Reddedildi / Rejected (Yetkili: <@${interaction.user.id}>)` });
+                    const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor('#ED4245').addFields({ name: 'Durum / Status', value: `❌ Reddedildi / Rejected` });
                     await interaction.editReply({ embeds: [updatedEmbed], components: [] });
-                    
-                    if (logChannelObj) {
-                        await logChannelObj.send(`❌ <@${userId}> adlı kullanıcının SS gönderimi <@${interaction.user.id}> tarafından **reddedildi.**`);
-                    }
-                } catch (e) { console.error("Update error:", e); }
+                } catch (e) {}
             }
         }
 
