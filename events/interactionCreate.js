@@ -69,7 +69,6 @@ module.exports = {
         // ==========================================
         if (interaction.isModalSubmit()) {
             
-            // --- TICKET FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId.startsWith('modal_ticket_')) {
                 const originalCid = interaction.customId.replace('modal_', ''); 
                 const isEn = originalCid.startsWith('ticket_en_');
@@ -122,7 +121,6 @@ module.exports = {
                 return interaction.editReply({ content: isEn ? `✅ Ticket created: <#${channel.id}>` : `✅ Bilet oluşturuldu: <#${channel.id}>` });
             }
 
-            // --- FEEDBACK FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId.startsWith('feedback_modal_')) {
                 const stars = interaction.customId.split('_')[2];
                 const text = interaction.fields.getTextInputValue('feedback_text');
@@ -150,7 +148,6 @@ module.exports = {
                 return interaction.reply({ content: '✅ 🇹🇷 Geri bildiriminiz başarıyla iletildi, teşekkür ederiz!\n✅ 🇬🇧 Your feedback has been successfully submitted, thank you!', ephemeral: true });
             }
 
-            // --- YETKİLİ BAŞVURUSU FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId === 'modal_en' || interaction.customId === 'modal_tr') {
                 const isEn = interaction.customId === 'modal_en';
                 
@@ -181,7 +178,6 @@ module.exports = {
                 return interaction.reply({ embeds: [new EmbedBuilder().setColor('#57F287').setDescription(isEn ? '✅ **Your application has been submitted!**' : '✅ **Başvurunuz yönetime başarıyla iletildi!**')], ephemeral: true });
             }
 
-            // --- SCRIPT ÖNERİSİ FORMU GÖNDERİLDİĞİNDE ---
             if (interaction.customId === 'modal_suggest_tr' || interaction.customId === 'modal_suggest_en') {
                 const isEn = interaction.customId === 'modal_suggest_en';
                 
@@ -243,9 +239,7 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // --- TICKET BUTONUNA BASILINCA (MODAL AÇILIR) ---
-        const tIds = ['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'];
-        if (tIds.includes(cid)) {
+        if (['ticket_tr_support', 'ticket_tr_partner', 'ticket_tr_key', 'ticket_en_support', 'ticket_en_partner', 'ticket_en_key'].includes(cid)) {
             const isEn = cid.startsWith('ticket_en_');
 
             const existingTicket = interaction.guild.channels.cache.find(c => c.name.startsWith('🎫-') && c.topic === interaction.user.id);
@@ -268,7 +262,6 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // --- FEEDBACK BUTONUNA BASILINCA (YILDIZ SEÇİMİ) ---
         if (cid === 'feedback_start') {
             const row = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
@@ -285,7 +278,6 @@ module.exports = {
             return interaction.reply({ content: '🇹🇷 Önce hizmetimize puan verin.\n🇬🇧 First, rate our service.', components: [row], ephemeral: true });
         }
 
-        // --- SCRIPT ÖNERİ MODAL'INI AÇMA ---
         if (cid === 'btn_suggest_tr' || cid === 'btn_suggest_en') {
             const isEn = cid === 'btn_suggest_en';
             const modal = new ModalBuilder().setCustomId(isEn ? 'modal_suggest_en' : 'modal_suggest_tr').setTitle(isEn ? 'LUAWARE Script Suggestion' : 'LUAWARE Script Önerisi');
@@ -297,7 +289,6 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // --- ÖNERİ ONAY / RED SİSTEMİ ---
         if (cid.startsWith('sug_onay_') || cid.startsWith('sug_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok! / No permission!**', ephemeral: true });
@@ -336,7 +327,6 @@ module.exports = {
             return interaction.editReply({ embeds: [logEmbed], components: [] });
         }
 
-        // --- YETKİLİ BAŞVURUSU MODAL'INI AÇMA ---
         if (cid === 'apply_tr' || cid === 'apply_en') {
             const isEn = cid === 'apply_en';
             const modal = new ModalBuilder().setCustomId(isEn ? 'modal_en' : 'modal_tr').setTitle(isEn ? 'Staff Application' : 'Yetkili Başvurusu');
@@ -351,7 +341,6 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // --- DOĞRULAMA (VERIFY) VE KANAL GİZLEME ---
         if (cid === 'verify_tr' || cid === 'verify_en') {
             await interaction.deferReply({ ephemeral: true }); 
 
@@ -426,7 +415,7 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS DIRECT) KEY OLUŞTURMA SİSTEMİ 🚨
+        // 🚨 LUAWARE PARA KAZANDIRAN (LOOTLABS DOĞRUDAN YÖNLENDİRME) SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
@@ -437,7 +426,7 @@ module.exports = {
                 return interaction.reply({ content: isTR ? '❌ **Abone rolün yok!**' : '❌ **No Subscriber role!**', ephemeral: true }).catch(() => {});
             }
 
-            // 1. VIP/YETKİLİ KONTROLÜ
+            // 1. VIP/YETKİLİ KONTROLÜ (REKLAMSIZ GEÇİŞ)
             if (interaction.member.roles.cache.has(VIP_ROLU) || interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 await interaction.deferReply({ ephemeral: true }).catch(() => {});
                 try {
@@ -469,13 +458,13 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN DOĞRUDAN LİNK SİSTEMİ (API İPTAL EDİLDİ)
-            // Bu yöntem sayesinde bot arka plandan LootLabs'a bağlanmaya çalışmaz, bu sayede "IP Engellendi" hatası vermez. 
-            // Kullanıcı doğrudan kendi IP'si ile reklama yönlendirilir.
-            
+            // 2. NORMAL ÜYELER İÇİN DOĞRUDAN LOOTLABS LİNK OLUŞTURMA
             const LOOTLABS_API_KEY = 'bc6587fa9727215e117132a52b05272b945f578b9a3eb302a5de8a511218c734'; 
+            
+            // İşte adamın reklamı geçtikten sonra düşeceği, senin botunun ana dosyasına gidecek olan link:
             const hedefLink = `https://turkey-bots-1.onrender.com/key-al?userid=${interaction.user.id}`;
             
+            // API ile sorgulamak yerine LootLabs'ın dinamik yönlendirmesini kullanıyoruz (Beyaz ekran ve meşgul hatası YOK)
             const paraKazandiranLink = `https://links.lootlabs.gg/s?api=${LOOTLABS_API_KEY}&url=${encodeURIComponent(hedefLink)}`;
 
             const adEmbed = new EmbedBuilder()
@@ -496,12 +485,11 @@ module.exports = {
                     .setURL(paraKazandiranLink)
             );
 
-            // Bekleme yapmadan anında cevaplıyoruz, "Düşünüyor" hatası da çıkmıyor.
+            // Anında cevap (Defer Reply yok, Düşünüyor hatası yok)
             return interaction.reply({ embeds: [adEmbed], components: [row], ephemeral: true }).catch(() => {});
         }
         // =========================================================================
 
-        // --- YETKİLİ BAŞVURU ONAY / RED & OTO ROL SİSTEMİ ---
         if (cid.startsWith('app_onay_') || cid.startsWith('app_red_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID) {
                 return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
@@ -527,7 +515,6 @@ module.exports = {
             return interaction.editReply({ content: `> **KARAR:** ${action === 'onay' ? '✅ Onaylandı (Rol Verildi)' : '❌ Reddedildi'}\n> **Yetkili:** <@${interaction.user.id}>`, components: [] });
         }
 
-        // --- TICKET KAPATMA VE HTML LOG SİSTEMİ ---
         if (cid === 'close_ticket') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID && !interaction.member.roles.cache.has(STAFF_ROLE)) {
                 return interaction.reply({ content: '⚠️ **Bu bileti kapatmak için Yetkili olmanız gerekmektedir!**', ephemeral: true });
@@ -560,7 +547,6 @@ module.exports = {
             setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
         }
 
-        // --- TICKET SAHİPLENME VE İSTATİSTİK SİSTEMİ ---
         if (cid === 'claim_ticket') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== OWNER_ID && !interaction.member.roles.cache.has(STAFF_ROLE)) {
                 return interaction.reply({ content: '⚠️ **Bu bileti sahiplenmek için Yetkili olmanız gerekmektedir!**', ephemeral: true });
@@ -577,7 +563,6 @@ module.exports = {
             await interaction.channel.send({ content: `✅ **Bu bilet <@${interaction.user.id}> tarafından sahiplenildi.**` });
         }
 
-        // --- YEDEK MANUEL (BUTONLU) SS ONAY/RED SİSTEMİ ---
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
@@ -647,7 +632,6 @@ module.exports = {
             }
         }
 
-        // --- VERİTABANI YÖNETİMİ (WIPE & LIST) ---
         if (cid === 'confirm_delete_all') {
             if (interaction.user.id !== OWNER_ID) return interaction.reply({ content: '⚠️ **Yetkin yok!**', ephemeral: true });
             
