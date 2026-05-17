@@ -139,14 +139,32 @@ app.get('/verify', async (req, res) => {
 });
 
 // ==========================================
-// 4. LUAWARE HİBRİT LOOTLABS SİSTEMİ 
+// 4. LUAWARE KÖPRÜ (SMART BRIDGE) VE LOOTLABS SİSTEMİ 
 // ==========================================
-app.get('/key-al', async (req, res) => {
+const tempUsers = new Map(); // IP ile Discord ID'yi eşleştirip aklında tutacak gizli beyin!
+
+// KÖPRÜ: Discord'daki adam ilk buraya tıklar!
+app.get('/basla', (req, res) => {
     const userId = req.query.userid; 
-    
-    // 🚨 KRİTİK GÜNCELLEME: GERÇEK OYUNCU IP'SİNİ BULMA MANTIĞI EKLENDİ!
     let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
     if (typeof userIp === 'string' && userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
+
+    if (userId) {
+        // Adamın gerçek IP'sini ve Discord kimliğini sisteme mühürle
+        tempUsers.set(userIp, userId); 
+    }
+
+    // 🚨 DİKKAT: BURAYA KENDİ LOOTLABS REKLAM LİNKİNİ YAPIŞTIR!
+    res.redirect('https://link.lootlabs.gg/BURAYA_KENDI_LOOTLABS_LINKIN_GELECEK'); 
+});
+
+// HEDEF: Adam reklamı geçince buraya düşer!
+app.get('/key-al', async (req, res) => {
+    let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
+    if (typeof userIp === 'string' && userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
+
+    // Sistemin hafızasından bu IP'nin kime ait olduğunu bul! (Bulamazsa URL'den dener)
+    const userId = tempUsers.get(userIp) || req.query.userid; 
 
     const baseCSS = `
         <style>
@@ -174,7 +192,7 @@ app.get('/key-al', async (req, res) => {
         return res.send(`
             <html lang="en">
             <head><title>LUAWARE - Error</title>${baseCSS}</head>
-            <body><div class="container"><h1 class="glow-text-red">❌ Error / Hata</h1><p class="desc">Discord ID bulunamadı. Lütfen anahtarınızı Discord sunucumuzdaki butona tıklayarak alın.</p></div></body>
+            <body><div class="container"><h1 class="glow-text-red">❌ Error / Hata</h1><p class="desc">Güvenlik bağlantısı koptu veya oturum bulunamadı. Lütfen Discord sunucumuzdaki Get Key butonuna tekrar tıklayın.</p></div></body>
             </html>
         `);
     }
@@ -213,6 +231,9 @@ app.get('/key-al', async (req, res) => {
         const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
         await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userId, licenseId: licenseId }).save();
+
+        // Key üretildikten sonra hafızayı temizle (Aynı adam tekrar denerse bug olmasın)
+        tempUsers.delete(userIp);
 
         try {
             const OTO_LOG_ID = '1505092320091967498'; 
@@ -295,7 +316,7 @@ client.on('guildMemberRemove', async (member) => {
 });
 
 // =========================================================================
-// 6. LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI VE OTO-SİLİCİ
+// 6. LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI VE OTO-SİLİCİ (KEDİ TEMİZLENDİ)
 // =========================================================================
 setInterval(async () => {
     try {
