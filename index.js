@@ -12,6 +12,10 @@ require('dotenv').config();
 const KeyModel = require('./models/key.js'); 
 
 const app = express();
+
+// 🚨 KRİTİK GÜNCELLEME: RENDER VE CLOUDFLARE GERÇEK IP KİLİDİ AÇILDI!
+app.set('trust proxy', true); 
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds, 
@@ -139,8 +143,10 @@ app.get('/verify', async (req, res) => {
 // ==========================================
 app.get('/key-al', async (req, res) => {
     const userId = req.query.userid; 
-    let userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Bilinmeyen-IP';
-    if (userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
+    
+    // 🚨 KRİTİK GÜNCELLEME: GERÇEK OYUNCU IP'SİNİ BULMA MANTIĞI EKLENDİ!
+    let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
+    if (typeof userIp === 'string' && userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
 
     const baseCSS = `
         <style>
