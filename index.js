@@ -4,6 +4,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const cookieParser = require('cookie-parser'); // 🍪 ÇEREZ SİSTEMİ EKLENDİ!
 require('dotenv').config();
 
 // ==========================================
@@ -27,6 +28,7 @@ const client = new Client({
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser()); // 🍪 ÇEREZ MOTORU AKTİF!
 
 client.commands = new Collection();
 const commandsArray = [];
@@ -139,32 +141,28 @@ app.get('/verify', async (req, res) => {
 });
 
 // ==========================================
-// 4. LUAWARE KÖPRÜ (SMART BRIDGE) VE LOOTLABS SİSTEMİ 
+// 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE LOOTLABS 
 // ==========================================
-const tempUsers = new Map(); // IP ile Discord ID'yi eşleştirip aklında tutacak gizli beyin!
 
 // KÖPRÜ: Discord'daki adam ilk buraya tıklar!
 app.get('/basla', (req, res) => {
     const userId = req.query.userid; 
-    let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
-    if (typeof userIp === 'string' && userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
 
     if (userId) {
-        // Adamın gerçek IP'sini ve Discord kimliğini sisteme mühürle
-        tempUsers.set(userIp, userId); 
+        // Adamın Discord kimliğini direkt kendi tarayıcısına gizli çerez olarak kazıyoruz! (1 Saat geçerli)
+        res.cookie('luaware_userid', userId, { maxAge: 3600000, httpOnly: true }); 
     }
 
-    // 🚨 DİKKAT: BURAYA KENDİ LOOTLABS REKLAM LİNKİNİ YAPIŞTIR!
-    res.redirect('https://link.lootlabs.gg/BURAYA_KENDI_LOOTLABS_LINKIN_GELECEK'); 
+    // 🚨 İŞTE YENİ LOOTLABS LİNKİN BURADA KANKA!
+    res.redirect('https://lootdest.org/s?ZYoyDZKM'); 
 });
 
 // HEDEF: Adam reklamı geçince buraya düşer!
 app.get('/key-al', async (req, res) => {
+    // SADECE VE SADECE ADAMIN TARAYICISINDAKİ ÇEREZİ OKUR!
+    const userId = (req.cookies && req.cookies.luaware_userid) ? req.cookies.luaware_userid : req.query.userid; 
     let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
     if (typeof userIp === 'string' && userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
-
-    // Sistemin hafızasından bu IP'nin kime ait olduğunu bul! (Bulamazsa URL'den dener)
-    const userId = tempUsers.get(userIp) || req.query.userid; 
 
     const baseCSS = `
         <style>
@@ -232,8 +230,8 @@ app.get('/key-al', async (req, res) => {
 
         await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userId, licenseId: licenseId }).save();
 
-        // Key üretildikten sonra hafızayı temizle (Aynı adam tekrar denerse bug olmasın)
-        tempUsers.delete(userIp);
+        // Key üretildikten sonra adamın tarayıcısındaki damgayı temizle!
+        res.clearCookie('luaware_userid');
 
         try {
             const OTO_LOG_ID = '1505092320091967498'; 
@@ -249,7 +247,7 @@ app.get('/key-al', async (req, res) => {
                         { name: '⏳ Süre', value: `\`24 Saat\``, inline: true },
                         { name: '🌐 Cihaz IP', value: `||${userIp}||`, inline: false }
                     )
-                    .setFooter({ text: 'LUAWARE Akıllı Üretim Sistemi' })
+                    .setFooter({ text: 'LUAWARE Akıllı Üretim Sistemi (Cookie)' })
                     .setTimestamp();
                 logChannel.send({ embeds: [logEmbed] }).catch(() => {});
             }
@@ -316,7 +314,7 @@ client.on('guildMemberRemove', async (member) => {
 });
 
 // =========================================================================
-// 6. LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI VE OTO-SİLİCİ (KEDİ TEMİZLENDİ)
+// 6. LUAWARE 24 SAATLİK KEY BİTİŞ HATIRLATICISI VE OTO-SİLİCİ
 // =========================================================================
 setInterval(async () => {
     try {
