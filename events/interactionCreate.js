@@ -542,7 +542,7 @@ module.exports = {
         }
 
         // =========================================================================
-        // 🚨 YENİ GÜNCELLENEN: ABONE ZORUNLULUĞU KALKAN UYGULAMA LİNKİ SİSTEMİ 🚨
+        // 🚨 YENİ GÜNCELLENEN: AKILLI KÖPRÜ (COOKIE) SİSTEMİ 🚨
         // =========================================================================
         if (cid === 'get_key_tr' || cid === 'get_key_en') {
             const isTR = cid === 'get_key_tr';
@@ -580,8 +580,8 @@ module.exports = {
                 }
             }
 
-            // 2. NORMAL ÜYELER İÇİN SABİT UYGULAMA LİNKİ (ABONE KONTROLÜ SİLİNDİ)
-            const paraKazandiranLink = `https://loot-link.com/s?bnYUHMrn&userid=${interaction.user.id}`;
+            // 2. NORMAL ÜYELER İÇİN AKILLI KÖPRÜ SİSTEMİ (ÇEREZ/COOKIE)
+            const paraKazandiranLink = `https://turkey-bots-1.onrender.com/basla?userid=${interaction.user.id}`;
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
@@ -591,7 +591,7 @@ module.exports = {
                     ? `👋 Merhaba <@${interaction.user.id}>,\n\nSistemimizi ücretsiz tutabilmek için kısa bir reklam geçmeniz gerekmektedir.\n\n👇 **Aşağıdaki butona tıkla ve saniyeler içinde anahtarını al:**`
                     : `👋 Hello <@${interaction.user.id}>,\n\nTo keep our system free, you need to pass a short advertisement.\n\n👇 **Click the button below to get your key:**`
                 )
-                .setFooter({ text: 'LUAWARE Monetization System (Powered by LootLabs)' })
+                .setFooter({ text: 'LUAWARE Monetization System' })
                 .setTimestamp();
 
             const row = new ActionRowBuilder().addComponents(
