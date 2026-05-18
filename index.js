@@ -18,7 +18,7 @@ app.set('trust proxy', true);
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMembers, // 🚨 BUNUN ÇALIŞMASI İÇİN DEVELOPER PORTAL'DAN "SERVER MEMBERS INTENT" AÇIK OLMALI!
+        GatewayIntentBits.GuildMembers, 
         GatewayIntentBits.GuildMessages, 
         GatewayIntentBits.MessageContent 
     ]
@@ -78,7 +78,8 @@ app.post('/api/keys/generate', async (req, res) => {
     if (userId !== '345821033414262794') return res.status(403).json({ error: 'Yetki yok!' });
     
     try {
-        const newKey = new KeyModel({ key: keyName, expiry: expiry || 'Sınırsız', hwid: null, owner: userId });
+        const licenseId = Math.floor(10000 + Math.random() * 90000).toString();
+        const newKey = new KeyModel({ key: keyName, expiry: expiry || 'Sınırsız', hwid: null, owner: userId, licenseId: licenseId });
         await newKey.save();
 
         const KEY_LOG_ID = '1505092320091967498'; 
@@ -142,79 +143,57 @@ app.get('/verify', async (req, res) => {
 // 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE YENİ WEB ARAYÜZÜ
 // ==========================================
 
-// KÖPRÜ: Discord'daki adam ilk buraya tıklar!
+// KÖPRÜ
 app.get('/basla', (req, res) => {
     const userId = req.query.userid; 
-
     if (userId) {
         res.cookie('luaware_userid', userId, { maxAge: 3600000, httpOnly: true }); 
     }
     res.redirect('https://lootdest.org/s?ZYoyDZKM'); 
 });
 
-// HEDEF: Adam reklamı geçince buraya düşer! (YENİ ANİMASYONLU SİTE)
+// HEDEF (V1 - TR/EN - Animasyonsuz)
 app.get('/key-al', async (req, res) => {
     const userId = (req.cookies && req.cookies.luaware_userid) ? req.cookies.luaware_userid : req.query.userid; 
     let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
     if (typeof userIp === 'string' && userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
 
-    // 💎 EFSANEVİ LUAWARE CSS VE HTML TASARIMI
     const baseCSS = `
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
             @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
-            
             body { background: #07051a; color: #fff; font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-            
-            /* Arka plan animasyonu */
             .bg-animation { position: absolute; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, #1a1543 0%, #07051a 100%); }
-            
-            /* Loader Animasyonu */
-            .loader-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #07051a; display: flex; justify-content: center; align-items: center; z-index: 9999; animation: fadeOut 1.5s forwards; animation-delay: 1s; pointer-events: none; flex-direction: column; }
-            .loader-circle { border: 5px solid rgba(87, 242, 135, 0.1); border-top: 5px solid #57F287; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; box-shadow: 0 0 20px #57F287; }
-            .loader-text { margin-top: 20px; font-weight: 800; font-size: 24px; letter-spacing: 4px; color: #57F287; text-shadow: 0 0 10px rgba(87, 242, 135, 0.5); }
-            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            @keyframes fadeOut { 100% { opacity: 0; visibility: hidden; } }
-
-            .container { background: rgba(20, 18, 40, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(87, 242, 135, 0.2); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); max-width: 550px; width: 90%; opacity: 0; animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: 2.2s; }
+            .container { background: rgba(20, 18, 40, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(87, 242, 135, 0.2); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); max-width: 550px; width: 90%; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
             @keyframes popIn { 0% { opacity: 0; transform: scale(0.8) translateY(30px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-            
             h1 { margin-top: 0; font-weight: 800; font-size: 32px; }
             .glow-text-green { color: #57F287; text-shadow: 0 0 20px rgba(87, 242, 135, 0.5); }
             .glow-text-yellow { color: #FEE75C; text-shadow: 0 0 20px rgba(254, 231, 92, 0.5); }
             .glow-text-red { color: #ff416c; text-shadow: 0 0 20px rgba(255, 65, 108, 0.5); }
-            
-            .key-box { background: rgba(0, 0, 0, 0.6); border: 2px dashed #57F287; padding: 25px; border-radius: 12px; margin: 30px 0; box-shadow: inset 0 0 20px rgba(87, 242, 135, 0.1); position: relative; }
+            .key-box { background: rgba(0, 0, 0, 0.6); border: 2px dashed #57F287; padding: 25px; border-radius: 12px; margin: 30px 0; box-shadow: inset 0 0 20px rgba(87, 242, 135, 0.1); }
             .key-box.yellow { border-color: #FEE75C; box-shadow: inset 0 0 20px rgba(254, 231, 92, 0.1); }
-            .key-text { font-size: 30px; letter-spacing: 2px; margin: 0; color: #fff; font-family: monospace; font-weight: bold; }
-            
+            .key-text { font-size: 28px; letter-spacing: 2px; margin: 0; color: #fff; font-family: monospace; font-weight: bold; }
+            .key-id { font-size: 22px; color: #FEE75C; margin-top: 15px; }
             .desc { color: #b3b0c4; font-size: 15px; margin-bottom: 10px; line-height: 1.5; }
-            
-            /* SOSYAL MEDYA BUTONLARI */
             .social-container { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
             .social-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 25px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; transition: all 0.3s; width: 100%; color: #fff; }
             .btn-yt { background: linear-gradient(45deg, #ff0000, #cc0000); box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3); }
             .btn-yt:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255, 0, 0, 0.5); }
             .btn-dc { background: linear-gradient(45deg, #5865F2, #4752C4); box-shadow: 0 5px 15px rgba(88, 101, 242, 0.3); }
             .btn-dc:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(88, 101, 242, 0.5); }
-            
             .footer { margin-top: 30px; font-size: 12px; color: #5a5675; letter-spacing: 2px; text-transform: uppercase; }
         </style>
     `;
 
-    // 1. KULLANICI BULUNAMAZSA (HATA EKRANI)
     if (!userId) {
         return res.send(`
             <html lang="en">
             <head><title>LUAWARE - Error</title>${baseCSS}</head>
             <body>
                 <div class="bg-animation"></div>
-                <div class="container" style="animation-delay: 0s;">
+                <div class="container">
                     <h1 class="glow-text-red"><i class="fa-solid fa-triangle-exclamation"></i> Error / Hata</h1>
-                    <p class="desc">Güvenlik bağlantısı koptu veya Discord ID'niz okunamadı. Lütfen sunucumuzdaki <b>Get Key</b> butonuna tekrar tıklayın.</p>
-                    <div class="social-container">
-                        <a href="https://discord.gg/luaware" class="social-btn btn-dc"><i class="fa-brands fa-discord"></i> Join Discord</a>
-                    </div>
+                    <p class="desc">🇹🇷 Güvenlik bağlantısı koptu. Lütfen Discord'dan tekrar butona tıklayın.<br>🇬🇧 Security connection lost. Please click the button on Discord again.</p>
                 </div>
             </body>
             </html>
@@ -224,7 +203,6 @@ app.get('/key-al', async (req, res) => {
     try {
         const userKey = await KeyModel.findOne({ owner: userId });
 
-        // 2. KULLANICININ ZATEN AKTİF KEYİ VARSA
         if (userKey) {
             const creationTime = userKey._id.getTimestamp().getTime();
             const elapsedHours = (Date.now() - creationTime) / (1000 * 60 * 60);
@@ -237,16 +215,21 @@ app.get('/key-al', async (req, res) => {
                     <head><title>LUAWARE - Active License</title>${baseCSS}</head>
                     <body>
                         <div class="bg-animation"></div>
-                        <div class="loader-wrapper"><div class="loader-circle"></div><div class="loader-text">LUAWARE OS</div></div>
                         <div class="container">
                             <h1 class="glow-text-yellow"><i class="fa-solid fa-shield-halved"></i> Active License</h1>
-                            <p class="desc">Sisteme kayıtlı aktif bir anahtarın zaten bulunuyor. 24 saatin dolmadan yeni anahtar üretemezsin.</p>
-                            <div class="key-box yellow"><h2 class="key-text">${userKey.key}</h2></div>
+                            <p class="desc">🇹🇷 Sisteme kayıtlı aktif bir anahtarın zaten bulunuyor.<br>🇬🇧 You already have an active license key.</p>
+                            <div class="key-box yellow">
+                                <p style="margin:0; color:#FEE75C; font-size:12px;">KEY / ANAHTAR</p>
+                                <h2 class="key-text">${userKey.key}</h2>
+                                <hr style="border-color: rgba(254,231,92,0.2); margin: 15px 0;">
+                                <p style="margin:0; color:#FEE75C; font-size:12px;">KEY ID</p>
+                                <h2 class="key-text key-id">#${userKey.licenseId || '00000'}</h2>
+                            </div>
                             <div class="social-container">
-                                <a href="https://discord.gg/luaware" class="social-btn btn-dc" target="_blank"><i class="fa-brands fa-discord"></i> Discord Server</a>
+                                <a href="https://discord.gg/luaware" class="social-btn btn-dc" target="_blank"><i class="fa-brands fa-discord"></i> Discord</a>
                                 <a href="https://www.youtube.com/@LuawareScrpt" class="social-btn btn-yt" target="_blank"><i class="fa-brands fa-youtube"></i> YouTube</a>
                             </div>
-                            <div class="footer">LUAWARE SECURITY SYSTEM</div>
+                            <div class="footer">LUAWARE SECURITY SYSTEM V1</div>
                         </div>
                     </body>
                     </html>
@@ -254,85 +237,60 @@ app.get('/key-al', async (req, res) => {
             }
         }
 
-        // 3. YENİ KEY ÜRETİM AŞAMASI
         const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const newKeyString = `LUA-USER-${part1}-${part2}`;
         const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
         await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userId, licenseId: licenseId }).save();
-        res.clearCookie('luaware_userid'); // Çerezi temizle
+        res.clearCookie('luaware_userid'); 
 
-        // 🚨 YENİ SİSTEM: OTO-DM GÖNDERME 🚨
+        // OTO-DM TR/EN DESTEKLİ
         try {
             const dUser = await client.users.fetch(userId).catch(() => null);
             if (dUser) {
                 const dmEmbed = new EmbedBuilder()
-                    .setTitle('🎉 LUAWARE | Anahtar Başarıyla Üretildi!')
+                    .setTitle('🎉 LUAWARE | Key Generated / Anahtar Üretildi')
                     .setColor('#57F287')
-                    .setDescription(`Merhaba <@${userId}>, web sitemiz üzerinden başarıyla reklamı geçtin ve anahtarın üretildi!\n\n🔑 **Senin Anahtarın:** \`${newKeyString}\`\n⏳ **Süre:** \`24 Saat\`\n\nLUAWARE'i tercih ettiğin için teşekkürler. Scriptimizi Roblox'ta çalıştırıp bu keyi kullanabilirsin!`)
-                    .setFooter({ text: 'LUAWARE Oto-Teslimat Sistemi' })
+                    .setDescription(`🇹🇷 **Merhaba <@${userId}>**, başarıyla reklamı geçtin ve anahtarın üretildi!\n🇬🇧 **Hello <@${userId}>**, you successfully passed the ad and your key is generated!\n\n🔑 **Key / Anahtar:** \`${newKeyString}\`\n🆔 **Key ID:** \`#${licenseId}\`\n⏳ **Time / Süre:** \`24 Saat/Hours\`\n\n📌 *🇹🇷 Bu ID'yi Discord üzerinden HWID sıfırlamak için kullanabilirsin.*\n📌 *🇬🇧 You can use this ID to reset your HWID on Discord.*`)
+                    .setFooter({ text: 'LUAWARE Auto-Delivery V1' })
                     .setTimestamp();
                 await dUser.send({ embeds: [dmEmbed] }).catch(() => {});
             }
         } catch(e) {}
 
-        // KANALA LOG GÖNDER
-        try {
-            const logChannel = client.channels.cache.get('1505092320091967498');
-            if (logChannel) {
-                const logEmbed = new EmbedBuilder()
-                    .setTitle('🔑 YENİ REKLAM KEYİ ÜRETİLDİ!')
-                    .setColor('#57F287')
-                    .setDescription(`Kullanıcı reklamı geçti, key verildi ve DM'den bilgilendirildi.`)
-                    .addFields(
-                        { name: '👤 Kullanıcı', value: `<@${userId}>`, inline: true }, 
-                        { name: '📜 Key', value: `\`${newKeyString}\``, inline: true }
-                    )
-                    .setFooter({ text: 'LUAWARE Akıllı Üretim' }).setTimestamp();
-                logChannel.send({ embeds: [logEmbed] }).catch(() => {});
-            }
-        } catch (e) {}
-
-        // BAŞARILI ÜRETİM EKRANI (HTML)
         return res.send(`
             <html lang="en">
             <head><title>LUAWARE - Key Generated</title>${baseCSS}</head>
             <body>
                 <div class="bg-animation"></div>
-                
-                <div class="loader-wrapper">
-                    <div class="loader-circle"></div>
-                    <div class="loader-text">AUTHENTICATING...</div>
-                </div>
-
                 <div class="container">
-                    <h1 class="glow-text-green"><i class="fa-solid fa-check-circle"></i> Access Granted</h1>
-                    <p class="desc">Destek olduğun için teşekkürler! Özel anahtarın üretildi ve Discord DM kutuna gönderildi.</p>
+                    <h1 class="glow-text-green"><i class="fa-solid fa-check-circle"></i> Success / Başarılı</h1>
+                    <p class="desc">🇹🇷 Anahtarın üretildi ve Discord DM kutuna gönderildi.<br>🇬🇧 Your key is generated and sent to your Discord DM.</p>
                     
                     <div class="key-box">
+                        <p style="margin:0; color:#57F287; font-size:12px;">KEY / ANAHTAR</p>
                         <h2 class="key-text">${newKeyString}</h2>
+                        <hr style="border-color: rgba(87,242,135,0.2); margin: 15px 0;">
+                        <p style="margin:0; color:#FEE75C; font-size:12px;">KEY ID</p>
+                        <h2 class="key-text key-id">#${licenseId}</h2>
                     </div>
 
-                    <p class="desc" style="color: #ff5555; font-size: 13px;">⚠️ Bu anahtar cihazınıza kilitlenecektir (HWID). Kimseyle paylaşmayın!</p>
+                    <p class="desc" style="color: #ff5555; font-size: 13px;">⚠️ 🇹🇷 Bu anahtar HWID kilitlidir. Paylaşmayın!<br>🇬🇧 This key is HWID locked. Do not share!</p>
 
                     <div class="social-container">
-                        <a href="https://discord.gg/luaware" class="social-btn btn-dc" target="_blank">
-                            <i class="fa-brands fa-discord"></i> Discord
-                        </a>
-                        <a href="https://www.youtube.com/@LuawareScrpt" class="social-btn btn-yt" target="_blank">
-                            <i class="fa-brands fa-youtube"></i> YouTube
-                        </a>
+                        <a href="https://discord.gg/luaware" class="social-btn btn-dc" target="_blank"><i class="fa-brands fa-discord"></i> Discord</a>
+                        <a href="https://www.youtube.com/@LuawareScrpt" class="social-btn btn-yt" target="_blank"><i class="fa-brands fa-youtube"></i> YouTube</a>
                     </div>
                     
-                    <div class="footer">LUAWARE SECURITY SYSTEM V4</div>
+                    <div class="footer">LUAWARE SECURITY SYSTEM V1</div>
                 </div>
             </body>
             </html>
         `);
 
     } catch (err) {
-        return res.send(`<html lang="en"><body style="background:#07051a;color:#ff5555;text-align:center;padding-top:100px;font-family:sans-serif;"><h2>❌ System Error</h2><p>Database connection failed.</p></body></html>`);
+        return res.send(`<html lang="en"><body style="background:#07051a;color:#ff5555;text-align:center;padding-top:100px;font-family:sans-serif;"><h2>❌ System Error</h2></body></html>`);
     }
 });
 

@@ -76,7 +76,6 @@ module.exports = {
                 await interaction.deferReply({ ephemeral: true }); 
 
                 try {
-                    // LUAWARE XOR OBFUSCATION ENGINE
                     const xorKey = Math.floor(Math.random() * 150) + 50; 
                     let encryptedBytes = [];
                     for (let i = 0; i < rawCode.length; i++) {
@@ -85,7 +84,6 @@ module.exports = {
                     const byteString = encryptedBytes.join(',');
                     const obfuscatedCode = `local _LUAWARE_PROTECT = {${byteString}} local _KEY = ${xorKey} local _CHARS = {} for i=1, #_LUAWARE_PROTECT do _CHARS[i] = string.char(_LUAWARE_PROTECT[i] ~ _KEY) end return loadstring(table.concat(_CHARS))()`;
 
-                    // Şifrelenen kodu .lua DOSYASINA dönüştürüyoruz
                     const buffer = Buffer.from(obfuscatedCode, 'utf-8');
                     const attachment = new AttachmentBuilder(buffer, { name: 'luaware_protected.lua' });
 
@@ -95,24 +93,28 @@ module.exports = {
                         .setDescription(isTR ? 'Sisteme girdiğiniz kod şifrelenerek aşağıdaki `.lua` dosyasına kaydedildi. İndirip executorunuza yapıştırabilirsiniz!' : 'The code you entered has been encrypted and saved to the `.lua` file below. Download and execute it!')
                         .setFooter({ text: 'LUAWARE Obfuscation Tool' });
 
-                    return interaction.editReply({ 
-                        embeds: [obfEmbed], 
-                        files: [attachment] 
-                    });
+                    return interaction.editReply({ embeds: [obfEmbed], files: [attachment] });
 
                 } catch (err) {
                     return interaction.editReply({ content: isTR ? '❌ **Hata:** Kod şifrelenemedi.' : '❌ **Error:** Failed to obfuscate code.' });
                 }
             }
 
-            // HWID SIFIRLAMA FORMU
+            // HWID SIFIRLAMA FORMU (İD, KEY ID VEYA FULL KEY DESTEKLİ)
             if (interaction.customId === 'modal_hwid_tr' || interaction.customId === 'modal_hwid_en') {
                 const isTR = interaction.customId === 'modal_hwid_tr';
-                const keyInput = interaction.fields.getTextInputValue('key_input');
+                const keyInput = interaction.fields.getTextInputValue('key_input').replace('#', '').trim();
                 await interaction.deferReply({ ephemeral: true });
 
-                const keyData = await KeyModel.findOne({ key: keyInput });
-                if (!keyData) return interaction.editReply({ content: isTR ? '❌ **Böyle bir anahtar bulunamadı!**' : '❌ **Key not found!**' });
+                const keyData = await KeyModel.findOne({ 
+                    $or: [
+                        { key: keyInput }, 
+                        { licenseId: keyInput },
+                        { owner: keyInput }
+                    ] 
+                });
+
+                if (!keyData) return interaction.editReply({ content: isTR ? '❌ **Böyle bir anahtar/ID bulunamadı!**' : '❌ **Key/ID not found!**' });
                 
                 if (keyData.owner !== interaction.user.id && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                     return interaction.editReply({ content: isTR ? '❌ **Bu anahtar size ait değil!**' : '❌ **This key does not belong to you!**' });
@@ -123,19 +125,26 @@ module.exports = {
                 return interaction.editReply({ content: isTR ? '✅ **HWID başarıyla sıfırlandı! Artık yeni bir cihazdan veya hesaptan giriş yapabilirsiniz.**' : '✅ **HWID successfully reset! You can now log in from a new device.**' });
             }
 
-            // ANAHTAR AKTİFLEŞTİRME / SORGULAMA FORMU
+            // ANAHTAR AKTİFLEŞTİRME / SORGULAMA FORMU (İD, KEY ID VEYA FULL KEY DESTEKLİ)
             if (interaction.customId === 'modal_activate_tr' || interaction.customId === 'modal_activate_en') {
                 const isTR = interaction.customId === 'modal_activate_tr';
-                const keyInput = interaction.fields.getTextInputValue('key_input');
+                const keyInput = interaction.fields.getTextInputValue('key_input').replace('#', '').trim();
                 await interaction.deferReply({ ephemeral: true });
 
-                const keyData = await KeyModel.findOne({ key: keyInput });
+                const keyData = await KeyModel.findOne({ 
+                    $or: [
+                        { key: keyInput }, 
+                        { licenseId: keyInput },
+                        { owner: keyInput }
+                    ] 
+                });
+
                 if (!keyData) return interaction.editReply({ content: isTR ? '❌ **Geçersiz veya süresi dolmuş anahtar!**' : '❌ **Invalid or expired Key!**' });
                 
                 return interaction.editReply({ 
                     content: isTR 
-                    ? `✅ **Anahtar Durumu:** Aktif!\n🔑 **Key:** \`${keyData.key}\`\n⏳ **Süre:** \`${keyData.expiry}\`\n💻 **Kilitli Cihaz (HWID):** \`${keyData.hwid ? 'Evet' : 'Hayır'}\`\n\n*Hileyi Roblox üzerinde çalıştırıp bu anahtarı girebilirsiniz.*` 
-                    : `✅ **Key Status:** Active!\n🔑 **Key:** \`${keyData.key}\`\n⏳ **Expiry:** \`${keyData.expiry}\`\n💻 **HWID Locked:** \`${keyData.hwid ? 'Yes' : 'No'}\`\n\n*You can execute the script on Roblox and enter this key.*` 
+                    ? `✅ **Anahtar Durumu:** Aktif!\n🔑 **Key:** \`${keyData.key}\`\n🆔 **Key ID:** \`#${keyData.licenseId || '00000'}\`\n⏳ **Süre:** \`${keyData.expiry}\`\n💻 **Kilitli Cihaz (HWID):** \`${keyData.hwid ? 'Evet' : 'Hayır'}\`\n\n*Hileyi Roblox üzerinde çalıştırıp bu anahtarı girebilirsiniz.*` 
+                    : `✅ **Key Status:** Active!\n🔑 **Key:** \`${keyData.key}\`\n🆔 **Key ID:** \`#${keyData.licenseId || '00000'}\`\n⏳ **Expiry:** \`${keyData.expiry}\`\n💻 **HWID Locked:** \`${keyData.hwid ? 'Yes' : 'No'}\`\n\n*You can execute the script on Roblox and enter this key.*` 
                 });
             }
 
@@ -309,7 +318,6 @@ module.exports = {
         if (!interaction.isButton()) return;
         const cid = interaction.customId; 
 
-        // ŞİFRELEME (OBFUSCATE) TR/EN BUTONLARINA BASILINCA (MODAL AÇILIR)
         if (cid === 'btn_obfuscate_tr' || cid === 'btn_obfuscate_en') {
             const isTR = cid === 'btn_obfuscate_tr';
             const modal = new ModalBuilder().setCustomId(isTR ? 'modal_obfuscate_tr' : 'modal_obfuscate_en').setTitle(isTR ? 'LUAWARE Şifreleme' : 'LUAWARE Obfuscation');
@@ -325,7 +333,6 @@ module.exports = {
             return interaction.showModal(modal);
         }
 
-        // HWID SIFIRLAMA BUTONUNA BASILINCA
         if (cid === 'reset_hwid_tr' || cid === 'reset_hwid_en') {
             const isTR = cid === 'reset_hwid_tr';
             const modal = new ModalBuilder().setCustomId(isTR ? 'modal_hwid_tr' : 'modal_hwid_en').setTitle(isTR ? 'LUAWARE HWID Sıfırlama' : 'LUAWARE HWID Reset');
@@ -333,7 +340,7 @@ module.exports = {
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder()
                         .setCustomId('key_input')
-                        .setLabel(isTR ? 'Mevcut LUAWARE Anahtarınız:' : 'Your LUAWARE Key:')
+                        .setLabel(isTR ? 'Discord ID, Key ID veya Tam Key:' : 'Discord ID, Key ID or Full Key:')
                         .setStyle(TextInputStyle.Short)
                         .setRequired(true)
                 )
@@ -341,7 +348,6 @@ module.exports = {
             return interaction.showModal(modal);
         }
 
-        // KEY AKTİFLEŞTİR BUTONUNA BASILINCA
         if (cid === 'activate_key_tr' || cid === 'activate_key_en') {
             const isTR = cid === 'activate_key_tr';
             const modal = new ModalBuilder().setCustomId(isTR ? 'modal_activate_tr' : 'modal_activate_en').setTitle(isTR ? 'Anahtar Doğrulama' : 'Key Activation');
@@ -349,7 +355,7 @@ module.exports = {
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder()
                         .setCustomId('key_input')
-                        .setLabel(isTR ? 'Doğrulamak İstediğiniz Anahtar:' : 'Enter Your Key:')
+                        .setLabel(isTR ? 'Sorgulanacak Key, Key ID veya Discord ID:' : 'Search by Key, Key ID or Discord ID:')
                         .setStyle(TextInputStyle.Short)
                         .setRequired(true)
                 )
@@ -357,7 +363,6 @@ module.exports = {
             return interaction.showModal(modal);
         }
 
-        // NASIL ALINIR BUTONU
         if (cid === 'how_to_get_tr' || cid === 'how_to_get_en') {
             const isTR = cid === 'how_to_get_tr';
             const embed = new EmbedBuilder()
@@ -678,7 +683,7 @@ module.exports = {
             await interaction.channel.send({ content: `✅ **Bu bilet <@${interaction.user.id}> tarafından sahiplenildi.**` });
         }
 
-        // ESKİ ABONE SS BUTONLARI (Kaldırmadım ki eskiden kalan mesajlara basılırsa bot çökmesin, ama artık kullanılmayacak)
+        // ESKİ ABONE SS BUTONLARI
         if (cid.startsWith('abone_yes_') || cid.startsWith('abone_no_')) {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ **Bu işlem için Yönetici yetkisine sahip olmalısınız!**', ephemeral: true });
