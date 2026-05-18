@@ -19,6 +19,7 @@ module.exports = {
                 `📝 **İşlem -->** \`Bilet oluşturmak için aşağıdaki departmanlardan birini seçin.\`\n\n` +
                 `⚠️ *Aynı konu için lütfen birden fazla bilet açmayınız!*`
             )
+            .setImage('https://cdn.discordapp.com/attachments/1111/1111/standard.gif') // YENİ EKLENEN GIF SİSTEMİ
             .setFooter({ text: 'LUAWARE Support System' });
 
         const row = new ActionRowBuilder().addComponents(

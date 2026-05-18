@@ -19,6 +19,7 @@ module.exports = {
                 `📝 **Action -->** \`Select a department below to open a ticket.\`\n\n` +
                 `⚠️ *Please do not open multiple tickets for the same issue!*`
             )
+            .setImage('https://cdn.discordapp.com/attachments/1111/1111/standard.gif') // YENİ EKLENEN GIF SİSTEMİ
             .setFooter({ text: 'LUAWARE Support System' });
 
         const row = new ActionRowBuilder().addComponents(
