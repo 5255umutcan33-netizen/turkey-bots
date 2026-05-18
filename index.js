@@ -4,7 +4,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
-const cookieParser = require('cookie-parser'); // 🍪 ÇEREZ SİSTEMİ EKLENDİ!
+const cookieParser = require('cookie-parser'); 
 require('dotenv').config();
 
 // ==========================================
@@ -13,14 +13,12 @@ require('dotenv').config();
 const KeyModel = require('./models/key.js'); 
 
 const app = express();
-
-// 🚨 KRİTİK GÜNCELLEME: RENDER VE CLOUDFLARE GERÇEK IP KİLİDİ AÇILDI!
 app.set('trust proxy', true); 
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMembers, // Anti-Leave sistemi için zorunlu!
+        GatewayIntentBits.GuildMembers, // 🚨 BUNUN ÇALIŞMASI İÇİN DEVELOPER PORTAL'DAN "SERVER MEMBERS INTENT" AÇIK OLMALI!
         GatewayIntentBits.GuildMessages, 
         GatewayIntentBits.MessageContent 
     ]
@@ -28,7 +26,7 @@ const client = new Client({
 
 app.use(cors());
 app.use(express.json());
-app.use(cookieParser()); // 🍪 ÇEREZ MOTORU AKTİF!
+app.use(cookieParser()); 
 
 client.commands = new Collection();
 const commandsArray = [];
@@ -141,7 +139,7 @@ app.get('/verify', async (req, res) => {
 });
 
 // ==========================================
-// 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE LOOTLABS 
+// 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE YENİ WEB ARAYÜZÜ
 // ==========================================
 
 // KÖPRÜ: Discord'daki adam ilk buraya tıklar!
@@ -149,48 +147,76 @@ app.get('/basla', (req, res) => {
     const userId = req.query.userid; 
 
     if (userId) {
-        // Adamın Discord kimliğini direkt kendi tarayıcısına gizli çerez olarak kazıyoruz! (1 Saat geçerli)
         res.cookie('luaware_userid', userId, { maxAge: 3600000, httpOnly: true }); 
     }
-
-    // 🚨 İŞTE YENİ LOOTLABS LİNKİN BURADA KANKA!
     res.redirect('https://lootdest.org/s?ZYoyDZKM'); 
 });
 
-// HEDEF: Adam reklamı geçince buraya düşer!
+// HEDEF: Adam reklamı geçince buraya düşer! (YENİ ANİMASYONLU SİTE)
 app.get('/key-al', async (req, res) => {
-    // SADECE VE SADECE ADAMIN TARAYICISINDAKİ ÇEREZİ OKUR!
     const userId = (req.cookies && req.cookies.luaware_userid) ? req.cookies.luaware_userid : req.query.userid; 
     let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
     if (typeof userIp === 'string' && userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
 
+    // 💎 EFSANEVİ LUAWARE CSS VE HTML TASARIMI
     const baseCSS = `
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
-            body { background: linear-gradient(-45deg, #0f0c29, #302b63, #0f0c29); background-size: 400% 400%; animation: gradientBG 15s ease infinite; color: #fff; font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-            @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-            .container { background: rgba(25, 25, 35, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); max-width: 550px; width: 90%; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-            @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
-            h1 { margin-top: 0; font-weight: 800; }
-            .glow-text-green { background: -webkit-linear-gradient(45deg, #57F287, #00D4FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(87, 242, 135, 0.3); }
-            .glow-text-yellow { background: -webkit-linear-gradient(45deg, #FEE75C, #ffaa00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(254, 231, 92, 0.3); }
-            .glow-text-red { background: -webkit-linear-gradient(45deg, #ff416c, #ff4b2b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(255, 65, 108, 0.3); }
-            .key-box { background: rgba(0, 0, 0, 0.4); border: 2px solid #57F287; padding: 20px; border-radius: 12px; margin: 25px 0; box-shadow: 0 0 25px rgba(87, 242, 135, 0.2); transition: transform 0.3s; }
-            .key-box:hover { transform: scale(1.05); box-shadow: 0 0 35px rgba(87, 242, 135, 0.4); }
-            .key-box.yellow { border-color: #FEE75C; box-shadow: 0 0 25px rgba(254, 231, 92, 0.2); }
-            .key-box.yellow:hover { box-shadow: 0 0 35px rgba(254, 231, 92, 0.4); }
-            .key-text { font-size: 32px; letter-spacing: 3px; margin: 0; color: #fff; font-family: monospace; text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
-            .desc { color: #ccc; font-size: 14px; margin-bottom: 5px; }
-            .warning { font-size: 13px; color: #ff5555; font-weight: 600; margin-top: 25px; padding: 10px; background: rgba(255, 0, 0, 0.1); border-radius: 8px; }
-            .footer { margin-top: 20px; font-size: 11px; color: #666; letter-spacing: 1px; }
+            @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+            
+            body { background: #07051a; color: #fff; font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+            
+            /* Arka plan animasyonu */
+            .bg-animation { position: absolute; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, #1a1543 0%, #07051a 100%); }
+            
+            /* Loader Animasyonu */
+            .loader-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #07051a; display: flex; justify-content: center; align-items: center; z-index: 9999; animation: fadeOut 1.5s forwards; animation-delay: 1s; pointer-events: none; flex-direction: column; }
+            .loader-circle { border: 5px solid rgba(87, 242, 135, 0.1); border-top: 5px solid #57F287; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; box-shadow: 0 0 20px #57F287; }
+            .loader-text { margin-top: 20px; font-weight: 800; font-size: 24px; letter-spacing: 4px; color: #57F287; text-shadow: 0 0 10px rgba(87, 242, 135, 0.5); }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            @keyframes fadeOut { 100% { opacity: 0; visibility: hidden; } }
+
+            .container { background: rgba(20, 18, 40, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(87, 242, 135, 0.2); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); max-width: 550px; width: 90%; opacity: 0; animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: 2.2s; }
+            @keyframes popIn { 0% { opacity: 0; transform: scale(0.8) translateY(30px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+            
+            h1 { margin-top: 0; font-weight: 800; font-size: 32px; }
+            .glow-text-green { color: #57F287; text-shadow: 0 0 20px rgba(87, 242, 135, 0.5); }
+            .glow-text-yellow { color: #FEE75C; text-shadow: 0 0 20px rgba(254, 231, 92, 0.5); }
+            .glow-text-red { color: #ff416c; text-shadow: 0 0 20px rgba(255, 65, 108, 0.5); }
+            
+            .key-box { background: rgba(0, 0, 0, 0.6); border: 2px dashed #57F287; padding: 25px; border-radius: 12px; margin: 30px 0; box-shadow: inset 0 0 20px rgba(87, 242, 135, 0.1); position: relative; }
+            .key-box.yellow { border-color: #FEE75C; box-shadow: inset 0 0 20px rgba(254, 231, 92, 0.1); }
+            .key-text { font-size: 30px; letter-spacing: 2px; margin: 0; color: #fff; font-family: monospace; font-weight: bold; }
+            
+            .desc { color: #b3b0c4; font-size: 15px; margin-bottom: 10px; line-height: 1.5; }
+            
+            /* SOSYAL MEDYA BUTONLARI */
+            .social-container { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
+            .social-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 25px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; transition: all 0.3s; width: 100%; color: #fff; }
+            .btn-yt { background: linear-gradient(45deg, #ff0000, #cc0000); box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3); }
+            .btn-yt:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255, 0, 0, 0.5); }
+            .btn-dc { background: linear-gradient(45deg, #5865F2, #4752C4); box-shadow: 0 5px 15px rgba(88, 101, 242, 0.3); }
+            .btn-dc:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(88, 101, 242, 0.5); }
+            
+            .footer { margin-top: 30px; font-size: 12px; color: #5a5675; letter-spacing: 2px; text-transform: uppercase; }
         </style>
     `;
 
+    // 1. KULLANICI BULUNAMAZSA (HATA EKRANI)
     if (!userId) {
         return res.send(`
             <html lang="en">
             <head><title>LUAWARE - Error</title>${baseCSS}</head>
-            <body><div class="container"><h1 class="glow-text-red">❌ Error / Hata</h1><p class="desc">Güvenlik bağlantısı koptu veya oturum bulunamadı. Lütfen Discord sunucumuzdaki Get Key butonuna tekrar tıklayın.</p></div></body>
+            <body>
+                <div class="bg-animation"></div>
+                <div class="container" style="animation-delay: 0s;">
+                    <h1 class="glow-text-red"><i class="fa-solid fa-triangle-exclamation"></i> Error / Hata</h1>
+                    <p class="desc">Güvenlik bağlantısı koptu veya Discord ID'niz okunamadı. Lütfen sunucumuzdaki <b>Get Key</b> butonuna tekrar tıklayın.</p>
+                    <div class="social-container">
+                        <a href="https://discord.gg/luaware" class="social-btn btn-dc"><i class="fa-brands fa-discord"></i> Join Discord</a>
+                    </div>
+                </div>
+            </body>
             </html>
         `);
     }
@@ -198,6 +224,7 @@ app.get('/key-al', async (req, res) => {
     try {
         const userKey = await KeyModel.findOne({ owner: userId });
 
+        // 2. KULLANICININ ZATEN AKTİF KEYİ VARSA
         if (userKey) {
             const creationTime = userKey._id.getTimestamp().getTime();
             const elapsedHours = (Date.now() - creationTime) / (1000 * 60 * 60);
@@ -209,12 +236,16 @@ app.get('/key-al', async (req, res) => {
                     <html lang="en">
                     <head><title>LUAWARE - Active License</title>${baseCSS}</head>
                     <body>
+                        <div class="bg-animation"></div>
+                        <div class="loader-wrapper"><div class="loader-circle"></div><div class="loader-text">LUAWARE OS</div></div>
                         <div class="container">
-                            <h1 class="glow-text-yellow">⚠️ Active Key Found</h1>
-                            <p class="desc">🇹🇷 Sisteme kayıtlı aktif bir anahtarın zaten bulunuyor.</p>
-                            <p class="desc">🇬🇧 You already have an active license key in the system.</p>
+                            <h1 class="glow-text-yellow"><i class="fa-solid fa-shield-halved"></i> Active License</h1>
+                            <p class="desc">Sisteme kayıtlı aktif bir anahtarın zaten bulunuyor. 24 saatin dolmadan yeni anahtar üretemezsin.</p>
                             <div class="key-box yellow"><h2 class="key-text">${userKey.key}</h2></div>
-                            <div class="warning">🇹🇷 24 saatin dolmadan yeni anahtar üretemezsin.<br>🇬🇧 You cannot generate a new key until your 24 hours expire.</div>
+                            <div class="social-container">
+                                <a href="https://discord.gg/luaware" class="social-btn btn-dc" target="_blank"><i class="fa-brands fa-discord"></i> Discord Server</a>
+                                <a href="https://www.youtube.com/@LuawareScrpt" class="social-btn btn-yt" target="_blank"><i class="fa-brands fa-youtube"></i> YouTube</a>
+                            </div>
                             <div class="footer">LUAWARE SECURITY SYSTEM</div>
                         </div>
                     </body>
@@ -223,54 +254,85 @@ app.get('/key-al', async (req, res) => {
             }
         }
 
+        // 3. YENİ KEY ÜRETİM AŞAMASI
         const part1 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const part2 = Math.random().toString(36).substr(2, 4).toUpperCase();
         const newKeyString = `LUA-USER-${part1}-${part2}`;
         const licenseId = Math.floor(10000 + Math.random() * 90000).toString(); 
 
         await new KeyModel({ key: newKeyString, expiry: '24 Saat', owner: userId, licenseId: licenseId }).save();
+        res.clearCookie('luaware_userid'); // Çerezi temizle
 
-        // Key üretildikten sonra adamın tarayıcısındaki damgayı temizle!
-        res.clearCookie('luaware_userid');
-
+        // 🚨 YENİ SİSTEM: OTO-DM GÖNDERME 🚨
         try {
-            const OTO_LOG_ID = '1505092320091967498'; 
-            const logChannel = client.channels.cache.get(OTO_LOG_ID);
+            const dUser = await client.users.fetch(userId).catch(() => null);
+            if (dUser) {
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle('🎉 LUAWARE | Anahtar Başarıyla Üretildi!')
+                    .setColor('#57F287')
+                    .setDescription(`Merhaba <@${userId}>, web sitemiz üzerinden başarıyla reklamı geçtin ve anahtarın üretildi!\n\n🔑 **Senin Anahtarın:** \`${newKeyString}\`\n⏳ **Süre:** \`24 Saat\`\n\nLUAWARE'i tercih ettiğin için teşekkürler. Scriptimizi Roblox'ta çalıştırıp bu keyi kullanabilirsin!`)
+                    .setFooter({ text: 'LUAWARE Oto-Teslimat Sistemi' })
+                    .setTimestamp();
+                await dUser.send({ embeds: [dmEmbed] }).catch(() => {});
+            }
+        } catch(e) {}
+
+        // KANALA LOG GÖNDER
+        try {
+            const logChannel = client.channels.cache.get('1505092320091967498');
             if (logChannel) {
                 const logEmbed = new EmbedBuilder()
                     .setTitle('🔑 YENİ REKLAM KEYİ ÜRETİLDİ!')
                     .setColor('#57F287')
-                    .setDescription(`Bir kullanıcı LootLabs'ı geçti ve sistem ona özel yepyeni bir anahtar oluşturdu.`)
+                    .setDescription(`Kullanıcı reklamı geçti, key verildi ve DM'den bilgilendirildi.`)
                     .addFields(
                         { name: '👤 Kullanıcı', value: `<@${userId}>`, inline: true }, 
-                        { name: '📜 Key Adı', value: `\`${newKeyString}\``, inline: true },
-                        { name: '⏳ Süre', value: `\`24 Saat\``, inline: true },
-                        { name: '🌐 Cihaz IP', value: `||${userIp}||`, inline: false }
+                        { name: '📜 Key', value: `\`${newKeyString}\``, inline: true }
                     )
-                    .setFooter({ text: 'LUAWARE Akıllı Üretim Sistemi (Cookie)' })
-                    .setTimestamp();
+                    .setFooter({ text: 'LUAWARE Akıllı Üretim' }).setTimestamp();
                 logChannel.send({ embeds: [logEmbed] }).catch(() => {});
             }
         } catch (e) {}
 
+        // BAŞARILI ÜRETİM EKRANI (HTML)
         return res.send(`
             <html lang="en">
             <head><title>LUAWARE - Key Generated</title>${baseCSS}</head>
             <body>
+                <div class="bg-animation"></div>
+                
+                <div class="loader-wrapper">
+                    <div class="loader-circle"></div>
+                    <div class="loader-text">AUTHENTICATING...</div>
+                </div>
+
                 <div class="container">
-                    <h1 class="glow-text-green">✅ Access Granted</h1>
-                    <p class="desc">🇹🇷 Destek olduğun için teşekkürler. İşte 24 saatlik anahtarın:</p>
-                    <p class="desc">🇬🇧 Thank you for your support. Here is your 24-hour key:</p>
-                    <div class="key-box"><h2 class="key-text">${newKeyString}</h2></div>
-                    <div class="warning">🇹🇷 Bu anahtar donanımına (HWID) kilitlenecektir. Kimseyle paylaşma!<br><br>🇬🇧 This key will be locked to your HWID. Do not share it!</div>
-                    <div class="footer">LUAWARE SECURITY SYSTEM</div>
+                    <h1 class="glow-text-green"><i class="fa-solid fa-check-circle"></i> Access Granted</h1>
+                    <p class="desc">Destek olduğun için teşekkürler! Özel anahtarın üretildi ve Discord DM kutuna gönderildi.</p>
+                    
+                    <div class="key-box">
+                        <h2 class="key-text">${newKeyString}</h2>
+                    </div>
+
+                    <p class="desc" style="color: #ff5555; font-size: 13px;">⚠️ Bu anahtar cihazınıza kilitlenecektir (HWID). Kimseyle paylaşmayın!</p>
+
+                    <div class="social-container">
+                        <a href="https://discord.gg/luaware" class="social-btn btn-dc" target="_blank">
+                            <i class="fa-brands fa-discord"></i> Discord
+                        </a>
+                        <a href="https://www.youtube.com/@LuawareScrpt" class="social-btn btn-yt" target="_blank">
+                            <i class="fa-brands fa-youtube"></i> YouTube
+                        </a>
+                    </div>
+                    
+                    <div class="footer">LUAWARE SECURITY SYSTEM V4</div>
                 </div>
             </body>
             </html>
         `);
 
     } catch (err) {
-        return res.send(`<html lang="en"><body style="background:#121212;color:#ff5555;text-align:center;padding-top:100px;font-family:sans-serif;"><h2>❌ System Error</h2><p>Database connection failed.</p></body></html>`);
+        return res.send(`<html lang="en"><body style="background:#07051a;color:#ff5555;text-align:center;padding-top:100px;font-family:sans-serif;"><h2>❌ System Error</h2><p>Database connection failed.</p></body></html>`);
     }
 });
 
@@ -359,4 +421,4 @@ setInterval(async () => {
 client.login(process.env.TOKEN);
 process.on('unhandledRejection', (reason, promise) => { console.log('🚨 [Anti-Crash] İşlenmeyen Hata Engellendi (unhandledRejection):', reason); });
 process.on('uncaughtException', (err, origin) => { console.log('🚨 [Anti-Crash] Beklenmeyen Hata Engellendi (uncaughtException):', err); });
-process.on('uncaughtExceptionMonitor', (err, origin) => { console.log('🚨 [Anti-Crash] Beklenmeyen Hata Monitörü:', err); }); 
+process.on('uncaughtExceptionMonitor', (err, origin) => { console.log('🚨 [Anti-Crash] Beklenmeyen Hata Monitörü:', err); });
