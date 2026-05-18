@@ -28,7 +28,7 @@ app.use(cors());
 app.use(express.json());
 app.use(cookieParser()); 
 
-// 🚨 GİF VE RESİMLERİ SİTEDE GÖSTERMEK İÇİN PUBLIC KLASÖRÜNÜ DIŞA AÇIYORUZ
+// 🚨 GİF VE MÜZİK İÇİN PUBLIC KLASÖRÜ AÇIK
 app.use(express.static('public'));
 
 client.commands = new Collection();
@@ -143,10 +143,9 @@ app.get('/verify', async (req, res) => {
 });
 
 // ==========================================
-// 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE V1 WEB ARAYÜZÜ (ANİMASYONLU)
+// 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE V1 WEB ARAYÜZÜ (MÜZİKLİ)
 // ==========================================
 
-// KÖPRÜ
 app.get('/basla', (req, res) => {
     const userId = req.query.userid; 
     if (userId) {
@@ -155,7 +154,6 @@ app.get('/basla', (req, res) => {
     res.redirect('https://lootdest.org/s?ZYoyDZKM'); 
 });
 
-// HEDEF (Giriş Animasyonu + Arka Plan GIF'i + Premium Tasarım)
 app.get('/key-al', async (req, res) => {
     const userId = (req.cookies && req.cookies.luaware_userid) ? req.cookies.luaware_userid : req.query.userid; 
     let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
@@ -168,20 +166,30 @@ app.get('/key-al', async (req, res) => {
             
             body { background: #07051a; color: #fff; font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
             
-            /* GİF ARKA PLANI */
-            .bg-gif { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('/giphy.gif'); background-size: cover; background-position: center; z-index: -2; opacity: 0.15; }
-            .bg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, rgba(26, 21, 67, 0.4) 0%, #07051a 100%); }
+            /* GİF DAHA BELİRGİN YAPILDI */
+            .bg-gif { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('/giphy.gif'); background-size: cover; background-position: center; z-index: -2; opacity: 0.45; }
+            .bg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, rgba(26, 21, 67, 0.2) 0%, rgba(7, 5, 26, 0.9) 100%); }
 
-            /* GİRİŞ ANİMASYONU (LUAWARE SCRIPT) */
+            /* GİRİŞ ANİMASYONU */
             #entrance-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #07051a; display: flex; justify-content: center; align-items: center; z-index: 9999; animation: fadeOutLoader 1.5s forwards 1.8s; pointer-events: none; }
             #entrance-loader h1 { color: #57F287; font-family: 'Poppins', sans-serif; font-size: 3.5em; letter-spacing: 8px; text-shadow: 0 0 25px rgba(87, 242, 135, 0.7); opacity: 0; animation: fadeInText 1s forwards 0.3s; text-align: center; }
             
             @keyframes fadeOutLoader { 100% { opacity: 0; visibility: hidden; } }
             @keyframes fadeInText { 100% { opacity: 1; transform: scale(1.05); } }
 
-            /* ANA PANEL KUTUSU (Animasyon bitince çıkar) */
-            .container { background: rgba(20, 18, 40, 0.75); backdrop-filter: blur(15px); border: 1px solid rgba(87, 242, 135, 0.2); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); max-width: 550px; width: 90%; opacity: 0; animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards 2.5s; }
-            @keyframes popIn { 0% { opacity: 0; transform: scale(0.8) translateY(30px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+            /* TIKLA VE BAŞLA EKRANI */
+            #click-to-start { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9998; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; opacity: 0; visibility: hidden; transition: opacity 0.5s; }
+            #click-to-start.show { opacity: 1; visibility: visible; }
+            .click-text { font-size: 30px; font-weight: 800; letter-spacing: 3px; color: #57F287; animation: pulse 1.5s infinite; text-align: center; }
+            @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; text-shadow: 0 0 20px #57F287; } 100% { transform: scale(1); opacity: 0.8; } }
+
+            /* SAĞ ÜST MÜZİK BUTONU */
+            .music-btn { position: fixed; top: 20px; right: 20px; z-index: 9999; background: rgba(0,0,0,0.6); border: 2px solid #57F287; color: #57F287; padding: 12px 18px; border-radius: 50px; cursor: pointer; transition: 0.3s; display: none; font-size: 20px; }
+            .music-btn:hover { background: #57F287; color: #000; box-shadow: 0 0 15px #57F287; }
+
+            /* ANA PANEL KUTUSU */
+            .container { background: rgba(20, 18, 40, 0.75); backdrop-filter: blur(15px); border: 1px solid rgba(87, 242, 135, 0.2); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); max-width: 550px; width: 90%; opacity: 0; transform: scale(0.8) translateY(30px); transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: none; }
+            .container.show { opacity: 1; transform: scale(1) translateY(0); display: block; }
             
             h1.title { margin-top: 0; font-weight: 800; font-size: 32px; }
             .glow-text-green { color: #57F287; text-shadow: 0 0 20px rgba(87, 242, 135, 0.5); }
@@ -204,7 +212,50 @@ app.get('/key-al', async (req, res) => {
         </style>
     `;
 
-    const loadingHTML = `<div id="entrance-loader"><h1>LUAWARE SCRIPT</h1></div><div class="bg-gif"></div><div class="bg-overlay"></div>`;
+    const interactionScript = `
+        <script>
+            document.addEventListener("DOMContentLoaded", () => {
+                const clickScreen = document.getElementById("click-to-start");
+                const container = document.querySelector(".container");
+                const bgMusic = document.getElementById("bg-music");
+                const musicBtn = document.getElementById("music-toggle");
+                const musicIcon = document.getElementById("music-icon");
+
+                // Giriş animasyonu 3.3 saniyede bitiyor, sonra tıkla ekranı gelsin
+                setTimeout(() => {
+                    clickScreen.classList.add("show");
+                }, 3300);
+
+                // Ekrana tıklanınca
+                clickScreen.addEventListener("click", () => {
+                    clickScreen.classList.remove("show");
+                    container.classList.add("show"); // Ana paneli göster
+                    musicBtn.style.display = "block"; // Müzik butonunu göster
+                    bgMusic.volume = 0.4;
+                    bgMusic.play().catch(e => console.log("Ses oynatılamadı:", e));
+                });
+
+                // Müzik aç/kapa butonu
+                musicBtn.addEventListener("click", () => {
+                    if (bgMusic.paused) {
+                        bgMusic.play();
+                        musicIcon.className = "fa-solid fa-volume-high";
+                    } else {
+                        bgMusic.pause();
+                        musicIcon.className = "fa-solid fa-volume-xmark";
+                    }
+                });
+            });
+        </script>
+    `;
+
+    const loadingHTML = `
+        <div id="entrance-loader"><h1>LUAWARE SCRIPT</h1></div>
+        <div id="click-to-start"><div class="click-text">Tıkla ve Başla<br><span style="font-size:20px; color:#b3b0c4;">Click to Start</span></div></div>
+        <div class="bg-gif"></div><div class="bg-overlay"></div>
+        <audio id="bg-music" loop><source src="/music.mp3" type="audio/mpeg"></audio>
+        <button id="music-toggle" class="music-btn"><i id="music-icon" class="fa-solid fa-volume-high"></i></button>
+    `;
 
     if (!userId) {
         return res.send(`
@@ -216,6 +267,7 @@ app.get('/key-al', async (req, res) => {
                     <h1 class="title glow-text-red"><i class="fa-solid fa-triangle-exclamation"></i> Error / Hata</h1>
                     <p class="desc">🇹🇷 Güvenlik bağlantısı koptu. Lütfen Discord'dan tekrar butona tıklayın.<br>🇬🇧 Security connection lost. Please click the button on Discord again.</p>
                 </div>
+                ${interactionScript}
             </body>
             </html>
         `);
@@ -252,6 +304,7 @@ app.get('/key-al', async (req, res) => {
                             </div>
                             <div class="footer">LUAWARE SECURITY SYSTEM V1</div>
                         </div>
+                        ${interactionScript}
                     </body>
                     </html>
                 `);
@@ -306,6 +359,7 @@ app.get('/key-al', async (req, res) => {
                     
                     <div class="footer">LUAWARE SECURITY SYSTEM V1</div>
                 </div>
+                ${interactionScript}
             </body>
             </html>
         `);
