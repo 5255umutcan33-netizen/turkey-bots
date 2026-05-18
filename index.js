@@ -28,6 +28,9 @@ app.use(cors());
 app.use(express.json());
 app.use(cookieParser()); 
 
+// 🚨 GİF VE RESİMLERİ SİTEDE GÖSTERMEK İÇİN PUBLIC KLASÖRÜNÜ DIŞA AÇIYORUZ
+app.use(express.static('public'));
+
 client.commands = new Collection();
 const commandsArray = [];
 
@@ -140,7 +143,7 @@ app.get('/verify', async (req, res) => {
 });
 
 // ==========================================
-// 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE YENİ WEB ARAYÜZÜ
+// 4. LUAWARE KÖPRÜ (COOKIE SİSTEMİ) VE V1 WEB ARAYÜZÜ (ANİMASYONLU)
 // ==========================================
 
 // KÖPRÜ
@@ -152,7 +155,7 @@ app.get('/basla', (req, res) => {
     res.redirect('https://lootdest.org/s?ZYoyDZKM'); 
 });
 
-// HEDEF (V1 - TR/EN - Animasyonsuz)
+// HEDEF (Giriş Animasyonu + Arka Plan GIF'i + Premium Tasarım)
 app.get('/key-al', async (req, res) => {
     const userId = (req.cookies && req.cookies.luaware_userid) ? req.cookies.luaware_userid : req.query.userid; 
     let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
@@ -162,19 +165,35 @@ app.get('/key-al', async (req, res) => {
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
             @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+            
             body { background: #07051a; color: #fff; font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-            .bg-animation { position: absolute; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, #1a1543 0%, #07051a 100%); }
-            .container { background: rgba(20, 18, 40, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(87, 242, 135, 0.2); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); max-width: 550px; width: 90%; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+            
+            /* GİF ARKA PLANI */
+            .bg-gif { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('/giphy.gif'); background-size: cover; background-position: center; z-index: -2; opacity: 0.15; }
+            .bg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, rgba(26, 21, 67, 0.4) 0%, #07051a 100%); }
+
+            /* GİRİŞ ANİMASYONU (LUAWARE SCRIPT) */
+            #entrance-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #07051a; display: flex; justify-content: center; align-items: center; z-index: 9999; animation: fadeOutLoader 1.5s forwards 1.8s; pointer-events: none; }
+            #entrance-loader h1 { color: #57F287; font-family: 'Poppins', sans-serif; font-size: 3.5em; letter-spacing: 8px; text-shadow: 0 0 25px rgba(87, 242, 135, 0.7); opacity: 0; animation: fadeInText 1s forwards 0.3s; text-align: center; }
+            
+            @keyframes fadeOutLoader { 100% { opacity: 0; visibility: hidden; } }
+            @keyframes fadeInText { 100% { opacity: 1; transform: scale(1.05); } }
+
+            /* ANA PANEL KUTUSU (Animasyon bitince çıkar) */
+            .container { background: rgba(20, 18, 40, 0.75); backdrop-filter: blur(15px); border: 1px solid rgba(87, 242, 135, 0.2); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); max-width: 550px; width: 90%; opacity: 0; animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards 2.5s; }
             @keyframes popIn { 0% { opacity: 0; transform: scale(0.8) translateY(30px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-            h1 { margin-top: 0; font-weight: 800; font-size: 32px; }
+            
+            h1.title { margin-top: 0; font-weight: 800; font-size: 32px; }
             .glow-text-green { color: #57F287; text-shadow: 0 0 20px rgba(87, 242, 135, 0.5); }
             .glow-text-yellow { color: #FEE75C; text-shadow: 0 0 20px rgba(254, 231, 92, 0.5); }
             .glow-text-red { color: #ff416c; text-shadow: 0 0 20px rgba(255, 65, 108, 0.5); }
+            
             .key-box { background: rgba(0, 0, 0, 0.6); border: 2px dashed #57F287; padding: 25px; border-radius: 12px; margin: 30px 0; box-shadow: inset 0 0 20px rgba(87, 242, 135, 0.1); }
             .key-box.yellow { border-color: #FEE75C; box-shadow: inset 0 0 20px rgba(254, 231, 92, 0.1); }
-            .key-text { font-size: 28px; letter-spacing: 2px; margin: 0; color: #fff; font-family: monospace; font-weight: bold; }
+            .key-text { font-size: 26px; letter-spacing: 2px; margin: 0; color: #fff; font-family: monospace; font-weight: bold; }
             .key-id { font-size: 22px; color: #FEE75C; margin-top: 15px; }
             .desc { color: #b3b0c4; font-size: 15px; margin-bottom: 10px; line-height: 1.5; }
+            
             .social-container { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
             .social-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 25px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; transition: all 0.3s; width: 100%; color: #fff; }
             .btn-yt { background: linear-gradient(45deg, #ff0000, #cc0000); box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3); }
@@ -185,14 +204,16 @@ app.get('/key-al', async (req, res) => {
         </style>
     `;
 
+    const loadingHTML = `<div id="entrance-loader"><h1>LUAWARE SCRIPT</h1></div><div class="bg-gif"></div><div class="bg-overlay"></div>`;
+
     if (!userId) {
         return res.send(`
             <html lang="en">
             <head><title>LUAWARE - Error</title>${baseCSS}</head>
             <body>
-                <div class="bg-animation"></div>
+                ${loadingHTML}
                 <div class="container">
-                    <h1 class="glow-text-red"><i class="fa-solid fa-triangle-exclamation"></i> Error / Hata</h1>
+                    <h1 class="title glow-text-red"><i class="fa-solid fa-triangle-exclamation"></i> Error / Hata</h1>
                     <p class="desc">🇹🇷 Güvenlik bağlantısı koptu. Lütfen Discord'dan tekrar butona tıklayın.<br>🇬🇧 Security connection lost. Please click the button on Discord again.</p>
                 </div>
             </body>
@@ -214,9 +235,9 @@ app.get('/key-al', async (req, res) => {
                     <html lang="en">
                     <head><title>LUAWARE - Active License</title>${baseCSS}</head>
                     <body>
-                        <div class="bg-animation"></div>
+                        ${loadingHTML}
                         <div class="container">
-                            <h1 class="glow-text-yellow"><i class="fa-solid fa-shield-halved"></i> Active License</h1>
+                            <h1 class="title glow-text-yellow"><i class="fa-solid fa-shield-halved"></i> Active License</h1>
                             <p class="desc">🇹🇷 Sisteme kayıtlı aktif bir anahtarın zaten bulunuyor.<br>🇬🇧 You already have an active license key.</p>
                             <div class="key-box yellow">
                                 <p style="margin:0; color:#FEE75C; font-size:12px;">KEY / ANAHTAR</p>
@@ -263,9 +284,9 @@ app.get('/key-al', async (req, res) => {
             <html lang="en">
             <head><title>LUAWARE - Key Generated</title>${baseCSS}</head>
             <body>
-                <div class="bg-animation"></div>
+                ${loadingHTML}
                 <div class="container">
-                    <h1 class="glow-text-green"><i class="fa-solid fa-check-circle"></i> Success / Başarılı</h1>
+                    <h1 class="title glow-text-green"><i class="fa-solid fa-check-circle"></i> Success / Başarılı</h1>
                     <p class="desc">🇹🇷 Anahtarın üretildi ve Discord DM kutuna gönderildi.<br>🇬🇧 Your key is generated and sent to your Discord DM.</p>
                     
                     <div class="key-box">

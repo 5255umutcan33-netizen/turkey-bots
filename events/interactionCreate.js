@@ -20,6 +20,18 @@ const StaffStat = require('../models/staffStat');
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
+        
+        // ==========================================
+        // 🚨 ÜST DÜZEY GÜVENLİK: DM KORUMASI 🚨
+        // ==========================================
+        // Eğer etkileşim (komut veya buton) bir sunucudan değil de direkt DM'den geliyorsa engelle!
+        if (!interaction.guild) {
+            return interaction.reply({ 
+                content: '❌ **Hop dedik! LUAWARE sistemini ve komutlarını sadece resmi sunucumuz içerisinden kullanabilirsiniz. DM üzerinden işlem yapılamaz!**\n\n🔗 **Sunucuya Katıl:** https://discord.gg/luaware', 
+                ephemeral: true 
+            }).catch(() => {});
+        }
+
         const OWNER_ID = '345821033414262794'; 
         
         // --- LOG KANALLARI ---
