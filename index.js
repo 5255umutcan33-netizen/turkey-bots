@@ -151,9 +151,8 @@ app.get('/basla', (req, res) => {
     if (userId) {
         res.cookie('luaware_userid', userId, { maxAge: 3600000, httpOnly: true }); 
     }
-    res.redirect('https://lootdest.org/s?ZYoyDZKM'); 
+    res.redirect('https://loot-link.com/s?mVdDGn95'); 
 });
-
 app.get('/key-al', async (req, res) => {
     const userId = (req.cookies && req.cookies.luaware_userid) ? req.cookies.luaware_userid : req.query.userid; 
     let userIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || 'Bilinmeyen-IP';
