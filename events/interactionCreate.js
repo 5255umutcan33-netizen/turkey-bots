@@ -598,7 +598,7 @@ module.exports = {
             }
 
             // 2. NORMAL ÜYELER İÇİN AKILLI KÖPRÜ SİSTEMİ (ÇEREZ/COOKIE)
-            const paraKazandiranLink = `https://turkey-bots-1.onrender.com/basla?userid=${interaction.user.id}`;
+            const paraKazandiranLink = `https://turkey-bots-6ffc.onrender.com/basla?userid=${interaction.user.id}`;
 
             const adEmbed = new EmbedBuilder()
                 .setTitle(isTR ? '💰 LUAWARE | Ücretsiz Key Sistemi' : '💰 LUAWARE | Free Key System')
